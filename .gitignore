@@ -12,3 +12,24 @@ __pycache__/
 *.pyc
 .venv/
 fabric-samples/
+
+# Node / Caliper generated dependencies
+node_modules/
+
+# Caliper generated reports
+env/caliper/e1/report.html
+
+# Fabric generated cryptographic material
+env/fabric/e1/crypto-config/
+
+# Fabric generated channel/config artifacts
+env/fabric/e1/channel-artifacts/
+env/fabric/e1/*anchors.tx
+env/fabric/e1/config_block.pb
+env/fabric/e1/config_block.json
+
+# Generated chaincode package
+env/fabric/e1/*.tar.gz
+
+# E1 temporary/uncompressed raw samples
+raw/e1/*.csv

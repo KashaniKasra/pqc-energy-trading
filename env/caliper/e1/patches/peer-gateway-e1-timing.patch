@@ -1,0 +1,107 @@
+--- node_modules/@hyperledger/caliper-fabric/lib/connector-versions/peer-gateway/PeerGateway.js
++++ node_modules/@hyperledger/caliper-fabric/lib/connector-versions/peer-gateway/PeerGateway.js
+@@ -16,6 +16,8 @@
+ 
+ const grpc = require('@grpc/grpc-js');
+ const crypto = require('crypto');
++const fs = require('fs');
++const path = require('path');
+ const { connect, signers } = require('@hyperledger/fabric-gateway');
+ const { ConnectorBase, CaliperUtils, TxStatus, Version, ConfigUtil } = require('@hyperledger/caliper-core');
+ const FabricConnectorContext = require('../../FabricConnectorContext');
+@@ -72,6 +74,9 @@
+         this.clients = new Map();
+         this.context = undefined;
+ 
++        this.endorseTimingSamples = [];
++        this.commitTimingSamples = [];
++
+     }
+ 
+     /**
+@@ -166,6 +171,49 @@
+      * @async
+      */
+     async releaseContext() {
++        if (this.currentRoundLabel !== 'warmup') {
++            const timingDir = path.resolve(
++                process.cwd(),
++                '../../../raw/e1'
++            );
++
++            fs.mkdirSync(timingDir, { recursive: true });
++
++            if (this.endorseTimingSamples.length > 0) {
++                const endorseFile = path.join(
++                    timingDir,
++                    `${this.currentConfigLabel}_endorse_${this.currentRoundLabel}_worker${this.workerIndex}_${Date.now()}.csv`
++                );
++
++                fs.writeFileSync(
++                    endorseFile,
++                    'latency_ms\n' +
++                    this.endorseTimingSamples.join('\n') +
++                    '\n'
++                );
++            }
++
++            if (this.commitTimingSamples.length > 0) {
++                const commitFile = path.join(
++                    timingDir,
++                    `${this.currentConfigLabel}_commit_${this.currentRoundLabel}_worker${this.workerIndex}_${Date.now()}.csv`
++                );
++
++                fs.writeFileSync(
++                    commitFile,
++                    'latency_ms\n' +
++                    this.commitTimingSamples.join('\n') +
++                    '\n'
++                );
++            }
++        }
++
++        this.endorseTimingSamples = [];
++        this.commitTimingSamples = [];
++
++        this.currentRoundLabel = 'unknown';
++        this.currentConfigLabel = process.env.E1_CONFIG || 'unknown';
++
+         for (const userName of this.gatewayInstanceByIdentity.keys()) {
+             const gateway = this.gatewayInstanceByIdentity.get(userName);
+             logger.info(`disconnecting gateway for user ${userName}`);
+@@ -315,15 +363,35 @@
+ 
+         // set transaction invocation result to return
+         try {
++            if (invokeSettings.roundLabel) {
++                this.currentRoundLabel = invokeSettings.roundLabel;
++            }
++
+             const proposal = smartContract.newProposal(invokeSettings.contractFunction, proposalOptions);
+             invokeStatus.SetID(proposal.getTransactionId());
+             if (isSubmit) {
+                 invokeStatus.Set('request_type', 'transaction');
+                 invokeStatus.SetTimeCreate(Date.now());
++
++                const endorseStart = process.hrtime.bigint();
+                 const transaction = await proposal.endorse();
++                const endorseEnd = process.hrtime.bigint();
++
++                this.endorseTimingSamples.push(
++                    Number(endorseEnd - endorseStart) / 1e6
++                );
++
++                const commitStart = process.hrtime.bigint();
++
+                 const subtx = await transaction.submit();
+                 const status = await subtx.getStatus();
+ 
++                const commitEnd = process.hrtime.bigint();
++
++                this.commitTimingSamples.push(
++                    Number(commitEnd - commitStart) / 1e6
++                );
++
+                 if (!status.successful) {
+                     throw Error(`Failed to submit trasaction with status code: ${status.code}`);
+                 }

@@ -9,7 +9,11 @@ The project focuses on measuring the real behavior of the system. Experimental r
 Completed:
 
 - Baseline Hyperledger Fabric environment
-- Raft-based Fabric test network verification
+- Raft-based Fabric E1 network with 2 organizations and 2 peers per organization
+- Reproducible E1 Fabric setup script
+- Reproducible Caliper 0.7.1 setup with pinned dependencies
+- E1 endorsement and commit timing instrumentation
+- Fixed E1 server CPU measurement configuration
 - Mininet installation and connectivity test
 - E0 cryptographic primitive benchmark on the server platform
 - Raw E0 timing samples and summary statistics
@@ -17,7 +21,9 @@ Completed:
 Not yet completed:
 
 - E0 meter-platform measurements
-- E1 and later experiments
+- E1 post-quantum Fabric identity configurations
+- Final E1 measurements and `data/e1_fabric.csv`
+- E2 and later experiments
 
 ## Repository Structure
 
@@ -25,39 +31,69 @@ Not yet completed:
 .
 ├── README.md
 ├── meta.json
+├── .gitignore
 ├── data/
 │   └── e0_primitives.csv
 ├── env/
 │   ├── caliper/
+│   │   └── e1/
+│   │       ├── benchmark.yaml
+│   │       ├── connection-org1.yaml
+│   │       ├── connection-org2.yaml
+│   │       ├── network.yaml
+│   │       ├── package.json
+│   │       ├── package-lock.json
+│   │       ├── patches/
+│   │       │   └── peer-gateway-e1-timing.patch
+│   │       ├── run_e1.sh
+│   │       ├── setup_caliper_e1.sh
+│   │       ├── setup_cpu_e1.sh
+│   │       └── workload/
+│   │           └── set.js
 │   ├── fabric/
+│   │   └── e1/
+│   │       ├── configtx.yaml
+│   │       ├── crypto-config.yaml
+│   │       ├── docker-compose.yaml
+│   │       └── setup_fabric_e1.sh
 │   ├── mininet/
+│   │   └── .gitkeep
 │   └── setup/
 │       └── install-fabric.sh
 ├── figures/
+│   └── .gitkeep
 ├── raw/
 │   └── e0/
-│       ├── e0_server_*.csv.gz
-│       └── e0_server_run.log
+│       ├── e0_server_run.log
+│       └── e0_server_*.csv.gz
 └── src/
-    └── e0/
-        ├── benchmark_test.go
-        ├── ecdsa_benchmark.go
-        ├── go.mod
-        ├── go.sum
-        ├── main.go
-        ├── oqs_benchmark.go
-        ├── output.go
-        ├── run_e0_server.sh
-        ├── stats.go
-        └── timing.go
+    ├── e0/
+    │   ├── benchmark_test.go
+    │   ├── ecdsa_benchmark.go
+    │   ├── go.mod
+    │   ├── go.sum
+    │   ├── main.go
+    │   ├── oqs_benchmark.go
+    │   ├── output.go
+    │   ├── run_e0_server.sh
+    │   ├── stats.go
+    │   └── timing.go
+    └── e1/
+        └── chaincode/
+            ├── chaincode.go
+            ├── go.mod
+            └── go.sum
 ```
 
-- `env/`: environment and experiment configuration
-- `src/`: experiment source code
-- `data/`: final summary CSV files
-- `raw/`: compressed raw measurement samples
-- `figures/`: generated figures
-- `meta.json`: pinned software versions, hardware information, parameter sets, and benchmark metadata
+- `data/`: final summary CSV files.
+- `env/`: reproducible environment, network, benchmark, and setup configuration.
+- `env/fabric/e1/`: Hyperledger Fabric E1 topology and setup automation.
+- `env/caliper/e1/`: Caliper E1 benchmark configuration, workload, pinned dependencies, timing patch, and execution scripts.
+- `src/e0/`: E0 cryptographic primitive benchmark implementation.
+- `src/e1/chaincode/`: minimal E1 key/value chaincode used to generate Fabric transactions.
+- `raw/`: retained raw measurement samples.
+- `figures/`: generated experiment figures.
+- `meta.json`: hardware information, exact software versions, cryptographic parameter sets, and experiment metadata.
 
 ## Environment
 
@@ -81,24 +117,115 @@ Main software versions:
 - liboqs-go: v0.15.0
 - Mininet: 2.3.0
 - Docker: 28.2.2
+- Node.js: 22.23.2
+- npm: 12.0.2
+- Hyperledger Caliper: 0.7.1
+- Caliper Fabric connector: 0.7.1
+- Fabric Gateway SDK: 1.7.1
+- @grpc/grpc-js: 1.13.1
 
-Exact release tags, commits, and other environment information are recorded in `meta.json`.
+Exact release tags, commits, dependency versions, and other environment information are recorded in `meta.json`.
 
-## Baseline Verification
+## E1 Fabric Baseline
 
-Hyperledger Fabric was configured using Raft (`etcdraft`) ordering.
+The E1 Fabric environment uses Hyperledger Fabric 2.5.16 with `etcdraft` ordering.
 
-The baseline test network used:
+The network topology is:
 
+- 2 organizations: `Org1MSP` and `Org2MSP`
+- 2 peers per organization
+- 1 Raft orderer
 - Channel: `energychannel`
-- Organizations: `Org1MSP` and `Org2MSP`
-- Chaincode: `basic` v1.0
+- Chaincode: `simplekv`
+- Benchmark operation: `Set(key,value)`
 
-Both peers successfully joined the channel. The chaincode was installed, approved, and committed.
+The Fabric environment can be rebuilt using:
 
-`InitLedger` and `GetAllAssets` were executed successfully, confirming basic end-to-end Fabric operation and ledger state persistence.
+```bash
+./env/fabric/e1/setup_fabric_e1.sh
+```
 
-Mininet 2.3.0 was also verified using its default `pingall` smoke test. The `h1-s1-h2` topology completed with 0% packet loss.
+The setup script:
+
+- regenerates Fabric cryptographic material
+- generates the genesis block and channel artifacts
+- starts the orderer and four peers
+- waits for the Raft leader and peer readiness
+- creates `energychannel`
+- joins all four peers
+- applies the Org1 and Org2 anchor peer updates
+- packages and installs `simplekv`
+- approves and commits the chaincode definition
+- performs a Set/Get smoke test
+- verifies cross-organization discovery of all four peers
+
+Generated Fabric cryptographic material, channel artifacts, and chaincode packages are not committed to the repository.
+
+Mininet 2.3.0 was separately verified using its default `pingall` smoke test. The `h1-s1-h2` topology completed with 0% packet loss.
+
+## E1 Caliper Setup
+
+E1 uses Hyperledger Caliper 0.7.1.
+
+The Caliper dependency tree is pinned by:
+
+```text
+env/caliper/e1/package.json
+env/caliper/e1/package-lock.json
+```
+
+The environment is prepared using:
+
+```bash
+cd env/caliper/e1
+./setup_caliper_e1.sh
+```
+
+The setup script installs the pinned dependencies and applies the repository-tracked E1 timing patch to the Caliper Fabric Peer Gateway connector.
+
+The benchmark workload invokes only:
+
+```text
+Set(key,value)
+```
+
+The committed measurement profile currently contains:
+
+- 120 seconds at 50 TPS
+- 120 seconds at 200 TPS
+
+The same workload profile is used across E1 cryptographic configurations.
+
+The Caliper instrumentation records:
+
+- endorsement latency around `proposal.endorse()`
+- commit latency from `transaction.submit()` through `submittedTransaction.getStatus()`
+
+Timing uses `process.hrtime.bigint()`.
+
+Samples are retained in memory during each round and written to raw CSV files after the round completes.
+
+## E1 CPU Measurement State
+
+Before an E1 server measurement, the CPU state is prepared using:
+
+```bash
+./env/caliper/e1/setup_cpu_e1.sh
+```
+
+The E1 server measurement configuration is:
+
+- fixed logical CPU set: `2-15`
+- AMD P-state mode: `passive`
+- CPU governor: `performance`
+- CPU boost: disabled
+- frequency scaling range on CPUs `2-15`: fixed to `3201000 kHz`
+
+The E1 runner verifies the required CPU state before starting a measurement.
+
+The base Fabric containers defined in the E1 Docker Compose configuration are assigned to logical CPUs `2-15`.
+
+The Caliper process is launched with CPU affinity restricted to logical CPUs `2-15`.
 
 ## E0 — Cryptographic Primitive Benchmark
 
@@ -268,12 +395,77 @@ The server runner executes all required scheme/operation combinations sequential
 
 ## Reproducibility
 
-The exact software versions, release tags, commits, hardware information, cryptographic parameter-set strings, message-generation method, and E0 timing configuration are recorded in:
+Exact software versions, release tags, commits, hardware information, cryptographic parameter strings, CPU controls, Fabric parameters, and experiment metadata are recorded in:
 
 ```text
 meta.json
 ```
 
-Raw measurements are retained separately from the summary results.
+### E0
 
-E0 cryptographic measurements are performed independently from network emulation. Mininet is not included in cryptographic primitive timing.
+E0 cryptographic measurements are performed independently from Hyperledger Fabric and Mininet.
+
+Raw E0 measurements are retained separately from the summary results.
+
+The E0 server benchmark is reproduced from:
+
+```bash
+cd src/e0
+./run_e0_server.sh
+```
+
+using the CPU and software configuration recorded in `meta.json`.
+
+### E1
+
+The E1 environment is reproduced in the following order.
+
+First, build the Fabric environment:
+
+```bash
+./env/fabric/e1/setup_fabric_e1.sh
+```
+
+Prepare Caliper:
+
+```bash
+cd env/caliper/e1
+./setup_caliper_e1.sh
+cd ../../..
+```
+
+Prepare the server CPU state:
+
+```bash
+./env/caliper/e1/setup_cpu_e1.sh
+```
+
+The following local hostname mappings must resolve before the Fabric setup is executed:
+
+```text
+127.0.0.1 orderer.example.com
+127.0.0.1 peer0.org1.example.com peer1.org1.example.com peer0.org2.example.com peer1.org2.example.com
+```
+
+At the current implementation stage, only the ECDSA E1 identity configuration is enabled for measurement:
+
+```bash
+cd env/caliper/e1
+./run_e1.sh ecdsa
+```
+
+ML-DSA-44, ML-DSA-65, and SPHINCS+-SHA2-128s-simple E1 measurements must not be run until their Fabric identity implementations are completed.
+
+Raw measurements are retained separately from final summary files.
+
+Final E1 results will be written to:
+
+```text
+data/e1_fabric.csv
+```
+
+with the required schema:
+
+```text
+config,identity_bytes,endorse_median_ms,endorse_p95_ms,commit_median_ms,tps_sustained,block_utilisation
+```

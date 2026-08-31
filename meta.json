@@ -19,13 +19,16 @@
     "docker": "28.2.2",
     "docker_compose": "2.40.3+ds1-0ubuntu1~24.04.1",
     "go": "1.22.2",
-    "node": "18.19.1",
-    "npm": "9.2.0",
+    "node": "22.23.2",
+    "npm": "12.0.2",
     "openssl": "3.0.13-0ubuntu3.12",
     "hyperledger_fabric": "2.5.16",
     "fabric_ca": "1.5.17",
     "fabric_samples_commit": "05edea01d4cf24dd4087bd3750c36e690dc4d6ff",
-    "hyperledger_caliper": null,
+    "hyperledger_caliper": "0.7.1",
+    "caliper_fabric_connector": "0.7.1",
+    "fabric_gateway_sdk": "1.7.1",
+    "grpc_js": "1.13.1",
     "liboqs_release_tag": "0.15.0",
     "liboqs_commit": "97f6b86b1b6d109cfd43cf276ae39c2e776aed80",
     "liboqs_go_release_tag": "v0.15.0",
@@ -51,6 +54,50 @@
     "stddev_method": "sample standard deviation (n-1)",
     "timing_boundary": "cryptographic primitive API call",
     "raw_samples_compressed": true
+  },
+
+  "e1_benchmark": {
+    "platform": "server",
+    "fabric_version": "2.5.16",
+    "ordering_service": "etcdraft",
+    "orderer_count": 1,
+    "organizations": 2,
+    "peers_per_organization": 2,
+    "channel": "energychannel",
+    "chaincode": "simplekv",
+    "chaincode_operation": "Set(key,value)",
+    "caliper_version": "0.7.1",
+    "caliper_workers": 1,
+    "workload_profile": [
+      {
+        "label": "50-tps",
+        "rate_tps": 50,
+        "duration_seconds": 120
+      },
+      {
+        "label": "200-tps",
+        "rate_tps": 200,
+        "duration_seconds": 120
+      }
+    ],
+    "rate_controller": "fixed-rate",
+    "fixed_cpu_set": "2-15",
+    "cpu_scaling_driver": "amd-pstate",
+    "amd_pstate_mode": "passive",
+    "cpu_governor": "performance",
+    "cpu_boost_enabled": false,
+    "cpu_frequency_mhz": 3201,
+    "block_batch_timeout_seconds": 2,
+    "block_max_message_count": 500,
+    "block_absolute_max_bytes": 10485760,
+    "block_preferred_max_bytes": 2097152,
+    "endorsement_timing_boundary": "proposal.endorse()",
+    "commit_timing_boundary": "transaction.submit() through submittedTransaction.getStatus()",
+    "timing_clock": "process.hrtime.bigint()",
+    "timing_unit": "milliseconds",
+    "raw_timing_storage": "in-memory during transactions, flushed to CSV after each round",
+    "caliper_connector_instrumentation": "repository patch applied to @hyperledger/caliper-fabric 0.7.1 PeerGateway connector",
+    "raw_samples_final_compression": "gzip"
   },
 
   "e0_message": {

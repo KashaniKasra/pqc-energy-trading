@@ -1,0 +1,18 @@
+{
+  "name": "e1",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@grpc/grpc-js": "1.13.1",
+    "@hyperledger/caliper-cli": "0.7.1",
+    "@hyperledger/caliper-fabric": "0.7.1",
+    "@hyperledger/fabric-gateway": "1.7.1"
+  }
+}

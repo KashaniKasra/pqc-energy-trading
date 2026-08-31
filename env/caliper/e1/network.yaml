@@ -1,0 +1,33 @@
+name: E1 Fabric Network
+version: "2.0.0"
+
+caliper:
+  blockchain: fabric
+
+channels:
+  - channelName: energychannel
+    contracts:
+      - id: simplekv
+
+organizations:
+  - mspid: Org1MSP
+    identities:
+      certificates:
+        - name: User1
+          clientPrivateKey:
+            path: ../../fabric/e1/crypto-config/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/keystore/priv_sk
+          clientSignedCert:
+            path: ../../fabric/e1/crypto-config/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/signcerts/User1@org1.example.com-cert.pem
+    connectionProfile:
+      path: connection-org1.yaml
+
+  - mspid: Org2MSP
+    identities:
+      certificates:
+        - name: User1Org2
+          clientPrivateKey:
+            path: ../../fabric/e1/crypto-config/peerOrganizations/org2.example.com/users/User1@org2.example.com/msp/keystore/priv_sk
+          clientSignedCert:
+            path: ../../fabric/e1/crypto-config/peerOrganizations/org2.example.com/users/User1@org2.example.com/msp/signcerts/User1@org2.example.com-cert.pem
+    connectionProfile:
+      path: connection-org2.yaml
