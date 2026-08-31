@@ -1,0 +1,200 @@
+========================================
+E0 server benchmark batch
+CPU: 2,3
+GOMAXPROCS: 1
+Data points: 21
+========================================
+
+----------------------------------------
+Running: server | ML-KEM-768 | keygen
+Started: 2026-08-28T12:47:17+03:30
+----------------------------------------
+DONE: platform=server scheme=ML-KEM-768 operation=keygen n_iter=10000 median_ms=0.016810 p95_ms=0.022471 p99_ms=0.028272 stddev_ms=0.005795
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_ML-KEM-768_keygen.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T12:47:17+03:30
+
+----------------------------------------
+Running: server | ML-KEM-768 | encaps
+Started: 2026-08-28T12:47:22+03:30
+----------------------------------------
+DONE: platform=server scheme=ML-KEM-768 operation=encaps n_iter=10000 median_ms=0.017001 p95_ms=0.022191 p99_ms=0.026198 stddev_ms=0.005897
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_ML-KEM-768_encaps.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T12:47:22+03:30
+
+----------------------------------------
+Running: server | ML-KEM-768 | decaps
+Started: 2026-08-28T12:47:27+03:30
+----------------------------------------
+DONE: platform=server scheme=ML-KEM-768 operation=decaps n_iter=10000 median_ms=0.019385 p95_ms=0.023954 p99_ms=0.027211 stddev_ms=0.001942
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_ML-KEM-768_decaps.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T12:47:28+03:30
+
+----------------------------------------
+Running: server | ML-DSA-44 | keygen
+Started: 2026-08-28T12:47:33+03:30
+----------------------------------------
+DONE: platform=server scheme=ML-DSA-44 operation=keygen n_iter=10000 median_ms=0.032560 p95_ms=0.039843 p99_ms=0.046014 stddev_ms=0.005467
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_ML-DSA-44_keygen.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T12:47:33+03:30
+
+----------------------------------------
+Running: server | ML-DSA-44 | sign
+Started: 2026-08-28T12:47:38+03:30
+----------------------------------------
+DONE: platform=server scheme=ML-DSA-44 operation=sign n_iter=10000 median_ms=0.072063 p95_ms=0.194468 p99_ms=0.270047 stddev_ms=0.051096
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_ML-DSA-44_sign.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T12:47:39+03:30
+
+----------------------------------------
+Running: server | ML-DSA-44 | verify
+Started: 2026-08-28T12:47:44+03:30
+----------------------------------------
+DONE: platform=server scheme=ML-DSA-44 operation=verify n_iter=10000 median_ms=0.030577 p95_ms=0.037008 p99_ms=0.040865 stddev_ms=0.002521
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_ML-DSA-44_verify.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T12:47:44+03:30
+
+----------------------------------------
+Running: server | ML-DSA-65 | keygen
+Started: 2026-08-28T12:47:49+03:30
+----------------------------------------
+DONE: platform=server scheme=ML-DSA-65 operation=keygen n_iter=10000 median_ms=0.055823 p95_ms=0.065841 p99_ms=0.073737 stddev_ms=0.007180
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_ML-DSA-65_keygen.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T12:47:50+03:30
+
+----------------------------------------
+Running: server | ML-DSA-65 | sign
+Started: 2026-08-28T12:47:55+03:30
+----------------------------------------
+DONE: platform=server scheme=ML-DSA-65 operation=sign n_iter=10000 median_ms=0.121343 p95_ms=0.300953 p99_ms=0.411399 stddev_ms=0.078002
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_ML-DSA-65_sign.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T12:47:56+03:30
+
+----------------------------------------
+Running: server | ML-DSA-65 | verify
+Started: 2026-08-28T12:48:01+03:30
+----------------------------------------
+DONE: platform=server scheme=ML-DSA-65 operation=verify n_iter=10000 median_ms=0.051795 p95_ms=0.060290 p99_ms=0.064289 stddev_ms=0.010365
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_ML-DSA-65_verify.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T12:48:02+03:30
+
+----------------------------------------
+Running: server | ML-DSA-87 | keygen
+Started: 2026-08-28T12:48:07+03:30
+----------------------------------------
+DONE: platform=server scheme=ML-DSA-87 operation=keygen n_iter=10000 median_ms=0.097379 p95_ms=0.109361 p99_ms=0.113769 stddev_ms=0.008869
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_ML-DSA-87_keygen.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T12:48:08+03:30
+
+----------------------------------------
+Running: server | ML-DSA-87 | sign
+Started: 2026-08-28T12:48:13+03:30
+----------------------------------------
+DONE: platform=server scheme=ML-DSA-87 operation=sign n_iter=10000 median_ms=0.159147 p95_ms=0.327753 p99_ms=0.440215 stddev_ms=0.072713
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_ML-DSA-87_sign.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T12:48:15+03:30
+
+----------------------------------------
+Running: server | ML-DSA-87 | verify
+Started: 2026-08-28T12:48:20+03:30
+----------------------------------------
+DONE: platform=server scheme=ML-DSA-87 operation=verify n_iter=10000 median_ms=0.090457 p95_ms=0.098333 p99_ms=0.105594 stddev_ms=0.003310
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_ML-DSA-87_verify.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T12:48:21+03:30
+
+----------------------------------------
+Running: server | Falcon-512 | keygen
+Started: 2026-08-28T12:48:26+03:30
+----------------------------------------
+DONE: platform=server scheme=Falcon-512 operation=keygen n_iter=10000 median_ms=6.461802 p95_ms=10.591513 p99_ms=13.443764 stddev_ms=1.807998
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_Falcon-512_keygen.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T12:49:36+03:30
+
+----------------------------------------
+Running: server | Falcon-512 | sign
+Started: 2026-08-28T12:49:41+03:30
+----------------------------------------
+DONE: platform=server scheme=Falcon-512 operation=sign n_iter=10000 median_ms=0.260891 p95_ms=0.267974 p99_ms=0.271891 stddev_ms=0.013450
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_Falcon-512_sign.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T12:49:44+03:30
+
+----------------------------------------
+Running: server | Falcon-512 | verify
+Started: 2026-08-28T12:49:49+03:30
+----------------------------------------
+DONE: platform=server scheme=Falcon-512 operation=verify n_iter=10000 median_ms=0.045494 p95_ms=0.050994 p99_ms=0.055001 stddev_ms=0.004602
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_Falcon-512_verify.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T12:49:49+03:30
+
+----------------------------------------
+Running: server | SPHINCS+-SHA2-128s | keygen
+Started: 2026-08-28T12:49:54+03:30
+----------------------------------------
+DONE: platform=server scheme=SPHINCS+-SHA2-128s operation=keygen n_iter=10000 median_ms=23.126895 p95_ms=23.147137 p99_ms=23.162685 stddev_ms=0.014638
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_SPHINCS+-SHA2-128s_keygen.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T12:53:48+03:30
+
+----------------------------------------
+Running: server | SPHINCS+-SHA2-128s | sign
+Started: 2026-08-28T12:53:53+03:30
+----------------------------------------
+DONE: platform=server scheme=SPHINCS+-SHA2-128s operation=sign n_iter=10000 median_ms=175.886926 p95_ms=176.014493 p99_ms=176.096905 stddev_ms=0.120081
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_SPHINCS+-SHA2-128s_sign.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T13:23:30+03:30
+
+----------------------------------------
+Running: server | SPHINCS+-SHA2-128s | verify
+Started: 2026-08-28T13:23:35+03:30
+----------------------------------------
+DONE: platform=server scheme=SPHINCS+-SHA2-128s operation=verify n_iter=10000 median_ms=0.261351 p95_ms=0.267072 p99_ms=0.269948 stddev_ms=0.003404
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_SPHINCS+-SHA2-128s_verify.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T13:23:37+03:30
+
+----------------------------------------
+Running: server | ECDSA-P-256 | keygen
+Started: 2026-08-28T13:23:42+03:30
+----------------------------------------
+DONE: platform=server scheme=ECDSA-P-256 operation=keygen n_iter=10000 median_ms=0.009678 p95_ms=0.012353 p99_ms=0.014387 stddev_ms=0.001842
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_ECDSA-P-256_keygen.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T13:23:43+03:30
+
+----------------------------------------
+Running: server | ECDSA-P-256 | sign
+Started: 2026-08-28T13:23:48+03:30
+----------------------------------------
+DONE: platform=server scheme=ECDSA-P-256 operation=sign n_iter=10000 median_ms=0.023144 p95_ms=0.027491 p99_ms=0.031118 stddev_ms=0.010609
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_ECDSA-P-256_sign.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T13:23:48+03:30
+
+----------------------------------------
+Running: server | ECDSA-P-256 | verify
+Started: 2026-08-28T13:23:53+03:30
+----------------------------------------
+DONE: platform=server scheme=ECDSA-P-256 operation=verify n_iter=10000 median_ms=0.068319 p95_ms=0.075291 p99_ms=0.079891 stddev_ms=0.003228
+raw=/home/user/projects/pqc-energy-trading/raw/e0_server_ECDSA-P-256_verify.csv
+summary=/home/user/projects/pqc-energy-trading/data/e0_primitives.csv
+Finished: 2026-08-28T13:23:54+03:30
+
+========================================
+E0 server batch completed successfully
+Finished: 2026-08-28T13:23:59+03:30
+========================================

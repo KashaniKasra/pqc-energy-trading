@@ -1,0 +1,101 @@
+{
+  "project": {
+    "name": "Layer-Aware Post-Quantum Cryptography for Blockchain-Based Energy Trading"
+  },
+
+  "server": {
+    "architecture": "x86_64",
+    "cpu_model": "AMD Ryzen 7 7735HS with Radeon Graphics",
+    "physical_cores": 8,
+    "logical_cpus": 16,
+    "ram_gib": 16,
+    "ram_type": "DDR5",
+    "ram_speed_mt_s": 4800,
+    "os": "Ubuntu 24.04.3 LTS",
+    "kernel": "6.14.0-37-generic"
+  },
+
+  "software": {
+    "docker": "28.2.2",
+    "docker_compose": "2.40.3+ds1-0ubuntu1~24.04.1",
+    "go": "1.22.2",
+    "node": "18.19.1",
+    "npm": "9.2.0",
+    "openssl": "3.0.13-0ubuntu3.12",
+    "hyperledger_fabric": "2.5.16",
+    "fabric_ca": "1.5.17",
+    "fabric_samples_commit": "05edea01d4cf24dd4087bd3750c36e690dc4d6ff",
+    "hyperledger_caliper": null,
+    "liboqs_release_tag": "0.15.0",
+    "liboqs_commit": "97f6b86b1b6d109cfd43cf276ae39c2e776aed80",
+    "liboqs_go_release_tag": "v0.15.0",
+    "liboqs_go_commit": "75451133b94a6c4be5f528eef94916ce08475f24",
+    "mininet": "2.3.0"
+  },
+
+  "e0_benchmark": {
+    "platform": "server",
+    "warmup_iterations": 100,
+    "measured_iterations": 10000,
+    "gomaxprocs": 1,
+    "cpu_affinity": [2, 3],
+    "cpu_smt_siblings": [2, 3],
+    "cpu_scaling_driver": "amd-pstate",
+    "amd_pstate_mode": "passive",
+    "cpu_governor": "performance",
+    "cpu_frequency_mhz": 3200,
+    "cpu_boost_enabled": false,
+    "power_source": "AC",
+    "timing_unit": "milliseconds",
+    "percentile_method": "linear interpolation using rank p*(n-1)",
+    "stddev_method": "sample standard deviation (n-1)",
+    "timing_boundary": "cryptographic primitive API call",
+    "raw_samples_compressed": true
+  },
+
+  "e0_message": {
+    "length_bytes": 32,
+    "seed": "pqc-energy-trading-e0-message-v1",
+    "generation": "SHA-256 of UTF-8 seed",
+    "applies_to": "signature schemes only",
+    "kem_message": null
+  },
+
+  "cryptographic_parameter_sets": {
+    "ML-KEM-768": "ML-KEM-768",
+    "ML-DSA-44": "ML-DSA-44",
+    "ML-DSA-65": "ML-DSA-65",
+    "ML-DSA-87": "ML-DSA-87",
+    "Falcon-512": "Falcon-512",
+    "SPHINCS+-SHA2-128s": "SPHINCS+-SHA2-128s-simple",
+    "ECDSA-P-256": "prime256v1"
+  },
+
+  "crypto_backend": {
+    "liboqs_api": "direct library API",
+    "oqs_provider_used": false,
+    "liboqs_openssl_enabled": true,
+    "liboqs_sha2_backend": "OpenSSL",
+    "ecdsa_backend": "OpenSSL libcrypto",
+    "ecdsa_hash": "SHA-256",
+    "ecdsa_hashing_inside_timed_region": false
+  },
+
+  "meter": {
+    "hardware": null,
+    "soc": null,
+    "clock": null,
+    "ram": null,
+    "os": null
+  },
+
+  "dataset": {
+    "name": null,
+    "license": null
+  },
+
+  "notes": {
+    "falcon_liboqs_caveat": "Falcon in liboqs 0.15.0 follows the round-3 submission rather than the final FIPS 206 draft.",
+    "ecdsa_api_note": "The benchmark uses the low-level OpenSSL ECDSA API. These functions are deprecated in OpenSSL 3.0 but are used here to benchmark the primitive directly without provider dispatch."
+  }
+}

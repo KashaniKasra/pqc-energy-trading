@@ -1,0 +1,14 @@
+src/e0/e0bench
+*.out
+*.log
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+*~
+__pycache__/
+*.pyc
+.venv/
+fabric-samples/
