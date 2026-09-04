@@ -43,6 +43,21 @@ FINAL_FIELDS = (
     "block_bytes_mean",
     "block_utilisation",
 )
+IDENTITY_PEERS = {
+    "peer0.org1.example.com",
+    "peer1.org1.example.com",
+    "peer0.org2.example.com",
+    "peer1.org2.example.com",
+}
+IDENTITY_FIELDS = [
+    "config",
+    "run_label",
+    "peer",
+    "identity_type",
+    "identity_path",
+    "bytes",
+    "sha256",
+]
 
 
 def sha256_file(path: Path) -> str:
@@ -302,8 +317,54 @@ def validated_ecdsa_block_result(project_root: Path) -> tuple[str, str]:
     return mean_text, utilisation_text
 
 
+def validate_identity_evidence(project_root: Path) -> None:
+    metadata_path = project_root / "meta.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    measurements = metadata["e1_benchmark"]["data_provenance"][
+        "identity_evidence"
+    ]["measurements"]
+    if set(measurements) != set(FINAL_CONFIGS):
+        raise ValueError(f"{metadata_path}: identity evidence is not complete")
+
+    for display_config, provenance in measurements.items():
+        evidence_path = project_root / provenance["source"]
+        if not evidence_path.is_file():
+            raise ValueError(f"missing {display_config} identity evidence: {evidence_path}")
+        if sha256_file(evidence_path) != provenance["sha256"]:
+            raise ValueError(f"{evidence_path}: SHA-256 does not match meta.json")
+
+        with evidence_path.open(newline="", encoding="utf-8") as source:
+            reader = csv.DictReader(source)
+            if reader.fieldnames != IDENTITY_FIELDS:
+                raise ValueError(f"{evidence_path}: unexpected identity schema")
+            rows = list(reader)
+
+        if len(rows) != 4 or {row["peer"] for row in rows} != IDENTITY_PEERS:
+            raise ValueError(f"{evidence_path}: expected one row for each of four peers")
+        for row in rows:
+            if (
+                row["config"] != provenance["file_config"]
+                or row["run_label"] != provenance["run_label"]
+                or row["identity_type"] != "msp_signcert_pem"
+                or not row["identity_path"]
+            ):
+                raise ValueError(f"{evidence_path}: inconsistent identity provenance")
+            if parse_uint(evidence_path, "bytes", row["bytes"]) == 0:
+                raise ValueError(f"{evidence_path}: identity size must be positive")
+            if re.fullmatch(r"[0-9a-f]{64}", row["sha256"]) is None:
+                raise ValueError(f"{evidence_path}: invalid certificate SHA-256")
+
+        if "generation_log" in provenance:
+            log_path = project_root / provenance["generation_log"]
+            if not log_path.is_file():
+                raise ValueError(f"missing {display_config} identity log: {log_path}")
+            if sha256_file(log_path) != provenance["generation_log_sha256"]:
+                raise ValueError(f"{log_path}: SHA-256 does not match meta.json")
+
+
 def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
     """Build an explicitly incomplete E1-schema view from supported evidence."""
+    validate_identity_evidence(project_root)
     block_mean, block_utilisation = validated_ecdsa_block_result(project_root)
     rows = [{field: "" for field in FINAL_FIELDS} for _ in FINAL_CONFIGS]
     for row, config in zip(rows, FINAL_CONFIGS):

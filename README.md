@@ -10,7 +10,7 @@ This repository is an empirical measurement package for a research testbed. Its 
 - E1 is functionally implemented for ECDSA, ML-DSA-44, ML-DSA-65, and SPHINCS+-SHA2-128s-simple using one Fabric topology and one fixed Caliper profile.
 - Candidate fixed-profile data exist for ECDSA, ML-DSA-44, and ML-DSA-65. They pass sample-count and zero-failure checks, but their retained logs predate full preflight capture, so they are not silently promoted to final data.
 - The identical-profile SPHINCS+ run saturated and failed heavily. Its raw samples and log are the current reportable result for that configuration, but they are excluded from the normal latency summary. No lower-rate replacement run is currently planned.
-- The retained ECDSA block-filling probe provides a boundary-inclusive working block-utilisation value of `0.930951670`; professor review of MaxMessageCount closure and the terminal partial block remains pending. Identity aggregation and sustained TPS remain unresolved, so `data/e1_fabric.csv` has not been created.
+- Raw per-peer identity sizes are retained for all four E1 configurations without aggregation. The ECDSA block-filling probe provides a boundary-inclusive working block-utilisation value of `0.930951670`; professor review of MaxMessageCount closure and the terminal partial block remains pending. Identity aggregation and sustained TPS remain unresolved, so `data/e1_fabric.csv` has not been created.
 - E2 and later experiments are not implemented.
 
 No final figure should be produced from unresolved E1 data.
@@ -250,7 +250,16 @@ cd env/fabric/e1
 
 For a labelled run, add the label as the second argument. The output retains config, peer, identity type/path, bytes, and SHA-256 per peer. It intentionally does not compute one aggregate: the method for mapping four peer values into the single `identity_bytes` E1 field still requires professor clarification.
 
-The retained ECDSA diagnostic-network identities have per-peer evidence under `raw/e1/blockutil-300_ecdsa_identity_bytes.csv`: 810, 806, 810, and 806 bytes. These values are not collapsed into the final single field. Identity evidence for the three PQ configurations requires future setup of each matching network and cannot be recovered from the ECDSA generated state.
+Per-peer raw evidence now exists for all configurations:
+
+| Configuration | peer0.org1 | peer1.org1 | peer0.org2 | peer1.org2 | Raw source |
+|---|---:|---:|---:|---:|---|
+| ECDSA | 810 | 806 | 810 | 806 | `raw/e1/blockutil-300_ecdsa_identity_bytes.csv` |
+| ML-DSA-44 | 2638 | 2642 | 2642 | 2642 | `raw/e1/identity-only-v1_ml-dsa-44_identity_bytes.csv` |
+| ML-DSA-65 | 3508 | 3508 | 3508 | 3508 | `raw/e1/identity-only-v1_ml-dsa-65_identity_bytes.csv` |
+| SLH-DSA (`SPHINCS+-SHA2-128s-simple`) | 916 | 916 | 916 | 916 | `raw/e1/identity-only-v1_sphincs_identity_bytes.csv` |
+
+The three PQ sets were generated using the same `cryptogen` and PQ-identity generator path in isolated temporary crypto trees; no Fabric network or workload was started. Their generation logs retain the project commit, tool/source hashes, exact algorithm, public-key length, and measured certificate lengths. These per-peer values are scientifically supported but are not collapsed into the final single field.
 
 ## Existing E1 data and analysis
 
@@ -278,7 +287,7 @@ An explicitly incomplete working-schema view can be regenerated with:
 ./src/e1/analyze_timings.py --working-e1
 ```
 
-It verifies the ECDSA block summary against the retained per-block source and `meta.json`, then emits the exact four-row schema to stdout. It populates only the supported boundary-inclusive ECDSA block fields and leaves unresolved cells empty. It intentionally refuses `--output`, preventing the working view from being mistaken for the final deliverable.
+It verifies all four per-peer identity evidence files and their provenance hashes, then verifies the ECDSA block summary against the retained per-block source and `meta.json`. It emits the exact four-row schema to stdout, populates only the supported boundary-inclusive ECDSA block fields, and leaves unresolved cells empty. It intentionally refuses `--output`, preventing the working view from being mistaken for the final deliverable.
 
 ## Pending scientific decisions
 
