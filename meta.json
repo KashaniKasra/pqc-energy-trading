@@ -1,9 +1,12 @@
 {
   "project": {
-    "name": "Layer-Aware Post-Quantum Cryptography for Blockchain-Based Energy Trading"
+    "name": "Layer-Aware Post-Quantum Cryptography for Blockchain-Based Energy Trading",
+    "implementation_authority": "docs/student_spec(1).pdf",
+    "authority_rule": "Later direct professor clarification overrides the student specification only for the clarified point; the proposal is background and lower authority.",
+    "measurement_principle": "Measure and retain what the system actually does; do not tune results to an expected model."
   },
-
-  "server": {
+  "canonical_e0_server_environment": {
+    "provenance_note": "Historical environment for the retained canonical E0 server run; current host versions must not overwrite it without an E0 rerun.",
     "architecture": "x86_64",
     "cpu_model": "AMD Ryzen 7 7735HS with Radeon Graphics",
     "physical_cores": 8,
@@ -12,31 +15,53 @@
     "ram_type": "DDR5",
     "ram_speed_mt_s": 4800,
     "os": "Ubuntu 24.04.3 LTS",
-    "kernel": "6.14.0-37-generic"
-  },
-
-  "software": {
+    "kernel": "6.14.0-37-generic",
     "docker": "28.2.2",
+    "openssl_package": "3.0.13-0ubuntu3.12",
+    "go": "1.22.2"
+  },
+  "current_host_observation": {
+    "observed_at": "2026-09-04",
+    "provenance_note": "Inventory only; these values are not retroactively attributed to retained measurements.",
+    "architecture": "x86_64",
+    "os": "Ubuntu 24.04.3 LTS",
+    "kernel": "7.0.0-30-generic",
+    "docker": "29.1.3",
     "docker_compose": "2.40.3+ds1-0ubuntu1~24.04.1",
-    "go": "1.22.2",
+    "openssl_runtime": "3.0.13",
+    "openssl_package": "3.0.13-0ubuntu3.15",
+    "go_system": "1.22.2",
     "node": "22.23.2",
-    "npm": "12.0.2",
-    "openssl": "3.0.13-0ubuntu3.12",
-    "hyperledger_fabric": "2.5.16",
-    "fabric_ca": "1.5.17",
+    "npm": "12.0.2"
+  },
+  "software_pins": {
+    "hyperledger_fabric": {
+      "version": "2.5.16",
+      "tag": "v2.5.16",
+      "commit": "f871cf92a026aba7b12e6f06d71ded3e6e659d71",
+      "build_go": "1.26.4"
+    },
+    "fabric_ca": {
+      "version": "1.5.17",
+      "build_go": "1.25.7"
+    },
     "fabric_samples_commit": "05edea01d4cf24dd4087bd3750c36e690dc4d6ff",
     "hyperledger_caliper": "0.7.1",
     "caliper_fabric_connector": "0.7.1",
     "fabric_gateway_sdk": "1.7.1",
     "grpc_js": "1.13.1",
-    "liboqs_release_tag": "0.15.0",
-    "liboqs_commit": "97f6b86b1b6d109cfd43cf276ae39c2e776aed80",
-    "liboqs_go_release_tag": "v0.15.0",
-    "liboqs_go_commit": "75451133b94a6c4be5f528eef94916ce08475f24",
+    "liboqs": {
+      "tag": "0.15.0",
+      "commit": "97f6b86b1b6d109cfd43cf276ae39c2e776aed80"
+    },
+    "liboqs_go": {
+      "tag": "v0.15.0",
+      "commit": "75451133b94a6c4be5f528eef94916ce08475f24"
+    },
     "mininet": "2.3.0"
   },
-
   "e0_benchmark": {
+    "status": "canonical server data retained; meter/SBC data missing",
     "platform": "server",
     "warmup_iterations": 100,
     "measured_iterations": 10000,
@@ -46,60 +71,121 @@
     "cpu_scaling_driver": "amd-pstate",
     "amd_pstate_mode": "passive",
     "cpu_governor": "performance",
-    "cpu_frequency_mhz": 3200,
+    "cpu_frequency_khz": 3200000,
     "cpu_boost_enabled": false,
     "power_source": "AC",
     "timing_unit": "milliseconds",
     "percentile_method": "linear interpolation using rank p*(n-1)",
     "stddev_method": "sample standard deviation (n-1)",
     "timing_boundary": "cryptographic primitive API call",
-    "raw_samples_compressed": true
+    "raw_samples_compressed": true,
+    "summary": "data/e0_primitives.csv",
+    "raw_sources": "raw/e0/"
   },
-
   "e1_benchmark": {
+    "status": "functional for all four identity configurations; fixed-profile candidate data retained for ECDSA/ML-DSA-44/ML-DSA-65; SPHINCS+ fixed-profile saturation/failure retained; final E1 CSV incomplete",
     "platform": "server",
-    "fabric_version": "2.5.16",
-    "ordering_service": "etcdraft",
-    "orderer_count": 1,
-    "organizations": 2,
-    "peers_per_organization": 2,
-    "channel": "energychannel",
-    "chaincode": "simplekv",
-    "chaincode_operation": "Set(key,value)",
-    "caliper_version": "0.7.1",
-    "caliper_workers": 1,
-    "workload_profile": [
-      {
-        "label": "50-tps",
-        "rate_tps": 50,
-        "duration_seconds": 120
-      },
-      {
-        "label": "200-tps",
-        "rate_tps": 200,
-        "duration_seconds": 120
-      }
-    ],
-    "rate_controller": "fixed-rate",
-    "fixed_cpu_set": "2-15",
-    "cpu_scaling_driver": "amd-pstate",
-    "amd_pstate_mode": "passive",
-    "cpu_governor": "performance",
-    "cpu_boost_enabled": false,
-    "cpu_frequency_mhz": 3201,
-    "block_batch_timeout_seconds": 2,
-    "block_max_message_count": 500,
-    "block_absolute_max_bytes": 10485760,
-    "block_preferred_max_bytes": 2097152,
-    "endorsement_timing_boundary": "proposal.endorse()",
-    "commit_timing_boundary": "transaction.submit() through submittedTransaction.getStatus()",
-    "timing_clock": "process.hrtime.bigint()",
-    "timing_unit": "milliseconds",
-    "raw_timing_storage": "in-memory during transactions, flushed to CSV after each round",
-    "caliper_connector_instrumentation": "repository patch applied to @hyperledger/caliper-fabric 0.7.1 PeerGateway connector",
-    "raw_samples_final_compression": "gzip"
+    "topology": {
+      "ordering_service": "etcdraft",
+      "orderer_count": 1,
+      "organizations": 2,
+      "peers_per_organization": 2,
+      "channel": "energychannel",
+      "chaincode": "simplekv",
+      "chaincode_operation": "Set(key,value)"
+    },
+    "identity_configurations": {
+      "ECDSA": "ECDSA P-256",
+      "ML-DSA-44": "ML-DSA-44",
+      "ML-DSA-65": "ML-DSA-65",
+      "SLH-DSA": "SPHINCS+-SHA2-128s-simple"
+    },
+    "hybrid_pq_identity": {
+      "description": "Experimental hybrid Fabric identity mechanism: ECDSA X.509 membership and CA chain, a noncritical extension carrying the PQ algorithm and public key, and real liboqs-based peer transaction/endorsement signing and verification.",
+      "not_claimed": [
+        "full post-quantum PKI",
+        "standardized post-quantum X.509",
+        "native Fabric PQ identity support"
+      ],
+      "experimental_oid": "1.3.6.1.3.9999.1",
+      "oid_status": "experimental testbed identifier only",
+      "pq_ski": "SHA-256(raw PQ public key)",
+      "peer_transaction_endorsement_signing": "PQ for PQ configurations",
+      "client_identity": "ECDSA",
+      "tls_identities": "ECDSA",
+      "orderer_identity": "ECDSA",
+      "orderer_binary_note": "Patched to verify requests signed by PQ peer identities"
+    },
+    "caliper": {
+      "version": "0.7.1",
+      "workers": 1,
+      "rate_controller": "fixed-rate",
+      "fixed_profile": [
+        {
+          "label": "warmup",
+          "rate_tps": 50,
+          "duration_seconds": 20,
+          "included_in_raw_timing_statistics": false
+        },
+        {
+          "label": "50-tps",
+          "rate_tps": 50,
+          "duration_seconds": 120
+        },
+        {
+          "label": "200-tps",
+          "rate_tps": 200,
+          "duration_seconds": 120
+        }
+      ],
+      "profile_file": "env/caliper/e1/benchmark.yaml",
+      "endorsement_timing_boundary": "proposal.endorse()",
+      "commit_timing_boundary": "transaction.submit() through submittedTransaction.getStatus()",
+      "timing_clock": "process.hrtime.bigint()",
+      "timing_unit": "milliseconds",
+      "instrumentation": "env/caliper/e1/patches/peer-gateway-e1-timing.patch"
+    },
+    "cpu_control": {
+      "fixed_cpu_set": "2-15",
+      "cpu_scaling_driver": "amd-pstate",
+      "amd_pstate_mode": "passive",
+      "cpu_governor": "performance",
+      "cpu_boost_enabled": false,
+      "cpu_frequency_khz": 3201000,
+      "note": "Required future-run state; each retained run log records the observed per-CPU values."
+    },
+    "fabric_block_parameters": {
+      "BatchTimeout": "2s",
+      "MaxMessageCount": 500,
+      "PreferredMaxBytes": "2 MB",
+      "PreferredMaxBytes_effective_bytes": 2097152,
+      "AbsoluteMaxBytes": "10 MB",
+      "AbsoluteMaxBytes_effective_bytes": 10485760,
+      "effective_value_source": "Decoded generated/current Fabric common.Block config with configtxlator; configtx.yaml is the declarative source."
+    },
+    "block_utilisation": {
+      "definition": "mean(actual ordinary-transaction block bytes) / effective PreferredMaxBytes",
+      "denominator_source": "e1_benchmark.fabric_block_parameters.PreferredMaxBytes_effective_bytes",
+      "excluded_blocks": ["genesis", "config", "other/non-ordinary"],
+      "scientific_condition": "Use blocks closed by volume, not a BatchTimeout-driven half-empty regime.",
+      "diagnostic_profile": "env/caliper/e1/benchmark_blockutil.yaml",
+      "diagnostic_rate_status": "300 TPS is an initial probe only, not an accepted final rate."
+    },
+    "installed_images_at_metadata_update": {
+      "observed_at": "2026-09-04",
+      "peer": "sha256:6fe74f12e91ab73a07b13d4a7d2954df8a2ad5a6e00ea2665cfffed7f34f5448",
+      "orderer": "sha256:b56ec95ae9168725b8c8e1dc4bc4126f30f2b661e3dc99dd72225dc87b1f3d1f",
+      "fabric_pq_patch_sha256": "2eeee5582fabd90bb9e675e98bce3daf94a087d2d6848ccfa720f7216e23550f",
+      "validation": "Rebuilt after the pqPublicKey.Private() correction; Fabric PQ regression tests passed, both binaries report Fabric 2.5.16 commit f871cf9 built with Go 1.26.4 and link to liboqs/libcrypto, and local binary disassembly confirms pqPublicKey.Private() returns false."
+    },
+    "data_provenance": {
+      "candidate_timing_summary": "data/e1_timing_candidates.csv",
+      "candidate_timing_status": "ECDSA/ML-DSA-44/ML-DSA-65 pass sample-count and zero-failure checks, but historical logs did not retain the full preflight now required.",
+      "sphincs_status": "Fixed-profile overload/failure evidence retained under raw/e1; excluded from normal candidate latency summary.",
+      "final_summary": "data/e1_fabric.csv (not yet created)",
+      "raw_sources": "raw/e1/"
+    }
   },
-
   "e0_message": {
     "length_bytes": 32,
     "seed": "pqc-energy-trading-e0-message-v1",
@@ -107,7 +193,6 @@
     "applies_to": "signature schemes only",
     "kem_message": null
   },
-
   "cryptographic_parameter_sets": {
     "ML-KEM-768": "ML-KEM-768",
     "ML-DSA-44": "ML-DSA-44",
@@ -117,7 +202,6 @@
     "SPHINCS+-SHA2-128s": "SPHINCS+-SHA2-128s-simple",
     "ECDSA-P-256": "prime256v1"
   },
-
   "crypto_backend": {
     "liboqs_api": "direct library API",
     "oqs_provider_used": false,
@@ -127,22 +211,28 @@
     "ecdsa_hash": "SHA-256",
     "ecdsa_hashing_inside_timed_region": false
   },
-
   "meter": {
+    "status": "not yet measured",
     "hardware": null,
     "soc": null,
     "clock": null,
     "ram": null,
-    "os": null
+    "os": null,
+    "power_instrument": null
   },
-
   "dataset": {
+    "status": "required for E7; not yet selected",
     "name": null,
     "license": null
   },
-
+  "known_scientific_decisions_pending": {
+    "sphincs_fixed_profile": "Whether to report fixed-profile saturation only or additionally run a separate low-rate profile for valid latency/sustained-TPS values.",
+    "identity_bytes_aggregation": "How four per-peer identity file sizes map to the single E1 CSV field.",
+    "tps_sustained_criterion": "Exact operational threshold for highest linear/sustainable rate.",
+    "sanity_gate_source": "The student specification references a supplied make_figures.py checker, but its plausible bands/source file are absent."
+  },
   "notes": {
-    "falcon_liboqs_caveat": "Falcon in liboqs 0.15.0 follows the round-3 submission rather than the final FIPS 206 draft.",
-    "ecdsa_api_note": "The benchmark uses the low-level OpenSSL ECDSA API. These functions are deprecated in OpenSSL 3.0 but are used here to benchmark the primitive directly without provider dispatch."
+    "falcon_liboqs_caveat": "Falcon in liboqs 0.15.0 follows the round-3 submission rather than final FIPS 206.",
+    "ecdsa_api_note": "E0 uses the low-level OpenSSL ECDSA API, deprecated in OpenSSL 3.0, to measure the primitive directly without provider dispatch."
   }
 }

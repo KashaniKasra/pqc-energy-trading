@@ -17,11 +17,23 @@ CHAINCODE_NAME="simplekv"
 CHAINCODE_VERSION="1.0"
 CHAINCODE_SEQUENCE="1"
 CHAINCODE_LABEL="simplekv_1"
+E1_CONFIG="${E1_CONFIG:-ecdsa}"
+
+case "$E1_CONFIG" in
+    ecdsa|ml-dsa-44|ml-dsa-65|sphincs)
+        ;;
+    *)
+        echo "ERROR: Unsupported E1_CONFIG: $E1_CONFIG"
+        echo "Expected one of: ecdsa, ml-dsa-44, ml-dsa-65, sphincs"
+        exit 1
+        ;;
+esac
 
 echo "[E1] Fabric setup starting..."
 echo "[E1] Fabric binaries: $FABRIC_BIN"
 echo "[E1] Channel: $CHANNEL_NAME"
 echo "[E1] Chaincode: $CHAINCODE_NAME"
+echo "[E1] Configuration: $E1_CONFIG"
 
 require_cmd() {
     if ! command -v "$1" >/dev/null 2>&1; then
@@ -40,6 +52,9 @@ require_file() {
 echo "[E1] Running preflight checks..."
 
 require_cmd docker
+if [[ "$E1_CONFIG" != "ecdsa" ]]; then
+    require_cmd go
+fi
 require_cmd "$FABRIC_BIN/cryptogen"
 require_cmd "$FABRIC_BIN/configtxgen"
 require_cmd "$FABRIC_BIN/configtxlator"
@@ -106,6 +121,29 @@ echo "[E1] Generating cryptographic material..."
 "$FABRIC_BIN/cryptogen" generate \
     --config="$SCRIPT_DIR/crypto-config.yaml" \
     --output="$SCRIPT_DIR/crypto-config"
+
+if [[ "$E1_CONFIG" != "ecdsa" ]]; then
+    case "$E1_CONFIG" in
+        ml-dsa-44)
+            PQ_ALGORITHM="ML-DSA-44"
+            ;;
+        ml-dsa-65)
+            PQ_ALGORITHM="ML-DSA-65"
+            ;;
+        sphincs)
+            PQ_ALGORITHM="SPHINCS+-SHA2-128s-simple"
+            ;;
+    esac
+
+    echo "[E1] Generating PQ peer identities using $PQ_ALGORITHM..."
+
+    (
+        cd "$PROJECT_ROOT/src/e1/pqidentity"
+        go run . \
+            --algorithm "$PQ_ALGORITHM" \
+            --crypto-config "$SCRIPT_DIR/crypto-config"
+    )
+fi
 
 echo "[E1] Generating orderer genesis block..."
 

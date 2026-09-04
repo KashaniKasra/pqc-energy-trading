@@ -1,6 +1,8 @@
 src/e0/e0bench
 *.out
 *.log
+# Retained experiment logs are scientific evidence, including failed runs.
+!raw/**/*.log
 .vscode/
 .idea/
 .DS_Store
@@ -31,5 +33,5 @@ env/fabric/e1/config_block.json
 # Generated chaincode package
 env/fabric/e1/*.tar.gz
 
-# E1 temporary/uncompressed raw samples
-raw/e1/*.csv
+# Raw experiment CSV/log evidence is intentionally visible to Git. Classify
+# provenance before staging, and gzip large samples only after classification.

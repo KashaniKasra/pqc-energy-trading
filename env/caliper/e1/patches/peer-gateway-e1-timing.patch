@@ -9,17 +9,19 @@
  const { connect, signers } = require('@hyperledger/fabric-gateway');
  const { ConnectorBase, CaliperUtils, TxStatus, Version, ConfigUtil } = require('@hyperledger/caliper-core');
  const FabricConnectorContext = require('../../FabricConnectorContext');
-@@ -72,6 +74,9 @@
+@@ -72,6 +74,11 @@
          this.clients = new Map();
          this.context = undefined;
  
 +        this.endorseTimingSamples = [];
 +        this.commitTimingSamples = [];
++        this.currentRoundLabel = 'unknown';
++        this.currentConfigLabel = process.env.E1_RUN_NAMESPACE || process.env.E1_CONFIG || 'unknown';
 +
      }
  
      /**
-@@ -166,6 +171,49 @@
+@@ -166,6 +173,49 @@
       * @async
       */
      async releaseContext() {
@@ -64,12 +66,12 @@
 +        this.commitTimingSamples = [];
 +
 +        this.currentRoundLabel = 'unknown';
-+        this.currentConfigLabel = process.env.E1_CONFIG || 'unknown';
++        this.currentConfigLabel = process.env.E1_RUN_NAMESPACE || process.env.E1_CONFIG || 'unknown';
 +
          for (const userName of this.gatewayInstanceByIdentity.keys()) {
              const gateway = this.gatewayInstanceByIdentity.get(userName);
              logger.info(`disconnecting gateway for user ${userName}`);
-@@ -315,15 +363,35 @@
+@@ -315,15 +365,35 @@
  
          // set transaction invocation result to return
          try {

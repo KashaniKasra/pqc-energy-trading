@@ -6,7 +6,7 @@ services:
 
   orderer.example.com:
     container_name: orderer.example.com
-    image: hyperledger/fabric-orderer:2.5.16
+    image: fabric-orderer:2.5.16-pq
     cpuset: "2-15"
     environment:
       - FABRIC_LOGGING_SPEC=INFO
@@ -33,7 +33,7 @@ services:
 
   peer0.org1.example.com:
     container_name: peer0.org1.example.com
-    image: hyperledger/fabric-peer:2.5.16
+    image: fabric-peer:2.5.16-pq
     cpuset: "2-15"
     environment:
       - FABRIC_LOGGING_SPEC=INFO
@@ -66,7 +66,7 @@ services:
 
   peer1.org1.example.com:
     container_name: peer1.org1.example.com
-    image: hyperledger/fabric-peer:2.5.16
+    image: fabric-peer:2.5.16-pq
     cpuset: "2-15"
     environment:
       - FABRIC_LOGGING_SPEC=INFO
@@ -99,7 +99,7 @@ services:
 
   peer0.org2.example.com:
     container_name: peer0.org2.example.com
-    image: hyperledger/fabric-peer:2.5.16
+    image: fabric-peer:2.5.16-pq
     cpuset: "2-15"
     environment:
       - FABRIC_LOGGING_SPEC=INFO
@@ -132,7 +132,7 @@ services:
 
   peer1.org2.example.com:
     container_name: peer1.org2.example.com
-    image: hyperledger/fabric-peer:2.5.16
+    image: fabric-peer:2.5.16-pq
     cpuset: "2-15"
     environment:
       - FABRIC_LOGGING_SPEC=INFO

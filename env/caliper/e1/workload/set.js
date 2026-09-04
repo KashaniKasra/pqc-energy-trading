@@ -13,10 +13,12 @@ class SetWorkload extends WorkloadModuleBase {
         this.contractId = 'simplekv';
         this.roundLabel = 'unknown';
         this.configLabel = process.env.E1_CONFIG || 'unknown';
+        this.runNamespace = process.env.E1_RUN_NAMESPACE || this.configLabel;
+
         this.heightsFile = path.resolve(
             process.cwd(),
             '../../../raw/e1',
-            `${this.configLabel}_block_heights.csv`
+            `${this.runNamespace}_block_heights.csv`
         );
     }
 

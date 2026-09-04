@@ -7,11 +7,6 @@ import (
 )
 
 const (
-	rawSamplesBaseDir = "../../raw"
-	summaryPath       = "../../data/e0_primitives.csv"
-)
-
-const (
 	warmupIterations = 100
 	serverIterations = 10000
 	meterIterations  = 1000

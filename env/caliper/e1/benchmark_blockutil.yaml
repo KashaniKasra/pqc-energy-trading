@@ -1,0 +1,33 @@
+test:
+  name: E1 Fabric Block Utilisation Diagnostic
+  description: Diagnostic workload to identify volume-filled Fabric blocks
+  workers:
+    type: local
+    number: 1
+
+  rounds:
+    - label: warmup
+      description: Warm-up round; results are discarded
+      txDuration: 20
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 50
+      workload:
+        module: workload/set.js
+        arguments:
+          contractId: simplekv
+          roundLabel: warmup
+
+    - label: blockutil-300-tps
+      description: Send transactions at 300 TPS to test whether blocks reach PreferredMaxBytes
+      txDuration: 60
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 300
+      workload:
+        module: workload/set.js
+        arguments:
+          contractId: simplekv
+          roundLabel: blockutil-300-tps

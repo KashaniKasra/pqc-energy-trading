@@ -1,0 +1,1764 @@
+diff --git a/bccsp/signer/signer.go b/bccsp/signer/signer.go
+index bbb3eea..16aa699 100644
+--- a/bccsp/signer/signer.go
++++ b/bccsp/signer/signer.go
+@@ -22,6 +22,10 @@ type bccspCryptoSigner struct {
+ 	pk  any
+ }
+ 
++type rawPublicKey interface {
++	IsRawPublicKey() bool
++}
++
+ // New returns a new BCCSP-based crypto.Signer
+ // for the given BCCSP instance and key.
+ func New(csp bccsp.BCCSP, key bccsp.Key) (crypto.Signer, error) {
+@@ -49,7 +53,12 @@ func New(csp bccsp.BCCSP, key bccsp.Key) (crypto.Signer, error) {
+ 
+ 	pk, err := x509.ParsePKIXPublicKey(raw)
+ 	if err != nil {
+-		return nil, errors.Wrap(err, "failed marshalling der to public key")
++		rawKey, ok := pub.(rawPublicKey)
++		if !ok || !rawKey.IsRawPublicKey() {
++			return nil, errors.Wrap(err, "failed marshalling der to public key")
++		}
++
++		pk = raw
+ 	}
+ 
+ 	return &bccspCryptoSigner{csp, key, pk}, nil
+diff --git a/bccsp/sw/fileks.go b/bccsp/sw/fileks.go
+index 67810f4..2a7abc8 100644
+--- a/bccsp/sw/fileks.go
++++ b/bccsp/sw/fileks.go
+@@ -131,6 +131,15 @@ func (ks *fileBasedKeyStore) GetKey(ski []byte) (bccsp.Key, error) {
+ 		}
+ 
+ 		return &aesPrivateKey{key, false}, nil
++
++	case "pqpriv":
++		key, err := ks.loadPQPrivateKey(hex.EncodeToString(ski))
++		if err != nil {
++			return nil, fmt.Errorf("failed loading PQ private key [%x] [%s]", ski, err)
++		}
++
++		return key, nil
++
+ 	case "sk":
+ 		// Load the private key
+ 		key, err := ks.loadPrivateKey(hex.EncodeToString(ski))
+@@ -173,6 +182,12 @@ func (ks *fileBasedKeyStore) StoreKey(k bccsp.Key) (err error) {
+ 		return errors.New("invalid key. It must be different from nil")
+ 	}
+ 	switch kk := k.(type) {
++	case *pqPrivateKey:
++		err = ks.storePQPrivateKey(hex.EncodeToString(k.SKI()), kk)
++		if err != nil {
++			return fmt.Errorf("failed storing PQ private key [%s]", err)
++		}
++
+ 	case *ecdsaPrivateKey:
+ 		err = ks.storePrivateKey(hex.EncodeToString(k.SKI()), kk.privKey)
+ 		if err != nil {
+@@ -244,6 +259,9 @@ func (ks *fileBasedKeyStore) getSuffix(alias string) string {
+ 	files, _ := os.ReadDir(ks.path)
+ 	for _, f := range files {
+ 		if strings.HasPrefix(f.Name(), alias) {
++			if strings.HasSuffix(f.Name(), "pqpriv") {
++				return "pqpriv"
++			}
+ 			if strings.HasSuffix(f.Name(), "sk") {
+ 				return "sk"
+ 			}
+@@ -275,6 +293,22 @@ func (ks *fileBasedKeyStore) storePrivateKey(alias string, privateKey any) error
+ 	return nil
+ }
+ 
++func (ks *fileBasedKeyStore) storePQPrivateKey(alias string, privateKey *pqPrivateKey) error {
++	rawKey, err := pqPrivateKeyToPEM(privateKey, ks.pwd)
++	if err != nil {
++		logger.Errorf("Failed converting PQ private key to PEM [%s]: [%s]", alias, err)
++		return err
++	}
++
++	err = os.WriteFile(ks.getPathForAlias(alias, "pqpriv"), rawKey, 0o600)
++	if err != nil {
++		logger.Errorf("Failed storing PQ private key [%s]: [%s]", alias, err)
++		return err
++	}
++
++	return nil
++}
++
+ func (ks *fileBasedKeyStore) storePublicKey(alias string, publicKey any) error {
+ 	rawKey, err := publicKeyToPEM(publicKey, ks.pwd)
+ 	if err != nil {
+@@ -328,6 +362,25 @@ func (ks *fileBasedKeyStore) loadPrivateKey(alias string) (any, error) {
+ 	return privateKey, nil
+ }
+ 
++func (ks *fileBasedKeyStore) loadPQPrivateKey(alias string) (*pqPrivateKey, error) {
++	path := ks.getPathForAlias(alias, "pqpriv")
++	logger.Debugf("Loading PQ private key [%s] at [%s]...", alias, path)
++
++	raw, err := os.ReadFile(path)
++	if err != nil {
++		logger.Errorf("Failed loading PQ private key [%s]: [%s].", alias, err.Error())
++		return nil, err
++	}
++
++	privateKey, err := pemToPQPrivateKey(raw, ks.pwd)
++	if err != nil {
++		logger.Errorf("Failed parsing PQ private key [%s]: [%s].", alias, err.Error())
++		return nil, err
++	}
++
++	return privateKey, nil
++}
++
+ func (ks *fileBasedKeyStore) loadPublicKey(alias string) (any, error) {
+ 	path := ks.getPathForAlias(alias, "pk")
+ 	logger.Debugf("Loading public key [%s] at [%s]...", alias, path)
+diff --git a/bccsp/sw/keyimport.go b/bccsp/sw/keyimport.go
+index 79e3cf3..3e3a6a0 100644
+--- a/bccsp/sw/keyimport.go
++++ b/bccsp/sw/keyimport.go
+@@ -122,6 +122,18 @@ func (ki *x509PublicKeyImportOptsKeyImporter) KeyImport(raw any, opts bccsp.KeyI
+ 		return nil, errors.New("Invalid raw material. Expected *x509.Certificate.")
+ 	}
+ 
++	pqIdentity, err := pqIdentityFromCertificate(x509Cert)
++	if err != nil {
++		return nil, fmt.Errorf("failed parsing PQ identity extension: %w", err)
++	}
++
++	if pqIdentity != nil {
++		return &pqPublicKey{
++			algorithm: pqIdentity.Algorithm,
++			publicKey: append([]byte(nil), pqIdentity.PublicKey...),
++		}, nil
++	}
++
+ 	pk := x509Cert.PublicKey
+ 
+ 	switch pk := pk.(type) {
+diff --git a/bccsp/sw/new.go b/bccsp/sw/new.go
+index 85058c2..0f435ee 100644
+--- a/bccsp/sw/new.go
++++ b/bccsp/sw/new.go
+@@ -61,10 +61,13 @@ func NewWithParams(securityLevel int, hashFamily string, keyStore bccsp.KeyStore
+ 
+ 	// Set the Signers
+ 	swbccsp.AddWrapper(reflect.TypeFor[*ecdsaPrivateKey](), &ecdsaSigner{})
++	swbccsp.AddWrapper(reflect.TypeFor[*pqPrivateKey](), &pqSigner{})
+ 
+ 	// Set the Verifiers
+ 	swbccsp.AddWrapper(reflect.TypeFor[*ecdsaPrivateKey](), &ecdsaPrivateKeyVerifier{})
+ 	swbccsp.AddWrapper(reflect.TypeFor[*ecdsaPublicKey](), &ecdsaPublicKeyKeyVerifier{})
++	swbccsp.AddWrapper(reflect.TypeFor[*pqPrivateKey](), &pqPrivateKeyVerifier{})
++	swbccsp.AddWrapper(reflect.TypeFor[*pqPublicKey](), &pqPublicKeyVerifier{})
+ 
+ 	// Set the Hashers
+ 	swbccsp.AddWrapper(reflect.TypeFor[*bccsp.SHAOpts](), &hasher{hash: conf.hashFunction})
+diff --git a/bccsp/sw/pq.go b/bccsp/sw/pq.go
+new file mode 100644
+index 0000000..6bd6ed7
+--- /dev/null
++++ b/bccsp/sw/pq.go
+@@ -0,0 +1,69 @@
++package sw
++
++import (
++	"fmt"
++
++	"github.com/hyperledger/fabric/bccsp"
++	oqs "github.com/open-quantum-safe/liboqs-go/oqs"
++)
++
++func signPQ(k *pqPrivateKey, digest []byte) ([]byte, error) {
++	var signer oqs.Signature
++
++	secretKey := append([]byte(nil), k.secretKey...)
++
++	if err := signer.Init(k.algorithm, secretKey); err != nil {
++		return nil, fmt.Errorf("failed to initialize PQ signer %s: %w", k.algorithm, err)
++	}
++	defer signer.Clean()
++
++	signature, err := signer.Sign(digest)
++	if err != nil {
++		return nil, fmt.Errorf("failed to sign with %s: %w", k.algorithm, err)
++	}
++
++	return signature, nil
++}
++
++func verifyPQ(k *pqPublicKey, signature, digest []byte) (bool, error) {
++	var verifier oqs.Signature
++
++	if err := verifier.Init(k.algorithm, nil); err != nil {
++		return false, fmt.Errorf("failed to initialize PQ verifier %s: %w", k.algorithm, err)
++	}
++	defer verifier.Clean()
++
++	valid, err := verifier.Verify(digest, signature, k.publicKey)
++	if err != nil {
++		return false, fmt.Errorf("failed to verify with %s: %w", k.algorithm, err)
++	}
++
++	return valid, nil
++}
++
++type pqSigner struct{}
++
++func (s *pqSigner) Sign(k bccsp.Key, digest []byte, opts bccsp.SignerOpts) ([]byte, error) {
++	return signPQ(k.(*pqPrivateKey), digest)
++}
++
++type pqPrivateKeyVerifier struct{}
++
++func (v *pqPrivateKeyVerifier) Verify(k bccsp.Key, signature, digest []byte, opts bccsp.SignerOpts) (bool, error) {
++	privateKey := k.(*pqPrivateKey)
++
++	return verifyPQ(
++		&pqPublicKey{
++			algorithm: privateKey.algorithm,
++			publicKey: privateKey.publicKey,
++		},
++		signature,
++		digest,
++	)
++}
++
++type pqPublicKeyVerifier struct{}
++
++func (v *pqPublicKeyVerifier) Verify(k bccsp.Key, signature, digest []byte, opts bccsp.SignerOpts) (bool, error) {
++	return verifyPQ(k.(*pqPublicKey), signature, digest)
++}
+diff --git a/bccsp/sw/pq_test.go b/bccsp/sw/pq_test.go
+new file mode 100644
+index 0000000..49ca2f2
+--- /dev/null
++++ b/bccsp/sw/pq_test.go
+@@ -0,0 +1,216 @@
++package sw
++
++import (
++	"crypto"
++	"crypto/ecdsa"
++	"crypto/elliptic"
++	"crypto/rand"
++	"crypto/x509"
++	"crypto/x509/pkix"
++	"encoding/asn1"
++	"math/big"
++	"os"
++	"testing"
++	"time"
++	"fmt"
++
++	"github.com/hyperledger/fabric/bccsp"
++	bccspsigner "github.com/hyperledger/fabric/bccsp/signer"
++	oqs "github.com/open-quantum-safe/liboqs-go/oqs"
++	"github.com/stretchr/testify/require"
++)
++
++func TestPQKeyStoreSignVerify(t *testing.T) {
++	tmpDir, err := os.MkdirTemp("", "fabric-pq-keystore-*")
++	require.NoError(t, err)
++	defer os.RemoveAll(tmpDir)
++
++	var oqsSigner oqs.Signature
++	err = oqsSigner.Init("ML-DSA-44", nil)
++	require.NoError(t, err)
++	defer oqsSigner.Clean()
++
++	publicKey, err := oqsSigner.GenerateKeyPair()
++	require.NoError(t, err)
++
++	secretKey := oqsSigner.ExportSecretKey()
++
++	privateKey := &pqPrivateKey{
++		algorithm: "ML-DSA-44",
++		secretKey: append([]byte(nil), secretKey...),
++		publicKey: append([]byte(nil), publicKey...),
++	}
++
++	ks := &fileBasedKeyStore{}
++	err = ks.Init(nil, tmpDir, false)
++	require.NoError(t, err)
++
++	err = ks.StoreKey(privateKey)
++	require.NoError(t, err)
++
++	loadedKey, err := ks.GetKey(privateKey.SKI())
++	require.NoError(t, err)
++
++	loadedPrivateKey, ok := loadedKey.(*pqPrivateKey)
++	require.True(t, ok)
++	require.NotNil(t, loadedPrivateKey)
++	require.True(t, loadedPrivateKey.Private())
++
++	csp, err := NewWithParams(256, "SHA2", ks)
++	require.NoError(t, err)
++
++	for i := 0; i < 2; i++ {
++		digest := []byte(fmt.Sprintf("test-digest-%d", i))
++
++		signature, err := csp.Sign(loadedKey, digest, nil)
++		require.NoError(t, err)
++
++		valid, err := csp.Verify(loadedKey, signature, digest, nil)
++		require.NoError(t, err)
++		require.True(t, valid)
++	}
++}
++
++func TestPQCryptoSignerBridge(t *testing.T) {
++	tmpDir, err := os.MkdirTemp("", "fabric-pq-signer-*")
++	require.NoError(t, err)
++	defer os.RemoveAll(tmpDir)
++
++	var oqsSigner oqs.Signature
++	err = oqsSigner.Init("ML-DSA-44", nil)
++	require.NoError(t, err)
++	defer oqsSigner.Clean()
++
++	publicKey, err := oqsSigner.GenerateKeyPair()
++	require.NoError(t, err)
++
++	secretKey := oqsSigner.ExportSecretKey()
++
++	privateKey := &pqPrivateKey{
++		algorithm: "ML-DSA-44",
++		secretKey: append([]byte(nil), secretKey...),
++		publicKey: append([]byte(nil), publicKey...),
++	}
++
++	ks := &fileBasedKeyStore{}
++	err = ks.Init(nil, tmpDir, false)
++	require.NoError(t, err)
++
++	err = ks.StoreKey(privateKey)
++	require.NoError(t, err)
++
++	loadedKey, err := ks.GetKey(privateKey.SKI())
++	require.NoError(t, err)
++
++	csp, err := NewWithParams(256, "SHA2", ks)
++	require.NoError(t, err)
++
++	cryptoSigner, err := bccspsigner.New(csp, loadedKey)
++	require.NoError(t, err)
++
++	digest := []byte("fabric-pq-crypto-signer-test")
++
++	signature, err := cryptoSigner.Sign(rand.Reader, digest, crypto.Hash(0))
++	require.NoError(t, err)
++
++	publicBCCSPKey, err := loadedKey.PublicKey()
++	require.NoError(t, err)
++
++	valid, err := csp.Verify(publicBCCSPKey, signature, digest, nil)
++	require.NoError(t, err)
++	require.True(t, valid)
++
++	rawPublic, ok := cryptoSigner.Public().([]byte)
++	require.True(t, ok)
++	require.Equal(t, publicKey, rawPublic)
++}
++
++func TestPQX509ImportMatchesPrivateKey(t *testing.T) {
++	tmpDir, err := os.MkdirTemp("", "fabric-pq-x509-*")
++	require.NoError(t, err)
++	defer os.RemoveAll(tmpDir)
++
++	var oqsSigner oqs.Signature
++	err = oqsSigner.Init("ML-DSA-44", nil)
++	require.NoError(t, err)
++	defer oqsSigner.Clean()
++
++	pqPublicKeyBytes, err := oqsSigner.GenerateKeyPair()
++	require.NoError(t, err)
++
++	pqSecretKey := oqsSigner.ExportSecretKey()
++
++	privateKey := &pqPrivateKey{
++		algorithm: "ML-DSA-44",
++		secretKey: append([]byte(nil), pqSecretKey...),
++		publicKey: append([]byte(nil), pqPublicKeyBytes...),
++	}
++
++	ks := &fileBasedKeyStore{}
++	err = ks.Init(nil, tmpDir, false)
++	require.NoError(t, err)
++
++	err = ks.StoreKey(privateKey)
++	require.NoError(t, err)
++
++	extensionValue, err := asn1.Marshal(pqIdentityExtension{
++		Algorithm: "ML-DSA-44",
++		PublicKey: pqPublicKeyBytes,
++	})
++	require.NoError(t, err)
++
++	ecdsaKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	require.NoError(t, err)
++
++	template := &x509.Certificate{
++		SerialNumber: big.NewInt(1),
++		Subject: pkix.Name{
++			CommonName: "fabric-pq-test",
++		},
++		NotBefore: time.Now().Add(-time.Minute),
++		NotAfter:  time.Now().Add(time.Hour),
++		ExtraExtensions: []pkix.Extension{
++			{
++				Id:       pqIdentityExtensionOID,
++				Critical: false,
++				Value:    extensionValue,
++			},
++		},
++	}
++
++	certDER, err := x509.CreateCertificate(
++		rand.Reader,
++		template,
++		template,
++		&ecdsaKey.PublicKey,
++		ecdsaKey,
++	)
++	require.NoError(t, err)
++
++	cert, err := x509.ParseCertificate(certDER)
++	require.NoError(t, err)
++
++	csp, err := NewWithParams(256, "SHA2", ks)
++	require.NoError(t, err)
++
++	importedKey, err := csp.KeyImport(
++		cert,
++		&bccsp.X509PublicKeyImportOpts{Temporary: true},
++	)
++	require.NoError(t, err)
++
++	importedPQKey, ok := importedKey.(*pqPublicKey)
++	require.True(t, ok)
++	require.False(t, importedPQKey.Private())
++	require.Equal(t, "ML-DSA-44", importedPQKey.algorithm)
++	require.Equal(t, pqPublicKeyBytes, importedPQKey.publicKey)
++
++	require.Equal(t, privateKey.SKI(), importedKey.SKI())
++
++	loadedPrivateKey, err := csp.GetKey(importedKey.SKI())
++	require.NoError(t, err)
++
++	loadedPQPrivateKey, ok := loadedPrivateKey.(*pqPrivateKey)
++	require.True(t, ok)
++	require.Equal(t, privateKey.SKI(), loadedPQPrivateKey.SKI())
++}
+diff --git a/bccsp/sw/pqkey.go b/bccsp/sw/pqkey.go
+new file mode 100644
+index 0000000..aeb243f
+--- /dev/null
++++ b/bccsp/sw/pqkey.go
+@@ -0,0 +1,84 @@
++package sw
++
++import (
++	"crypto/sha256"
++	"errors"
++
++	"github.com/hyperledger/fabric/bccsp"
++)
++
++type pqPrivateKey struct {
++	algorithm string
++	secretKey []byte
++	publicKey []byte
++}
++
++func (k *pqPrivateKey) Bytes() ([]byte, error) {
++	return nil, errors.New("Not supported.")
++}
++
++func (k *pqPrivateKey) SKI() []byte {
++	if len(k.publicKey) == 0 {
++		return nil
++	}
++
++	sum := sha256.Sum256(k.publicKey)
++	return sum[:]
++}
++
++func (k *pqPrivateKey) Symmetric() bool {
++	return false
++}
++
++func (k *pqPrivateKey) Private() bool {
++	return true
++}
++
++func (k *pqPrivateKey) PublicKey() (bccsp.Key, error) {
++	if len(k.publicKey) == 0 {
++		return nil, errors.New("public key is not available")
++	}
++
++	return &pqPublicKey{
++		algorithm: k.algorithm,
++		publicKey: append([]byte(nil), k.publicKey...),
++	}, nil
++}
++
++type pqPublicKey struct {
++	algorithm string
++	publicKey []byte
++}
++
++func (k *pqPublicKey) Bytes() ([]byte, error) {
++	if len(k.publicKey) == 0 {
++		return nil, errors.New("public key is not available")
++	}
++
++	return append([]byte(nil), k.publicKey...), nil
++}
++
++func (k *pqPublicKey) SKI() []byte {
++	if len(k.publicKey) == 0 {
++		return nil
++	}
++
++	sum := sha256.Sum256(k.publicKey)
++	return sum[:]
++}
++
++func (k *pqPublicKey) Symmetric() bool {
++	return false
++}
++
++func (k *pqPublicKey) Private() bool {
++	return false
++}
++
++func (k *pqPublicKey) IsRawPublicKey() bool {
++	return true
++}
++
++func (k *pqPublicKey) PublicKey() (bccsp.Key, error) {
++	return k, nil
++}
+diff --git a/bccsp/sw/pqkeystore.go b/bccsp/sw/pqkeystore.go
+new file mode 100644
+index 0000000..f5e8ee6
+--- /dev/null
++++ b/bccsp/sw/pqkeystore.go
+@@ -0,0 +1,88 @@
++package sw
++
++import (
++	"encoding/asn1"
++	"encoding/pem"
++	"errors"
++)
++
++const pqPrivateKeyPEMType = "FABRIC PQ PRIVATE KEY"
++
++type pqPrivateKeyASN1 struct {
++	Algorithm string
++	SecretKey []byte
++	PublicKey []byte
++}
++
++func pqPrivateKeyToPEM(k *pqPrivateKey, pwd []byte) ([]byte, error) {
++	if k == nil {
++		return nil, errors.New("PQ private key is nil")
++	}
++	if len(pwd) != 0 {
++		return nil, errors.New("encrypted PQ private keys are not supported")
++	}
++	if k.algorithm == "" {
++		return nil, errors.New("PQ private key has empty algorithm")
++	}
++	if len(k.secretKey) == 0 {
++		return nil, errors.New("PQ private key has empty secret key")
++	}
++	if len(k.publicKey) == 0 {
++		return nil, errors.New("PQ private key has empty public key")
++	}
++
++	der, err := asn1.Marshal(pqPrivateKeyASN1{
++		Algorithm: k.algorithm,
++		SecretKey: k.secretKey,
++		PublicKey: k.publicKey,
++	})
++	if err != nil {
++		return nil, err
++	}
++
++	return pem.EncodeToMemory(&pem.Block{
++		Type:  pqPrivateKeyPEMType,
++		Bytes: der,
++	}), nil
++}
++
++func pemToPQPrivateKey(raw, pwd []byte) (*pqPrivateKey, error) {
++	if len(pwd) != 0 {
++		return nil, errors.New("encrypted PQ private keys are not supported")
++	}
++
++	block, rest := pem.Decode(raw)
++	if block == nil {
++		return nil, errors.New("failed decoding PQ private key PEM")
++	}
++	if len(rest) != 0 {
++		return nil, errors.New("trailing data after PQ private key PEM")
++	}
++	if block.Type != pqPrivateKeyPEMType {
++		return nil, errors.New("invalid PQ private key PEM type")
++	}
++
++	var decoded pqPrivateKeyASN1
++	restDER, err := asn1.Unmarshal(block.Bytes, &decoded)
++	if err != nil {
++		return nil, err
++	}
++	if len(restDER) != 0 {
++		return nil, errors.New("trailing data in PQ private key")
++	}
++	if decoded.Algorithm == "" {
++		return nil, errors.New("PQ private key has empty algorithm")
++	}
++	if len(decoded.SecretKey) == 0 {
++		return nil, errors.New("PQ private key has empty secret key")
++	}
++	if len(decoded.PublicKey) == 0 {
++		return nil, errors.New("PQ private key has empty public key")
++	}
++
++	return &pqPrivateKey{
++		algorithm: decoded.Algorithm,
++		secretKey: append([]byte(nil), decoded.SecretKey...),
++		publicKey: append([]byte(nil), decoded.PublicKey...),
++	}, nil
++}
+diff --git a/bccsp/sw/pqx509.go b/bccsp/sw/pqx509.go
+new file mode 100644
+index 0000000..27f0c15
+--- /dev/null
++++ b/bccsp/sw/pqx509.go
+@@ -0,0 +1,41 @@
++package sw
++
++import (
++	"crypto/x509"
++	"encoding/asn1"
++	"errors"
++)
++
++var pqIdentityExtensionOID = asn1.ObjectIdentifier{1, 3, 6, 1, 3, 9999, 1}
++
++type pqIdentityExtension struct {
++	Algorithm string
++	PublicKey []byte
++}
++
++func pqIdentityFromCertificate(cert *x509.Certificate) (*pqIdentityExtension, error) {
++	for _, ext := range cert.Extensions {
++		if !ext.Id.Equal(pqIdentityExtensionOID) {
++			continue
++		}
++
++		var pqExt pqIdentityExtension
++		rest, err := asn1.Unmarshal(ext.Value, &pqExt)
++		if err != nil {
++			return nil, err
++		}
++		if len(rest) != 0 {
++			return nil, errors.New("trailing data in PQ identity extension")
++		}
++		if pqExt.Algorithm == "" {
++			return nil, errors.New("PQ identity extension has empty algorithm")
++		}
++		if len(pqExt.PublicKey) == 0 {
++			return nil, errors.New("PQ identity extension has empty public key")
++		}
++
++		return &pqExt, nil
++	}
++
++	return nil, nil
++}
+diff --git a/go.mod b/go.mod
+index 1c00b4d..760dfad 100644
+--- a/go.mod
++++ b/go.mod
+@@ -96,6 +96,7 @@ require (
+ 	github.com/mattn/go-runewidth v0.0.4 // indirect
+ 	github.com/moby/docker-image-spec v1.3.1 // indirect
+ 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
++	github.com/open-quantum-safe/liboqs-go v0.15.0 // indirect
+ 	github.com/opencontainers/go-digest v1.0.0 // indirect
+ 	github.com/opencontainers/image-spec v1.1.1 // indirect
+ 	github.com/pelletier/go-toml v1.9.5 // indirect
+diff --git a/go.sum b/go.sum
+index 5392b2e..b93ea66 100644
+--- a/go.sum
++++ b/go.sum
+@@ -399,6 +399,8 @@ github.com/onsi/gomega v1.10.1/go.mod h1:iN09h71vgCQne3DLsj+A5owkum+a2tYe+TOCB1y
+ github.com/onsi/gomega v1.38.2 h1:eZCjf2xjZAqe+LeWvKb5weQ+NcPwX84kqJ0cZNxok2A=
+ github.com/onsi/gomega v1.38.2/go.mod h1:W2MJcYxRGV63b418Ai34Ud0hEdTVXq9NW9+Sx6uXf3k=
+ github.com/op/go-logging v0.0.0-20160315200505-970db520ece7/go.mod h1:HzydrMdWErDVzsI23lYNej1Htcns9BCg93Dk0bBINWk=
++github.com/open-quantum-safe/liboqs-go v0.15.0 h1:9AQ3+5IdDf4RqTYtgiF3TM86p7R2rAAYOcbttTpnaxk=
++github.com/open-quantum-safe/liboqs-go v0.15.0/go.mod h1:OoIQ+v4rM6S6cF9zLGxsnsXX9vwv7WLp9s0TV2FbD6M=
+ github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8Oi/yOhh5U=
+ github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
+ github.com/opencontainers/image-spec v1.1.1 h1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJwooC2xJA040=
+diff --git a/images/orderer/Dockerfile b/images/orderer/Dockerfile
+index 0ed2004..bb9e311 100644
+--- a/images/orderer/Dockerfile
++++ b/images/orderer/Dockerfile
+@@ -33,11 +33,53 @@ RUN apt update && apt install -y \
+     git \
+     gcc \
+     curl \
+-    make
++    make \
++    cmake \
++    ninja-build \
++    libssl-dev \
++    pkg-config \
++    unzip
++
++ARG GO_TOOLCHAIN_SHA256=0221cfe82f9c88c717677cb5c1f59f598d177cd7eac18c11f90ae29432d356f9
++
++COPY go1.26.4-toolchain.zip /tmp/go-toolchain.zip
++
++RUN echo "${GO_TOOLCHAIN_SHA256}  /tmp/go-toolchain.zip" | sha256sum -c - \
++    && mkdir -p /usr/local/go \
++    && unzip -q /tmp/go-toolchain.zip -d /tmp/go-toolchain \
++    && cp -a /tmp/go-toolchain/golang.org/toolchain@v0.0.1-go1.26.4.linux-amd64/. /usr/local/go/ \
++    && rm -rf /tmp/go-toolchain /tmp/go-toolchain.zip
+ 
+-RUN curl -sL https://go.dev/dl/go${GO_VER}.${TARGETOS}-${TARGETARCH}.tar.gz | tar zxf - -C /usr/local
+ ENV PATH="/usr/local/go/bin:$PATH"
+ 
++ARG LIBOQS_COMMIT=97f6b86b1b6d109cfd43cf276ae39c2e776aed80
++
++RUN git clone https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs \
++    && cd /tmp/liboqs \
++    && git checkout ${LIBOQS_COMMIT} \
++    && cmake -S . -B build -GNinja \
++        -DCMAKE_BUILD_TYPE=Release \
++        -DBUILD_SHARED_LIBS=ON \
++        -DOQS_BUILD_ONLY_LIB=ON \
++    && cmake --build build \
++    && cmake --install build \
++    && ldconfig \
++    && rm -rf /tmp/liboqs
++
++RUN printf '%s\n' \
++    'LIBOQS_INCLUDE_DIR=/usr/local/include' \
++    'LIBOQS_LIB_DIR=/usr/local/lib' \
++    '' \
++    'Name: liboqs-go' \
++    'Description: Go bindings for liboqs, a C library for quantum resistant cryptography' \
++    'Version: 0.15.0' \
++    'Cflags: -I${LIBOQS_INCLUDE_DIR}' \
++    'Ldflags: '\''-extldflags "-Wl,-stack_size -Wl,0x1000000"'\''' \
++    'Libs: -L${LIBOQS_LIB_DIR} -loqs' \
++    > /usr/local/lib/pkgconfig/liboqs-go.pc
++
++ENV PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
++
+ ADD . .
+ 
+ RUN make orderer GO_TAGS=${GO_TAGS} FABRIC_VER=${FABRIC_VER}
+@@ -50,6 +92,10 @@ RUN make orderer GO_TAGS=${GO_TAGS} FABRIC_VER=${FABRIC_VER}
+ ARG UBUNTU_VER
+ FROM ubuntu:${UBUNTU_VER}
+ 
++RUN apt update \
++    && apt install -y --no-install-recommends libssl3 \
++    && rm -rf /var/lib/apt/lists/*
++
+ ARG FABRIC_VER
+ 
+ # set up nsswitch.conf for Go's "netgo" implementation
+@@ -60,6 +106,9 @@ RUN echo 'hosts: files dns' > /etc/nsswitch.conf
+ ENV     FABRIC_CFG_PATH /etc/hyperledger/fabric
+ ENV     FABRIC_VER      ${FABRIC_VER}
+ 
++COPY --from=builder /usr/local/lib/liboqs.so.0.15.0 /usr/local/lib/
++RUN ln -s liboqs.so.0.15.0 /usr/local/lib/liboqs.so.9 && ldconfig
++
+ COPY    --from=builder  build/bin/orderer           /usr/local/bin
+ COPY    --from=builder  sampleconfig/msp            ${FABRIC_CFG_PATH}/msp
+ COPY    --from=builder  sampleconfig/orderer.yaml   ${FABRIC_CFG_PATH}
+diff --git a/images/peer/Dockerfile b/images/peer/Dockerfile
+index a6a7538..500dd02 100644
+--- a/images/peer/Dockerfile
++++ b/images/peer/Dockerfile
+@@ -33,11 +33,53 @@ RUN apt update && apt install -y \
+     git \
+     gcc \
+     curl \
+-    make
++    make \
++    cmake \
++    ninja-build \
++    libssl-dev \
++    pkg-config \
++    unzip
++
++ARG GO_TOOLCHAIN_SHA256=0221cfe82f9c88c717677cb5c1f59f598d177cd7eac18c11f90ae29432d356f9
++
++COPY go1.26.4-toolchain.zip /tmp/go-toolchain.zip
++
++RUN echo "${GO_TOOLCHAIN_SHA256}  /tmp/go-toolchain.zip" | sha256sum -c - \
++    && mkdir -p /usr/local/go \
++    && unzip -q /tmp/go-toolchain.zip -d /tmp/go-toolchain \
++    && cp -a /tmp/go-toolchain/golang.org/toolchain@v0.0.1-go1.26.4.linux-amd64/. /usr/local/go/ \
++    && rm -rf /tmp/go-toolchain /tmp/go-toolchain.zip
+ 
+-RUN curl -sL https://go.dev/dl/go${GO_VER}.${TARGETOS}-${TARGETARCH}.tar.gz | tar zxf - -C /usr/local
+ ENV PATH="/usr/local/go/bin:$PATH"
+ 
++ARG LIBOQS_COMMIT=97f6b86b1b6d109cfd43cf276ae39c2e776aed80
++
++RUN git clone https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs \
++    && cd /tmp/liboqs \
++    && git checkout ${LIBOQS_COMMIT} \
++    && cmake -S . -B build -GNinja \
++        -DCMAKE_BUILD_TYPE=Release \
++        -DBUILD_SHARED_LIBS=ON \
++        -DOQS_BUILD_ONLY_LIB=ON \
++    && cmake --build build \
++    && cmake --install build \
++    && ldconfig \
++    && rm -rf /tmp/liboqs
++
++RUN printf '%s\n' \
++    'LIBOQS_INCLUDE_DIR=/usr/local/include' \
++    'LIBOQS_LIB_DIR=/usr/local/lib' \
++    '' \
++    'Name: liboqs-go' \
++    'Description: Go bindings for liboqs, a C library for quantum resistant cryptography' \
++    'Version: 0.15.0' \
++    'Cflags: -I${LIBOQS_INCLUDE_DIR}' \
++    'Ldflags: '\''-extldflags "-Wl,-stack_size -Wl,0x1000000"'\''' \
++    'Libs: -L${LIBOQS_LIB_DIR} -loqs' \
++    > /usr/local/lib/pkgconfig/liboqs-go.pc
++
++ENV PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
++
+ ADD . .
+ 
+ RUN make peer GO_TAGS=${GO_TAGS} FABRIC_VER=${FABRIC_VER}
+@@ -51,6 +93,10 @@ RUN make ccaasbuilder
+ ARG UBUNTU_VER
+ FROM ubuntu:${UBUNTU_VER}
+ 
++RUN apt update \
++    && apt install -y --no-install-recommends libssl3 \
++    && rm -rf /var/lib/apt/lists/*
++
+ ARG TARGETOS
+ ARG TARGETARCH
+ ARG FABRIC_VER
+@@ -63,6 +109,9 @@ RUN echo 'hosts: files dns' > /etc/nsswitch.conf
+ ENV     FABRIC_CFG_PATH /etc/hyperledger/fabric
+ ENV     FABRIC_VER      ${FABRIC_VER}
+ 
++COPY --from=builder /usr/local/lib/liboqs.so.0.15.0 /usr/local/lib/
++RUN ln -s liboqs.so.0.15.0 /usr/local/lib/liboqs.so.9 && ldconfig
++
+ COPY    --from=builder  build/bin/peer          /usr/local/bin
+ COPY    --from=builder  sampleconfig/msp        ${FABRIC_CFG_PATH}/msp
+ COPY    --from=builder  sampleconfig/core.yaml  ${FABRIC_CFG_PATH}/core.yaml
+diff --git a/msp/msp_test.go b/msp/msp_test.go
+index 71a98bb..7b328d2 100644
+--- a/msp/msp_test.go
++++ b/msp/msp_test.go
+@@ -34,6 +34,7 @@ import (
+ 	"github.com/hyperledger/fabric/bccsp/utils"
+ 	"github.com/hyperledger/fabric/core/config/configtest"
+ 	"github.com/hyperledger/fabric/protoutil"
++	oqs "github.com/open-quantum-safe/liboqs-go/oqs"
+ 	"github.com/stretchr/testify/require"
+ )
+ 
+@@ -93,6 +94,157 @@ func TestGetSigningIdentityFromConfWithWrongPrivateCert(t *testing.T) {
+ 	require.EqualError(t, err, "MyPrivateKey: wrong PEM encoding")
+ }
+ 
++func TestGetSigningIdentityFromConfWithPQIdentity(t *testing.T) {
++	tmpDir := t.TempDir()
++
++	var oqsSigner oqs.Signature
++	err := oqsSigner.Init("ML-DSA-44", nil)
++	require.NoError(t, err)
++	defer oqsSigner.Clean()
++
++	pqPublicKey, err := oqsSigner.GenerateKeyPair()
++	require.NoError(t, err)
++
++	pqSecretKey := oqsSigner.ExportSecretKey()
++
++	// The PQ public/private keys use SHA-256(publicKey) as their BCCSP SKI.
++	ski := sha256.Sum256(pqPublicKey)
++	alias := hex.EncodeToString(ski[:])
++
++	// Match the on-disk ASN.1/PEM format used by sw.pqPrivateKey.
++	pqKeyDER, err := asn1.Marshal(struct {
++		Algorithm string
++		SecretKey []byte
++		PublicKey []byte
++	}{
++		Algorithm: "ML-DSA-44",
++		SecretKey: pqSecretKey,
++		PublicKey: pqPublicKey,
++	})
++	require.NoError(t, err)
++
++	pqKeyPEM := pem.EncodeToMemory(&pem.Block{
++		Type:  "FABRIC PQ PRIVATE KEY",
++		Bytes: pqKeyDER,
++	})
++
++	err = os.WriteFile(
++		filepath.Join(tmpDir, alias+"_pqpriv"),
++		pqKeyPEM,
++		0o600,
++	)
++	require.NoError(t, err)
++
++	// Embed the PQ algorithm and public key in a non-critical X.509 extension.
++	extensionValue, err := asn1.Marshal(struct {
++		Algorithm string
++		PublicKey []byte
++	}{
++		Algorithm: "ML-DSA-44",
++		PublicKey: pqPublicKey,
++	})
++	require.NoError(t, err)
++
++	pqExtensionOID := asn1.ObjectIdentifier{1, 3, 6, 1, 3, 9999, 1}
++
++	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	require.NoError(t, err)
++
++	caTemplate := &x509.Certificate{
++		SerialNumber: big.NewInt(1),
++		Subject: pkix.Name{
++			CommonName: "fabric-pq-test-ca",
++		},
++		NotBefore:             time.Now().Add(-time.Minute),
++		NotAfter:              time.Now().Add(time.Hour),
++		IsCA:                  true,
++		BasicConstraintsValid: true,
++		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
++	}
++
++	caDER, err := x509.CreateCertificate(
++		rand.Reader,
++		caTemplate,
++		caTemplate,
++		&caKey.PublicKey,
++		caKey,
++	)
++	require.NoError(t, err)
++
++	caCert, err := x509.ParseCertificate(caDER)
++	require.NoError(t, err)
++
++	leafKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	require.NoError(t, err)
++
++	leafTemplate := &x509.Certificate{
++		SerialNumber: big.NewInt(2),
++		Subject: pkix.Name{
++			CommonName: "fabric-pq-msp-test",
++		},
++		NotBefore:             time.Now().Add(-time.Minute),
++		NotAfter:              time.Now().Add(time.Hour),
++		BasicConstraintsValid: true,
++		KeyUsage:              x509.KeyUsageDigitalSignature,
++		ExtraExtensions: []pkix.Extension{
++			{
++				Id:       pqExtensionOID,
++				Critical: false,
++				Value:    extensionValue,
++			},
++		},
++	}
++
++	certDER, err := x509.CreateCertificate(
++		rand.Reader,
++		leafTemplate,
++		caCert,
++		&leafKey.PublicKey,
++		caKey,
++	)
++	require.NoError(t, err)
++
++	certPEM := pem.EncodeToMemory(&pem.Block{
++		Type:  "CERTIFICATE",
++		Bytes: certDER,
++	})
++
++	ks, err := sw.NewFileBasedKeyStore(nil, tmpDir, false)
++	require.NoError(t, err)
++
++	csp, err := sw.NewWithParams(256, "SHA2", ks)
++	require.NoError(t, err)
++
++	// Reuse the already configured MSP options, but replace its BCCSP
++	// with the temporary PQ-aware keystore for this test only.
++	testMSP := *localMsp.(*bccspmsp)
++	testMSP.bccsp = csp
++
++	testOpts := *localMsp.(*bccspmsp).opts
++	testOpts.Roots = x509.NewCertPool()
++	testOpts.Roots.AddCert(caCert)
++	testMSP.opts = &testOpts
++
++	sigid := &msp.SigningIdentityInfo{
++		PublicSigner: certPEM,
++	}
++
++	signingIdentity, err := testMSP.getSigningIdentityFromConf(sigid)
++	require.NoError(t, err)
++	require.NotNil(t, signingIdentity)
++
++	message := []byte("fabric-pq-msp-signing-test")
++
++	signature, err := signingIdentity.Sign(message)
++	require.NoError(t, err)
++	require.NotEmpty(t, signature)
++
++	publicIdentity := signingIdentity.GetPublicVersion()
++
++	err = publicIdentity.Verify(message, signature)
++	require.NoError(t, err)
++}
++
+ func TestMSPSetupNoCryptoConf(t *testing.T) {
+ 	mspDir := configtest.GetDevMspDir()
+ 	conf, err := GetLocalMspConfig(mspDir, nil, "SampleOrg")
+diff --git a/vendor/github.com/open-quantum-safe/liboqs-go/LICENSE.txt b/vendor/github.com/open-quantum-safe/liboqs-go/LICENSE.txt
+new file mode 100644
+index 0000000..80dd311
+--- /dev/null
++++ b/vendor/github.com/open-quantum-safe/liboqs-go/LICENSE.txt
+@@ -0,0 +1,21 @@
++MIT License
++
++Copyright (c) 2019-2025 Open Quantum Safe
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
+diff --git a/vendor/github.com/open-quantum-safe/liboqs-go/oqs/cfuncs.go b/vendor/github.com/open-quantum-safe/liboqs-go/oqs/cfuncs.go
+new file mode 100644
+index 0000000..a676105
+--- /dev/null
++++ b/vendor/github.com/open-quantum-safe/liboqs-go/oqs/cfuncs.go
+@@ -0,0 +1,13 @@
++package oqs
++
++// C callbacks, DO NOT CHANGE
++
++/*
++#include <stdint.h>
++#include <stddef.h>
++void randAlgorithmPtr_cgo(uint8_t* random_array, size_t bytes_to_read) {
++	void randAlgorithmPtr(uint8_t*, size_t);
++	randAlgorithmPtr(random_array, bytes_to_read);
++}
++*/
++import "C"
+diff --git a/vendor/github.com/open-quantum-safe/liboqs-go/oqs/oqs.go b/vendor/github.com/open-quantum-safe/liboqs-go/oqs/oqs.go
+new file mode 100644
+index 0000000..78762aa
+--- /dev/null
++++ b/vendor/github.com/open-quantum-safe/liboqs-go/oqs/oqs.go
+@@ -0,0 +1,651 @@
++// Package oqs provides a GO wrapper for the C liboqs quantum-resistant library.
++package oqs // import "github.com/open-quantum-safe/liboqs-go/oqs"
++
++/*
++#cgo pkg-config: liboqs-go
++#include <oqs/oqs.h>
++typedef void (*rand_algorithm_ptr)(uint8_t*, size_t);
++void randAlgorithmPtr_cgo(uint8_t*, size_t);
++*/
++import "C"
++
++import (
++	"errors"
++	"fmt"
++	"unsafe"
++)
++
++/**************** Misc functions ****************/
++
++// LiboqsVersion retrieves the underlying liboqs version string.
++func LiboqsVersion() string {
++	return C.GoString(C.OQS_version())
++}
++
++// MemCleanse sets to zero the content of a byte slice by invoking the liboqs
++// OQS_MEM_cleanse() function. Use it to clean "hot" memory areas, such as
++// secret keys etc.
++func MemCleanse(v []byte) {
++	C.OQS_MEM_cleanse(unsafe.Pointer(&v[0]), C.size_t(len(v)))
++}
++
++/**************** END Misc functions ****************/
++
++/**************** KEMs ****************/
++
++// List of enabled KEM algorithms, populated by init().
++var enabledKEMs []string
++
++// List of supported KEM algorithms, populated by init().
++var supportedKEMs []string
++
++// MaxNumberKEMs returns the maximum number of supported KEM algorithms.
++func MaxNumberKEMs() int {
++	return int(C.OQS_KEM_alg_count())
++}
++
++// IsKEMEnabled returns true if a KEM algorithm is enabled, and false otherwise.
++func IsKEMEnabled(algName string) bool {
++	result := C.OQS_KEM_alg_is_enabled(C.CString(algName))
++	return result != 0
++}
++
++// IsKEMSupported returns true if a KEM algorithm is supported, and false
++// otherwise.
++func IsKEMSupported(algName string) bool {
++	for i := range supportedKEMs {
++		if supportedKEMs[i] == algName {
++			return true
++		}
++	}
++	return false
++}
++
++// KEMName returns the KEM algorithm name from its corresponding numerical ID.
++func KEMName(algID int) (string, error) {
++	if algID >= MaxNumberKEMs() {
++		return "", errors.New("algorithm ID out of range")
++	}
++	return C.GoString(C.OQS_KEM_alg_identifier(C.size_t(algID))), nil
++}
++
++// SupportedKEMs returns the list of supported KEM algorithms.
++func SupportedKEMs() []string {
++	return supportedKEMs
++}
++
++// EnabledKEMs returns the list of enabled KEM algorithms.
++func EnabledKEMs() []string {
++	return enabledKEMs
++}
++
++// Initializes liboqs and the lists enabledKEMs and supportedKEMs.
++func init() {
++	C.OQS_init()
++	for i := 0; i < MaxNumberKEMs(); i++ {
++		KEMName, _ := KEMName(i)
++		supportedKEMs = append(supportedKEMs, KEMName)
++		if IsKEMEnabled(KEMName) {
++			enabledKEMs = append(enabledKEMs, KEMName)
++		}
++	}
++}
++
++/**************** END KEMs ****************/
++
++/**************** KeyEncapsulation ****************/
++
++// KeyEncapsulationDetails defines the KEM algorithm details.
++type KeyEncapsulationDetails struct {
++	Name               string
++	Version            string
++	ClaimedNISTLevel   int
++	IsINDCCA           bool
++	LengthPublicKey    int
++	LengthSecretKey    int
++	LengthCiphertext   int
++	LengthSharedSecret int
++}
++
++// String converts the KEM algorithm details to a string representation. Use
++// this method to pretty-print the KEM algorithm details, e.g.
++// fmt.Println(client.Details()).
++func (kemDetails KeyEncapsulationDetails) String() string {
++	return fmt.Sprintf("Name: %s\n"+
++		"Version: %s\n"+
++		"Claimed NIST level: %d\n"+
++		"Is IND_CCA: %v\n"+
++		"Length public key (bytes): %d\n"+
++		"Length secret key (bytes): %d\n"+
++		"Length ciphertext (bytes): %d\n"+
++		"Length shared secret (bytes): %d",
++		kemDetails.Name,
++		kemDetails.Version,
++		kemDetails.ClaimedNISTLevel,
++		kemDetails.IsINDCCA,
++		kemDetails.LengthPublicKey,
++		kemDetails.LengthSecretKey,
++		kemDetails.LengthCiphertext,
++		kemDetails.LengthSharedSecret)
++}
++
++// KeyEncapsulation defines the KEM main data structure.
++type KeyEncapsulation struct {
++	kem        *C.OQS_KEM
++	secretKey  []byte
++	algDetails KeyEncapsulationDetails
++}
++
++// String converts the KEM algorithm name to a string representation. Use this
++// method to pretty-print the KEM algorithm name, e.g. fmt.Println(client).
++func (kem KeyEncapsulation) String() string {
++	return fmt.Sprintf("Key encapsulation mechanism: %s",
++		kem.algDetails.Name)
++}
++
++// Init initializes the KEM data structure with an algorithm name and a secret
++// key. If the secret key is null, then the user must invoke the
++// KeyEncapsulation.GenerateKeyPair method to generate the pair of
++// secret key/public key.
++func (kem *KeyEncapsulation) Init(algName string, secretKey []byte) error {
++	if !IsKEMEnabled(algName) {
++		// perhaps it's supported
++		if IsKEMSupported(algName) {
++			return errors.New(`"` + algName + `" KEM is not enabled by OQS`)
++		}
++		return errors.New(`"` + algName + `" KEM is not supported by OQS`)
++	}
++	kem.kem = C.OQS_KEM_new(C.CString(algName))
++	kem.secretKey = secretKey
++	kem.algDetails.Name = C.GoString(kem.kem.method_name)
++	kem.algDetails.Version = C.GoString(kem.kem.alg_version)
++	kem.algDetails.ClaimedNISTLevel = int(kem.kem.claimed_nist_level)
++	kem.algDetails.IsINDCCA = bool(kem.kem.ind_cca)
++	kem.algDetails.LengthPublicKey = int(kem.kem.length_public_key)
++	kem.algDetails.LengthSecretKey = int(kem.kem.length_secret_key)
++	kem.algDetails.LengthCiphertext = int(kem.kem.length_ciphertext)
++	kem.algDetails.LengthSharedSecret = int(kem.kem.length_shared_secret)
++	return nil
++}
++
++// Details returns the KEM algorithm details.
++func (kem *KeyEncapsulation) Details() KeyEncapsulationDetails {
++	return kem.algDetails
++}
++
++// GenerateKeyPair generates a pair of secret key/public key and returns the
++// public key. The secret key is stored inside the kem receiver. The secret key
++// is not directly accessible, unless one exports it with
++// KeyEncapsulation.ExportSecretKey method.
++func (kem *KeyEncapsulation) GenerateKeyPair() ([]byte, error) {
++	publicKey := make([]byte, kem.algDetails.LengthPublicKey)
++	kem.secretKey = make([]byte, kem.algDetails.LengthSecretKey)
++
++	rv := C.OQS_KEM_keypair(
++		kem.kem,
++		(*C.uint8_t)(unsafe.Pointer(&publicKey[0])),
++		(*C.uint8_t)(unsafe.Pointer(&kem.secretKey[0])),
++	)
++
++	if rv != C.OQS_SUCCESS {
++		return nil, errors.New("can not generate keypair")
++	}
++
++	return publicKey, nil
++}
++
++// ExportSecretKey exports the corresponding secret key from the kem receiver.
++func (kem *KeyEncapsulation) ExportSecretKey() []byte {
++	return kem.secretKey
++}
++
++// EncapSecret encapsulates a secret using a public key and returns the
++// corresponding ciphertext and shared secret.
++func (kem *KeyEncapsulation) EncapSecret(publicKey []byte) (ciphertext,
++	sharedSecret []byte, err error,
++) {
++	if len(publicKey) != kem.algDetails.LengthPublicKey {
++		return nil, nil, errors.New("incorrect public key length")
++	}
++
++	ciphertext = make([]byte, kem.algDetails.LengthCiphertext)
++	sharedSecret = make([]byte, kem.algDetails.LengthSharedSecret)
++
++	rv := C.OQS_KEM_encaps(
++		kem.kem,
++		(*C.uint8_t)(unsafe.Pointer(&ciphertext[0])),
++		(*C.uint8_t)(unsafe.Pointer(&sharedSecret[0])),
++		(*C.uint8_t)(unsafe.Pointer(&publicKey[0])),
++	)
++
++	if rv != C.OQS_SUCCESS {
++		return nil, nil, errors.New("can not encapsulate secret")
++	}
++
++	return ciphertext, sharedSecret, nil
++}
++
++// DecapSecret decapsulates a ciphertexts and returns the corresponding shared
++// secret.
++func (kem *KeyEncapsulation) DecapSecret(ciphertext []byte) ([]byte, error) {
++	if len(ciphertext) != kem.algDetails.LengthCiphertext {
++		return nil, errors.New("incorrect ciphertext length")
++	}
++
++	if len(kem.secretKey) != kem.algDetails.LengthSecretKey {
++		return nil, errors.New("incorrect secret key length, make sure you " +
++			"specify one in Init() or run GenerateKeyPair()")
++	}
++
++	sharedSecret := make([]byte, kem.algDetails.LengthSharedSecret)
++	rv := C.OQS_KEM_decaps(
++		kem.kem,
++		(*C.uint8_t)(unsafe.Pointer(&sharedSecret[0])),
++		(*C.uchar)(unsafe.Pointer(&ciphertext[0])),
++		(*C.uint8_t)(unsafe.Pointer(&kem.secretKey[0])),
++	)
++
++	if rv != C.OQS_SUCCESS {
++		return nil, errors.New("can not decapsulate secret")
++	}
++
++	return sharedSecret, nil
++}
++
++// Clean zeroes-in the stored secret key and resets the kem receiver. One can
++// reuse the KEM by re-initializing it with the KeyEncapsulation.Init method.
++func (kem *KeyEncapsulation) Clean() {
++	if len(kem.secretKey) > 0 {
++		MemCleanse(kem.secretKey)
++	}
++	C.OQS_KEM_free(kem.kem)
++	*kem = KeyEncapsulation{}
++}
++
++/**************** END KeyEncapsulation ****************/
++
++/**************** Sigs ****************/
++
++// List of enabled signature algorithms, populated by init().
++var enabledSigs []string
++
++// List of supported signature algorithms, populated by init().
++var supportedSigs []string
++
++// MaxNumberSigs returns the maximum number of supported signature algorithms.
++func MaxNumberSigs() int {
++	return int(C.OQS_SIG_alg_count())
++}
++
++// IsSigEnabled returns true if a signature algorithm is enabled, and false
++// otherwise.
++func IsSigEnabled(algName string) bool {
++	result := C.OQS_SIG_alg_is_enabled(C.CString(algName))
++	return result != 0
++}
++
++// IsSigSupported returns true if a signature algorithm is supported, and false
++// otherwise.
++func IsSigSupported(algName string) bool {
++	for i := range supportedSigs {
++		if supportedSigs[i] == algName {
++			return true
++		}
++	}
++	return false
++}
++
++// SigName returns the signature algorithm name from its corresponding
++// numerical ID.
++func SigName(algID int) (string, error) {
++	if algID >= MaxNumberSigs() {
++		return "", errors.New("algorithm ID out of range")
++	}
++	return C.GoString(C.OQS_SIG_alg_identifier(C.size_t(algID))), nil
++}
++
++// SupportedSigs returns the list of supported signature algorithms.
++func SupportedSigs() []string {
++	return supportedSigs
++}
++
++// EnabledSigs returns the list of enabled signature algorithms.
++func EnabledSigs() []string {
++	return enabledSigs
++}
++
++// Initializes the lists enabledSigs and supportedSigs.
++func init() {
++	for i := 0; i < MaxNumberSigs(); i++ {
++		sigName, _ := SigName(i)
++		supportedSigs = append(supportedSigs, sigName)
++		if IsSigEnabled(sigName) {
++			enabledSigs = append(enabledSigs, sigName)
++		}
++	}
++}
++
++/**************** END Sigs ****************/
++
++/**************** Signature ****************/
++
++// SignatureDetails defines the signature algorithm details.
++type SignatureDetails struct {
++	Name               string
++	Version            string
++	ClaimedNISTLevel   int
++	IsEUFCMA           bool
++	SigWithCtxSupport  bool
++	LengthPublicKey    int
++	LengthSecretKey    int
++	MaxLengthSignature int
++}
++
++// String converts the signature algorithm details to a string representation.
++// Use this method to pretty-print the signature algorithm details, e.g.
++// fmt.Println(signer.Details()).
++func (sigDetails SignatureDetails) String() string {
++	return fmt.Sprintf("Name: %s\n"+
++		"Version: %s\n"+
++		"Claimed NIST level: %d\n"+
++		"Is EUF_CMA: %v\n"+
++		"Supports context string: %v\n"+
++		"Length public key (bytes): %d\n"+
++		"Length secret key (bytes): %d\n"+
++		"Maximum length signature (bytes): %d",
++		sigDetails.Name,
++		sigDetails.Version,
++		sigDetails.ClaimedNISTLevel,
++		sigDetails.IsEUFCMA,
++		sigDetails.SigWithCtxSupport,
++		sigDetails.LengthPublicKey,
++		sigDetails.LengthSecretKey,
++		sigDetails.MaxLengthSignature)
++}
++
++// Signature defines the signature main data structure.
++type Signature struct {
++	sig        *C.OQS_SIG
++	secretKey  []byte
++	algDetails SignatureDetails
++}
++
++// String converts the signature algorithm name to a string representation.
++// Use this method to pretty-print the signature algorithm name, e.g.
++// fmt.Println(signer).
++func (sig Signature) String() string {
++	return fmt.Sprintf("Signature mechanism: %s",
++		sig.algDetails.Name)
++}
++
++// Init initializes the signature data structure with an algorithm name and a
++// secret key. If the secret key is null, then the user must invoke the
++// Signature.GenerateKeyPair method to generate the pair of secret key/public
++// key.
++func (sig *Signature) Init(algName string, secretKey []byte) error {
++	if !IsSigEnabled(algName) {
++		// perhaps it's supported
++		if IsSigSupported(algName) {
++			return errors.New(`"` + algName +
++				`" signature mechanism is not enabled by OQS`)
++		}
++		return errors.New(`"` + algName +
++			`" signature mechanism is not supported by OQS`)
++
++	}
++	sig.sig = C.OQS_SIG_new(C.CString(algName))
++	sig.secretKey = secretKey
++	sig.algDetails.Name = C.GoString(sig.sig.method_name)
++	sig.algDetails.Version = C.GoString(sig.sig.alg_version)
++	sig.algDetails.ClaimedNISTLevel = int(sig.sig.claimed_nist_level)
++	sig.algDetails.IsEUFCMA = bool(sig.sig.euf_cma)
++	sig.algDetails.SigWithCtxSupport = bool(sig.sig.sig_with_ctx_support)
++	sig.algDetails.LengthPublicKey = int(sig.sig.length_public_key)
++	sig.algDetails.LengthSecretKey = int(sig.sig.length_secret_key)
++	sig.algDetails.MaxLengthSignature = int(sig.sig.length_signature)
++
++	return nil
++}
++
++// Details returns the signature algorithm details.
++func (sig *Signature) Details() SignatureDetails {
++	return sig.algDetails
++}
++
++// GenerateKeyPair generates a pair of secret key/public key and returns the
++// public key. The secret key is stored inside the sig receiver. The secret key
++// is not directly accessible, unless one exports it with
++// Signature.ExportSecretKey method.
++func (sig *Signature) GenerateKeyPair() ([]byte, error) {
++	publicKey := make([]byte, sig.algDetails.LengthPublicKey)
++	sig.secretKey = make([]byte, sig.algDetails.LengthSecretKey)
++
++	rv := C.OQS_SIG_keypair(
++		sig.sig,
++		(*C.uint8_t)(unsafe.Pointer(&publicKey[0])),
++		(*C.uint8_t)(unsafe.Pointer(&sig.secretKey[0])),
++	)
++
++	if rv != C.OQS_SUCCESS {
++		return nil, errors.New("can not generate keypair")
++	}
++
++	return publicKey, nil
++}
++
++// ExportSecretKey exports the corresponding secret key from the sig receiver.
++func (sig *Signature) ExportSecretKey() []byte {
++	return sig.secretKey
++}
++
++// Sign signs a message and returns the corresponding signature.
++func (sig *Signature) Sign(message []byte) ([]byte, error) {
++	if len(sig.secretKey) != sig.algDetails.LengthSecretKey {
++		return nil, errors.New("incorrect secret key length, make sure you " +
++			"specify one in Init() or run GenerateKeyPair()")
++	}
++
++	signature := make([]byte, sig.algDetails.MaxLengthSignature)
++	var lenSig uint64
++	rv := C.OQS_SIG_sign(
++		sig.sig,
++		(*C.uint8_t)(unsafe.Pointer(&signature[0])),
++		(*C.size_t)(unsafe.Pointer(&lenSig)),
++		(*C.uint8_t)(unsafe.Pointer(&message[0])),
++		C.size_t(len(message)),
++		(*C.uint8_t)(unsafe.Pointer(&sig.secretKey[0])),
++	)
++
++	if rv != C.OQS_SUCCESS {
++		return nil, errors.New("can not sign message")
++	}
++
++	return signature[:lenSig], nil
++}
++
++// Sign signs a message with context string and returns the corresponding
++// signature.
++func (sig *Signature) SignWithCtxStr(message []byte, context []byte) ([]byte, error) {
++	if len(context) > 0 && !sig.algDetails.SigWithCtxSupport {
++		return nil, errors.New("can not sign message with context string")
++	}
++
++	if len(sig.secretKey) != sig.algDetails.LengthSecretKey {
++		return nil, errors.New("incorrect secret key length, make sure you " +
++			"specify one in Init() or run GenerateKeyPair()")
++	}
++
++	signature := make([]byte, sig.algDetails.MaxLengthSignature)
++	var lenSig uint64
++	rv := C.OQS_SIG_sign_with_ctx_str(
++		sig.sig,
++		(*C.uint8_t)(unsafe.Pointer(&signature[0])),
++		(*C.size_t)(unsafe.Pointer(&lenSig)),
++		(*C.uint8_t)(unsafe.Pointer(&message[0])),
++		C.size_t(len(message)),
++		(*C.uint8_t)(unsafe.Pointer(&context[0])),
++		C.size_t(len(context)),
++		(*C.uint8_t)(unsafe.Pointer(&sig.secretKey[0])),
++	)
++
++	if rv != C.OQS_SUCCESS {
++		return nil, errors.New("can not sign message")
++	}
++
++	return signature[:lenSig], nil
++}
++
++// Verify verifies the validity of a signed message, returning true if the
++// signature is valid, and false otherwise.
++func (sig *Signature) Verify(message []byte, signature []byte,
++	publicKey []byte,
++) (bool, error) {
++	if len(publicKey) != sig.algDetails.LengthPublicKey {
++		return false, errors.New("incorrect public key length")
++	}
++
++	if len(signature) > sig.algDetails.MaxLengthSignature {
++		return false, errors.New("incorrect signature size")
++	}
++
++	rv := C.OQS_SIG_verify(
++		sig.sig,
++		(*C.uint8_t)(unsafe.Pointer(&message[0])),
++		C.size_t(len(message)),
++		(*C.uint8_t)(unsafe.Pointer(&signature[0])),
++		C.size_t(len(signature)),
++		(*C.uint8_t)(unsafe.Pointer(&publicKey[0])),
++	)
++
++	if rv != C.OQS_SUCCESS {
++		return false, nil
++	}
++
++	return true, nil
++}
++
++// Verify verifies the validity of a signed message with context string,
++// returning true if the signature is valid, and false otherwise.
++func (sig *Signature) VerifyWithCtxStr(
++	message []byte,
++	signature []byte,
++	context []byte,
++	publicKey []byte,
++) (bool, error) {
++	if len(context) > 0 && !sig.algDetails.SigWithCtxSupport {
++		return false, errors.New("can not sign message with context string")
++	}
++
++	if len(publicKey) != sig.algDetails.LengthPublicKey {
++		return false, errors.New("incorrect public key length")
++	}
++
++	if len(signature) > sig.algDetails.MaxLengthSignature {
++		return false, errors.New("incorrect signature size")
++	}
++
++	rv := C.OQS_SIG_verify_with_ctx_str(
++		sig.sig,
++		(*C.uint8_t)(
++			unsafe.Pointer(&message[0]),
++		),
++		C.size_t(len(message)),
++		(*C.uint8_t)(unsafe.Pointer(&signature[0])),
++		C.size_t(len(signature)),
++		(*C.uint8_t)(unsafe.Pointer(&context[0])),
++		C.size_t(len(context)),
++		(*C.uint8_t)(unsafe.Pointer(&publicKey[0])),
++	)
++
++	if rv != C.OQS_SUCCESS {
++		return false, nil
++	}
++
++	return true, nil
++}
++
++// Clean zeroes-in the stored secret key and resets the sig receiver. One can
++// reuse the signature by re-initializing it with the Signature.Init method.
++func (sig *Signature) Clean() {
++	if len(sig.secretKey) > 0 {
++		MemCleanse(sig.secretKey)
++	}
++	C.OQS_SIG_free(sig.sig)
++	*sig = Signature{}
++}
++
++/**************** END Signature ****************/
++
++/**************** Randomness ****************/
++
++/**************** Callbacks ****************/
++
++// randAlgorithmPtrCallback is a global RNG algorithm callback set by
++// RandomBytesCustomAlgorithm.
++var randAlgorithmPtrCallback func([]byte, int)
++
++// randAlgorithmPtr is automatically invoked by RandomBytesCustomAlgorithm. When
++// invoked, the memory is provided by the caller, i.e. RandomBytes or
++// RandomBytesInPlace.
++//
++//export randAlgorithmPtr
++func randAlgorithmPtr(randomArray *C.uint8_t, bytesToRead C.size_t) {
++	// TODO optimize the copying if possible!
++	result := make([]byte, int(bytesToRead))
++	randAlgorithmPtrCallback(result, int(bytesToRead))
++	p := unsafe.Pointer(randomArray)
++	for _, v := range result {
++		*(*C.uint8_t)(p) = C.uint8_t(v)
++		p = unsafe.Pointer(uintptr(p) + 1)
++	}
++}
++
++/**************** END Callbacks ****************/
++
++// RandomBytes generates bytesToRead random bytes. This implementation uses
++// either the default RNG algorithm ("system"), or whichever algorithm has been
++// selected by RandomBytesSwitchAlgorithm.
++func RandomBytes(bytesToRead int) []byte {
++	result := make([]byte, bytesToRead)
++	C.OQS_randombytes((*C.uint8_t)(unsafe.Pointer(&result[0])),
++		C.size_t(bytesToRead))
++	return result
++}
++
++// RandomBytesInPlace generates bytesToRead random bytes. This implementation
++// uses either the default RNG algorithm ("system"), or whichever algorithm has
++// been selected by RandomBytesSwitchAlgorithm. If bytesToRead exceeds the size
++// of randomArray, only len(randomArray) bytes are read.
++func RandomBytesInPlace(randomArray []byte, bytesToRead int) {
++	if bytesToRead > len(randomArray) {
++		bytesToRead = len(randomArray)
++	}
++	C.OQS_randombytes((*C.uint8_t)(unsafe.Pointer(&randomArray[0])),
++		C.size_t(bytesToRead))
++}
++
++// RandomBytesSwitchAlgorithm switches the core OQS_randombytes to use the
++// specified algorithm. Possible values are "system" and "OpenSSL".
++// See <oqs/rand.h> liboqs header for more details.
++func RandomBytesSwitchAlgorithm(algName string) error {
++	if C.OQS_randombytes_switch_algorithm(C.CString(algName)) != C.OQS_SUCCESS {
++		return errors.New("can not switch to \"" + algName + "\" algorithm")
++	}
++	return nil
++}
++
++// RandomBytesCustomAlgorithm switches RandomBytes to use the given function.
++// This allows additional custom RNGs besides the provided ones. The provided
++// RNG function must have the same signature as RandomBytesInPlace,
++// i.e. func([]byte, int).
++func RandomBytesCustomAlgorithm(fun func([]byte, int)) error {
++	if fun == nil {
++		return errors.New("the RNG algorithm callback can not be nil")
++	}
++	randAlgorithmPtrCallback = fun
++	C.OQS_randombytes_custom_algorithm(
++		(C.rand_algorithm_ptr)(unsafe.Pointer(C.randAlgorithmPtr_cgo)))
++	return nil
++}
++
++/**************** END Randomness ****************/
+diff --git a/vendor/modules.txt b/vendor/modules.txt
+index f6b2295..29d07ff 100644
+--- a/vendor/modules.txt
++++ b/vendor/modules.txt
+@@ -367,6 +367,9 @@ github.com/onsi/gomega/matchers/support/goraph/edge
+ github.com/onsi/gomega/matchers/support/goraph/node
+ github.com/onsi/gomega/matchers/support/goraph/util
+ github.com/onsi/gomega/types
++# github.com/open-quantum-safe/liboqs-go v0.15.0
++## explicit; go 1.21
++github.com/open-quantum-safe/liboqs-go/oqs
+ # github.com/opencontainers/go-digest v1.0.0
+ ## explicit; go 1.13
+ github.com/opencontainers/go-digest
