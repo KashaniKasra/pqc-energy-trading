@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -lt 1 || $# -gt 2 ]]; then
-    echo "Usage: $0 <config> [run_label]"
+if [[ $# -lt 1 || $# -gt 3 ]]; then
+    echo "Usage: $0 <config> [run_label] [crypto_config_dir]"
     echo "Example (fixed profile): $0 ecdsa"
     echo "Example (diagnostic):    $0 ecdsa blockutil-300"
+    echo "Example (offline tree):  $0 ml-dsa-44 identity-only-v1 /tmp/e1-identity/crypto-config"
     exit 1
 fi
 
 CONFIG="$1"
 RUN_LABEL="${2:-}"
+CRYPTO_CONFIG_ARG="${3:-}"
 
 case "$CONFIG" in
     ecdsa|ml-dsa-44|ml-dsa-65|sphincs)
@@ -34,7 +36,16 @@ done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-PEER_ORGS="$SCRIPT_DIR/crypto-config/peerOrganizations"
+if [[ -n "$CRYPTO_CONFIG_ARG" ]]; then
+    if [[ ! -d "$CRYPTO_CONFIG_ARG" ]]; then
+        echo "ERROR: Crypto-config directory not found: $CRYPTO_CONFIG_ARG"
+        exit 1
+    fi
+    CRYPTO_CONFIG_DIR="$(realpath "$CRYPTO_CONFIG_ARG")"
+else
+    CRYPTO_CONFIG_DIR="$SCRIPT_DIR/crypto-config"
+fi
+PEER_ORGS="$CRYPTO_CONFIG_DIR/peerOrganizations"
 RAW_DIR="$PROJECT_ROOT/raw/e1"
 
 if [[ -n "$RUN_LABEL" ]]; then
@@ -97,7 +108,11 @@ for file in "${FILES[@]}"; do
     fi
 
     peer="$(basename "$(dirname "$(dirname "$(dirname "$file")")")")"
-    relative_path="$(realpath --relative-to="$PROJECT_ROOT" "$file")"
+    if [[ "$CRYPTO_CONFIG_DIR" == "$SCRIPT_DIR/crypto-config" ]]; then
+        relative_path="$(realpath --relative-to="$PROJECT_ROOT" "$file")"
+    else
+        relative_path="generated_crypto_config/$(realpath --relative-to="$CRYPTO_CONFIG_DIR" "$file")"
+    fi
     size="$(stat -c '%s' "$file")"
     digest="$(sha256sum "$file" | awk '{print $1}')"
 
