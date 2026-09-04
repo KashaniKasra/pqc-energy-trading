@@ -169,7 +169,39 @@
       "excluded_blocks": ["genesis", "config", "other/non-ordinary"],
       "scientific_condition": "Use blocks closed by volume, not a BatchTimeout-driven half-empty regime.",
       "diagnostic_profile": "env/caliper/e1/benchmark_blockutil.yaml",
-      "diagnostic_rate_status": "300 TPS is an initial probe only, not an accepted final rate."
+      "diagnostic_rate_status": "300 TPS was a block-filling probe only; Gateway concurrency-limit failures make it invalid for final latency or tps_sustained.",
+      "observed_closure": "Blocks 17-47 each contain MaxMessageCount=500 ordinary transactions, demonstrating steady-state count-limit closure rather than BatchTimeout closure. Block 48 is a terminal 386-transaction ordinary block.",
+      "working_result": {
+        "config": "ECDSA",
+        "status": "working_boundary_inclusive_pending_professor_review",
+        "run_label": "blockutil-300",
+        "benchmark_label": "blockutil-300-tps",
+        "block_interval": "17-48",
+        "ordinary_block_count": 32,
+        "excluded_block_count": 0,
+        "terminal_partial_included": true,
+        "block_bytes_mean": "1952347.156250",
+        "effective_preferred_max_bytes": 2097152,
+        "block_utilisation": "0.930951670",
+        "caliper_success": 15787,
+        "caliper_fail": 2214,
+        "benchmark_source": "env/caliper/e1/benchmark_blockutil.yaml",
+        "benchmark_sha256": "f6f57a7ee0b267d7c9629e78ed632728674341f7477780939a581e6d557f3945",
+        "run_log_source": "raw/e1/blockutil-300_ecdsa_caliper_run.log",
+        "run_log_sha256": "3506dd7da9a71eae087e247f18f65ffa478242cf42fea85dfd7fc66071dd10da",
+        "heights_source": "raw/e1/blockutil-300_ecdsa_block_heights.csv",
+        "heights_sha256": "85b0000e23a89c0c9308cdd7da5307bd2d8d547c0aeece97e50b151f93f695e5",
+        "summary_source": "raw/e1/blockutil-300_ecdsa_blocks_blockutil-300-tps_summary.csv",
+        "summary_sha256": "34be17bc531a4a4530fc3817c301da674c1c00064e88ea8a72d274e6146d6367",
+        "raw_blocks_source": "raw/e1/blockutil-300_ecdsa_blocks_blockutil-300-tps.csv",
+        "raw_blocks_sha256": "ca48b8c5ed503157e7ac1c863e7692584bd7c757beb006323d2557f9e37f22b6",
+        "full_500_transaction_block_diagnostic_comparison": {
+          "status": "diagnostic comparison only; not the current working result",
+          "block_count": 31,
+          "block_bytes_mean": "1966319.451613",
+          "block_utilisation": "0.937614179"
+        }
+      }
     },
     "installed_images_at_metadata_update": {
       "observed_at": "2026-09-04",
@@ -181,7 +213,14 @@
     "data_provenance": {
       "candidate_timing_summary": "data/e1_timing_candidates.csv",
       "candidate_timing_status": "ECDSA/ML-DSA-44/ML-DSA-65 pass sample-count and zero-failure checks, but historical logs did not retain the full preflight now required.",
-      "sphincs_status": "Fixed-profile overload/failure evidence retained under raw/e1; excluded from normal candidate latency summary.",
+      "sphincs_status": "Current working report is fixed-profile saturation: warmup 700/301 success/fail, 50 TPS 891/5110, and 200 TPS 46/23955, with Gateway concurrency-limit errors. This is excluded from normal latency candidates; no lower-rate replacement is currently authorized.",
+      "identity_evidence": {
+        "status": "Per-peer ECDSA signcert sizes from the blockutil-300 network are retained without aggregation; other configurations require future matching network setup.",
+        "ecdsa_source": "raw/e1/blockutil-300_ecdsa_identity_bytes.csv",
+        "ecdsa_sha256": "56f0918649e7cac601830e0fb417913df50a6ee7172607c4fab9b4bfdabc8f2d",
+        "aggregation_status": "unresolved"
+      },
+      "working_e1_schema_command": "./src/e1/analyze_timings.py --working-e1",
       "final_summary": "data/e1_fabric.csv (not yet created)",
       "raw_sources": "raw/e1/"
     }
@@ -226,9 +265,12 @@
     "license": null
   },
   "known_scientific_decisions_pending": {
-    "sphincs_fixed_profile": "Whether to report fixed-profile saturation only or additionally run a separate low-rate profile for valid latency/sustained-TPS values.",
-    "identity_bytes_aggregation": "How four per-peer identity file sizes map to the single E1 CSV field.",
+    "sphincs_fixed_profile": "Current decision is to report identical-profile saturation and not run a lower-rate benchmark now; ask later whether supplemental lower-rate latency characterization is required.",
+    "block_filling": "Ask whether MaxMessageCount-driven closure at about 93.76% of PreferredMaxBytes satisfies the intended filled-by-volume methodology.",
+    "terminal_residual_block": "The current working ECDSA rho includes terminal ordinary block 48 (386 transactions), because only genesis/config exclusion was specified; ask whether terminal partial ordinary blocks should instead be excluded.",
+    "identity_bytes_aggregation": "Ask how four per-peer identity file sizes map to the single E1 CSV field (mean, median, max, or another rule).",
     "tps_sustained_criterion": "Exact operational threshold for highest linear/sustainable rate.",
+    "latency_field_population": "The E1 schema has one endorsement/commit value per configuration while the fixed profile has 50 TPS and 200 TPS rounds; no authoritative rule yet selects one round or a combined population.",
     "sanity_gate_source": "The student specification references a supplied make_figures.py checker, but its plausible bands/source file are absent."
   },
   "notes": {

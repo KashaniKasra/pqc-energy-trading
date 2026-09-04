@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
-"""Validate and summarize retained candidate E1 timing samples.
+"""Validate and summarize retained E1 evidence.
 
-This script intentionally excludes SPHINCS+ because its fixed-profile run had
-substantial failures and is not a valid normal-latency data point.
+The default output contains per-round candidate timing statistics. SPHINCS+ is
+intentionally excluded because its fixed-profile run had substantial failures
+and is not a valid normal-latency data point.
+
+``--working-e1`` emits the exact final E1 schema to stdout, but leaves every
+scientifically unresolved field empty. It currently populates only the accepted
+boundary-inclusive ECDSA block-utilisation working result after validating its
+retained summary and per-block source. This mode cannot write an output file, so
+it cannot be mistaken for the completed ``data/e1_fabric.csv`` deliverable.
 """
 
 from __future__ import annotations
@@ -10,6 +17,7 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import json
 import math
 from pathlib import Path
 import re
@@ -24,6 +32,17 @@ CONFIGS = {
 ROUNDS = ("50-tps", "200-tps")
 MINIMUM_SAMPLES = 1_000
 PROVENANCE_STATUS = "candidate_historical_preflight_not_captured"
+FINAL_CONFIGS = ("ECDSA", "ML-DSA-44", "ML-DSA-65", "SLH-DSA")
+FINAL_FIELDS = (
+    "config",
+    "identity_bytes",
+    "endorse_median_ms",
+    "endorse_p95_ms",
+    "commit_median_ms",
+    "tps_sustained",
+    "block_bytes_mean",
+    "block_utilisation",
+)
 
 
 def sha256_file(path: Path) -> str:
@@ -125,6 +144,175 @@ def relative(path: Path, project_root: Path) -> str:
     return str(path.relative_to(project_root))
 
 
+def one_csv_row(path: Path) -> tuple[list[str], dict[str, str]]:
+    with path.open(newline="", encoding="utf-8") as source:
+        reader = csv.DictReader(source)
+        if reader.fieldnames is None:
+            raise ValueError(f"{path}: missing CSV header")
+        rows = list(reader)
+    if len(rows) != 1:
+        raise ValueError(f"{path}: expected exactly one data row, found {len(rows)}")
+    return reader.fieldnames, rows[0]
+
+
+def parse_uint(path: Path, field: str, value: str) -> int:
+    if not value.isdigit():
+        raise ValueError(f"{path}: {field} must be an unsigned integer")
+    return int(value)
+
+
+def validated_ecdsa_block_result(project_root: Path) -> tuple[str, str]:
+    metadata_path = project_root / "meta.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    working = metadata["e1_benchmark"]["block_utilisation"]["working_result"]
+
+    if working["config"] != "ECDSA" or not working["terminal_partial_included"]:
+        raise ValueError(
+            f"{metadata_path}: ECDSA working result must include the terminal partial "
+            "ordinary block"
+        )
+
+    summary_path = project_root / working["summary_source"]
+    if not summary_path.is_file():
+        raise ValueError(f"missing ECDSA block summary: {summary_path}")
+    if sha256_file(summary_path) != working["summary_sha256"]:
+        raise ValueError(f"{summary_path}: SHA-256 does not match meta.json")
+
+    _, summary = one_csv_row(summary_path)
+    if (
+        summary["config"] != "ecdsa"
+        or summary["run_label"] != "blockutil-300"
+        or summary["benchmark_label"] != "blockutil-300-tps"
+        or summary["measurement_status"] != "diagnostic_unreviewed"
+    ):
+        raise ValueError(f"{summary_path}: unexpected ECDSA diagnostic provenance")
+
+    raw_path = project_root / summary["raw_blocks_file"]
+    if not raw_path.is_file():
+        raise ValueError(f"missing raw ECDSA block evidence: {raw_path}")
+    if summary["raw_blocks_file"] != working["raw_blocks_source"]:
+        raise ValueError(f"{summary_path}: raw source does not match meta.json")
+    raw_hash = sha256_file(raw_path)
+    if raw_hash != summary["raw_blocks_sha256"] or raw_hash != working["raw_blocks_sha256"]:
+        raise ValueError(f"{raw_path}: SHA-256 provenance mismatch")
+
+    with raw_path.open(newline="", encoding="utf-8") as source:
+        reader = csv.DictReader(source)
+        required = {
+            "config",
+            "run_label",
+            "benchmark_label",
+            "block_number",
+            "block_bytes",
+            "transaction_count",
+            "header_types",
+            "classification",
+            "accepted_for_mean",
+        }
+        if reader.fieldnames is None or set(reader.fieldnames) != required:
+            raise ValueError(f"{raw_path}: unexpected per-block schema")
+        block_rows = list(reader)
+
+    if not block_rows:
+        raise ValueError(f"{raw_path}: no per-block evidence")
+
+    accepted_bytes: list[int] = []
+    excluded_count = 0
+    block_numbers: list[int] = []
+    for row in block_rows:
+        if (
+            row["config"] != "ecdsa"
+            or row["run_label"] != summary["run_label"]
+            or row["benchmark_label"] != summary["benchmark_label"]
+        ):
+            raise ValueError(f"{raw_path}: mixed block provenance")
+
+        block_number = parse_uint(raw_path, "block_number", row["block_number"])
+        block_bytes = parse_uint(raw_path, "block_bytes", row["block_bytes"])
+        transaction_count = parse_uint(
+            raw_path, "transaction_count", row["transaction_count"]
+        )
+        header_types = row["header_types"].split(";") if row["header_types"] else []
+        if len(header_types) != transaction_count:
+            raise ValueError(
+                f"{raw_path}: block {block_number} transaction/header count mismatch"
+            )
+
+        accepted = row["accepted_for_mean"] == "true"
+        if row["accepted_for_mean"] not in {"true", "false"}:
+            raise ValueError(f"{raw_path}: block {block_number} has invalid acceptance flag")
+        if accepted != (row["classification"] == "ordinary_transaction"):
+            raise ValueError(
+                f"{raw_path}: block {block_number} acceptance/classification mismatch"
+            )
+        if accepted:
+            if block_number == 0 or any(header_type != "3" for header_type in header_types):
+                raise ValueError(
+                    f"{raw_path}: accepted block {block_number} is not wholly ordinary"
+                )
+            accepted_bytes.append(block_bytes)
+        else:
+            excluded_count += 1
+        block_numbers.append(block_number)
+
+    if len(set(block_numbers)) != len(block_numbers):
+        raise ValueError(f"{raw_path}: duplicate block numbers")
+    if sorted(block_numbers) != list(range(min(block_numbers), max(block_numbers) + 1)):
+        raise ValueError(f"{raw_path}: measured block interval is not contiguous")
+
+    expected_start = parse_uint(summary_path, "start_block", summary["start_block"])
+    expected_end = parse_uint(summary_path, "end_block", summary["end_block"])
+    expected_count = parse_uint(
+        summary_path, "ordinary_block_count", summary["ordinary_block_count"]
+    )
+    expected_excluded = parse_uint(
+        summary_path, "excluded_block_count", summary["excluded_block_count"]
+    )
+    preferred = parse_uint(
+        summary_path,
+        "effective_preferred_max_bytes",
+        summary["effective_preferred_max_bytes"],
+    )
+    if preferred == 0:
+        raise ValueError(f"{summary_path}: PreferredMaxBytes must be positive")
+    if (
+        min(block_numbers) != expected_start
+        or max(block_numbers) != expected_end
+        or len(accepted_bytes) != expected_count
+        or excluded_count != expected_excluded
+    ):
+        raise ValueError(f"{summary_path}: per-block counts/range do not reconcile")
+
+    mean_text = f"{sum(accepted_bytes) / len(accepted_bytes):.6f}"
+    utilisation_text = f"{(sum(accepted_bytes) / len(accepted_bytes)) / preferred:.9f}"
+    if (
+        mean_text != summary["block_bytes_mean"]
+        or utilisation_text != summary["block_utilisation"]
+    ):
+        raise ValueError(f"{summary_path}: summary does not regenerate from raw blocks")
+
+    if (
+        mean_text != working["block_bytes_mean"]
+        or utilisation_text != working["block_utilisation"]
+        or preferred != working["effective_preferred_max_bytes"]
+        or expected_count != working["ordinary_block_count"]
+        or expected_excluded != working["excluded_block_count"]
+    ):
+        raise ValueError(f"{metadata_path}: working ECDSA values do not match evidence")
+    return mean_text, utilisation_text
+
+
+def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
+    """Build an explicitly incomplete E1-schema view from supported evidence."""
+    block_mean, block_utilisation = validated_ecdsa_block_result(project_root)
+    rows = [{field: "" for field in FINAL_FIELDS} for _ in FINAL_CONFIGS]
+    for row, config in zip(rows, FINAL_CONFIGS):
+        row["config"] = config
+    rows[0]["block_bytes_mean"] = block_mean
+    rows[0]["block_utilisation"] = block_utilisation
+    return rows
+
+
 def build_rows(project_root: Path) -> list[dict[str, str]]:
     raw_dir = project_root / "raw" / "e1"
     rows = []
@@ -179,6 +367,14 @@ def build_rows(project_root: Path) -> list[dict[str, str]]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--working-e1",
+        action="store_true",
+        help=(
+            "print the exact final E1 schema with supported working values and "
+            "unresolved fields left empty; cannot be written with --output"
+        ),
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         help="write CSV to this path; stdout is used when omitted",
@@ -191,13 +387,24 @@ def main() -> int:
     args = parser.parse_args()
 
     project_root = Path(__file__).resolve().parents[2]
+    if args.working_e1 and args.output is not None:
+        print(
+            "ERROR: --working-e1 is intentionally stdout-only while E1 fields remain "
+            "unresolved",
+            file=sys.stderr,
+        )
+        return 1
     try:
-        rows = build_rows(project_root)
-    except (OSError, ValueError) as error:
+        rows = (
+            build_working_e1_rows(project_root)
+            if args.working_e1
+            else build_rows(project_root)
+        )
+    except (KeyError, OSError, ValueError, json.JSONDecodeError) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 1
 
-    fieldnames = list(rows[0])
+    fieldnames = list(FINAL_FIELDS) if args.working_e1 else list(rows[0])
     if args.output is None:
         writer = csv.DictWriter(sys.stdout, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()

@@ -9,8 +9,8 @@ This repository is an empirical measurement package for a research testbed. Its 
 - E0 server primitive measurements are complete: 21 scheme/operation rows, 10,000 retained samples per row, and median/p95/p99 summaries. Meter/SBC measurements and the supplied sanity-gate implementation are still missing.
 - E1 is functionally implemented for ECDSA, ML-DSA-44, ML-DSA-65, and SPHINCS+-SHA2-128s-simple using one Fabric topology and one fixed Caliper profile.
 - Candidate fixed-profile data exist for ECDSA, ML-DSA-44, and ML-DSA-65. They pass sample-count and zero-failure checks, but their retained logs predate full preflight capture, so they are not silently promoted to final data.
-- The identical-profile SPHINCS+ run saturated and failed heavily. Its raw samples and log are retained as scientific evidence but are excluded from the normal latency summary.
-- E1 block utilisation, identity aggregation, and sustained-TPS values are unresolved. `data/e1_fabric.csv` has therefore not been created.
+- The identical-profile SPHINCS+ run saturated and failed heavily. Its raw samples and log are the current reportable result for that configuration, but they are excluded from the normal latency summary. No lower-rate replacement run is currently planned.
+- The retained ECDSA block-filling probe provides a boundary-inclusive working block-utilisation value of `0.930951670`; professor review of MaxMessageCount closure and the terminal partial block remains pending. Identity aggregation and sustained TPS remain unresolved, so `data/e1_fabric.csv` has not been created.
 - E2 and later experiments are not implemented.
 
 No final figure should be produced from unresolved E1 data.
@@ -125,6 +125,15 @@ cd env/fabric/e1
 
 The script validates pins, applies the repository patch temporarily, runs the narrow Fabric tests, builds both images, checks versions/dynamic libraries, and reverses the patch on exit.
 
+The committed Fabric patch has SHA-256 `2eeee5582fabd90bb9e675e98bce3daf94a087d2d6848ccfa720f7216e23550f`. The currently verified rebuilt images are:
+
+```text
+fabric-peer:2.5.16-pq    sha256:6fe74f12e91ab73a07b13d4a7d2954df8a2ad5a6e00ea2665cfffed7f34f5448
+fabric-orderer:2.5.16-pq sha256:b56ec95ae9168725b8c8e1dc4bc4126f30f2b661e3dc99dd72225dc87b1f3d1f
+```
+
+Both report Fabric 2.5.16 commit `f871cf9`, were built with Go 1.26.4, and dynamically link to liboqs and libcrypto. These are observed image IDs for the present machine/checkpoint; future rebuilds must record their own IDs.
+
 Current reproducibility caveat: the build expects this cached Go toolchain archive:
 
 ```text
@@ -173,7 +182,7 @@ Before a human-controlled final or diagnostic run, connect AC power, close brows
 
 ```bash
 cd env/caliper/e1
-./setup_cpu_e1.sh
+sudo ./setup_cpu_e1.sh
 ```
 
 Required state: amd-pstate `passive`, boost `0`, governor `performance`, and min/max `3201000` kHz on CPUs 2–15. Fabric containers and Caliper use CPU set 2–15. CPU state may reset after logout/reboot.
@@ -189,7 +198,7 @@ With no label, the historical namespace and default profile are unchanged (`ecds
 
 ## Isolated block-utilisation probe
 
-`benchmark_blockutil.yaml` is separate from the fixed profile. Its 300 TPS round is an initial ECDSA probe only, not a final accepted rate. It must not be escalated blindly or used as final rho until block closure is inspected.
+`benchmark_blockutil.yaml` is separate from the fixed profile. Its retained 300 TPS ECDSA run was a block-filling probe only. It produced 15,787 successes and 2,214 failures with Gateway concurrency-limit errors, so it is not valid latency or `tps_sustained` evidence.
 
 The isolated command is:
 
@@ -219,7 +228,16 @@ block_utilisation = mean(accepted ordinary-transaction block bytes)
                     / effective PreferredMaxBytes
 ```
 
-The generated config currently decodes `2 MB` to 2,097,152 bytes. `AbsoluteMaxBytes` (10,485,760 bytes) is not the denominator. Genesis and config blocks are excluded. A mathematical ratio alone is not sufficient: the block population must be reviewed to show that blocks closed by volume rather than `BatchTimeout` producing half-empty blocks.
+The generated config decodes `2 MB` to 2,097,152 bytes. `AbsoluteMaxBytes` (10,485,760 bytes) is not the denominator. Genesis and config blocks are excluded.
+
+For the retained ECDSA probe, blocks 17–47 each contain exactly `MaxMessageCount=500` ordinary transactions. The steady-state active block-cutting constraint was therefore MaxMessageCount, not `BatchTimeout`. Terminal block 48 contains 386 transactions. Because the professor explicitly excluded genesis/config blocks but did not explicitly exclude terminal partial ordinary blocks, the current working calculation includes all 32 ordinary blocks:
+
+```text
+block_bytes_mean = 1952347.156250
+block_utilisation = 1952347.156250 / 2097152 = 0.930951670
+```
+
+The 31 full blocks alone have mean 1,966,319.451613 bytes and rho 0.937614179. That value is retained only as a diagnostic comparison and does not replace the boundary-inclusive working result. Professor review is still required on whether MaxMessageCount closure satisfies the intended volume-filled condition and whether terminal residual ordinary blocks should be excluded.
 
 ## Identity evidence
 
@@ -232,6 +250,8 @@ cd env/fabric/e1
 
 For a labelled run, add the label as the second argument. The output retains config, peer, identity type/path, bytes, and SHA-256 per peer. It intentionally does not compute one aggregate: the method for mapping four peer values into the single `identity_bytes` E1 field still requires professor clarification.
 
+The retained ECDSA diagnostic-network identities have per-peer evidence under `raw/e1/blockutil-300_ecdsa_identity_bytes.csv`: 810, 806, 810, and 806 bytes. These values are not collapsed into the final single field. Identity evidence for the three PQ configurations requires future setup of each matching network and cannot be recovered from the ECDSA generated state.
+
 ## Existing E1 data and analysis
 
 `src/e1/analyze_timings.py` validates the three zero-failure candidate configurations, requires at least 1,000 samples per timing file, checks the Caliper result tables, calculates median/p95/p99 using the same `p*(n-1)` interpolation as E0, and records source hashes:
@@ -242,7 +262,7 @@ For a labelled run, add the label as the second argument. The output retains con
 
 The retained generated result is `data/e1_timing_candidates.csv`. Its rows are explicitly `candidate_historical_preflight_not_captured`, not final E1 claims. SPHINCS+ is intentionally rejected from this normal-latency dataset.
 
-The observed SPHINCS+ fixed-profile run recorded 700 successes/301 failures in warm-up, 891/5,110 at 50 TPS, and 46/23,955 at 200 TPS. The log contains `exceeding concurrency limit (500)` Gateway errors, followed by retained Gossip/membership symptoms and endorsement-set errors. Caliper's displayed throughput is not successful committed throughput when failures dominate. A plausible interpretation is that long operations accumulated outstanding requests until the limit was reached and peer responsiveness degraded; this causal chain is an inference, not a proven mechanism. Do not raise the Gateway limit, change the common fixed profile, delete this run, or fabricate a final row.
+The observed SPHINCS+ fixed-profile run recorded 700 successes/301 failures in warm-up, 891/5,110 at 50 TPS, and 46/23,955 at 200 TPS. The log contains `exceeding concurrency limit (500)` Gateway errors, followed by retained Gossip/membership symptoms and endorsement-set errors. Caliper's displayed throughput is not successful committed throughput when failures dominate. A plausible interpretation is that long operations accumulated outstanding requests until the limit was reached and peer responsiveness degraded; this causal chain is an inference, not a proven mechanism. The current decision is to report this saturation result without a lower-rate rerun. Do not raise the Gateway limit, change the common fixed profile, delete this run, or fabricate a latency row.
 
 The final E1 schema, once all decisions and measurements are valid, is:
 
@@ -252,14 +272,25 @@ config,identity_bytes,endorse_median_ms,endorse_p95_ms,commit_median_ms,tps_sust
 
 P99 endorsement and commit statistics remain required in traceable supporting data even though they are not fields in this main CSV.
 
+An explicitly incomplete working-schema view can be regenerated with:
+
+```bash
+./src/e1/analyze_timings.py --working-e1
+```
+
+It verifies the ECDSA block summary against the retained per-block source and `meta.json`, then emits the exact four-row schema to stdout. It populates only the supported boundary-inclusive ECDSA block fields and leaves unresolved cells empty. It intentionally refuses `--output`, preventing the working view from being mistaken for the final deliverable.
+
 ## Pending scientific decisions
 
-The following must not be guessed:
+The following must not be guessed and should be surfaced at the professor meeting:
 
-1. whether SPHINCS+ fixed-profile failure is reported as saturation only or supplemented by a separate lower-rate latency/sustained-TPS run;
-2. how four per-peer identity sizes map to one `identity_bytes` value;
-3. the operational threshold for “highest rate at which throughput remains linear/sustainable”;
-4. the plausible bands/source for the `make_figures.py` E0 sanity checker referenced by the student specification but absent from the supplied repository.
+1. whether the currently reported SPHINCS+ fixed-profile saturation result should later be supplemented by a lower-rate latency run;
+2. whether MaxMessageCount-driven blocks at about 93.76% of PreferredMaxBytes satisfy the intended filled-by-volume condition;
+3. whether terminal partial ordinary blocks such as block 48 should be excluded, despite the explicit instruction naming only genesis/config blocks;
+4. how four per-peer identity sizes map to one `identity_bytes` value;
+5. the operational threshold for “highest rate at which throughput remains linear/sustainable”;
+6. which fixed-profile round or combined sample population supplies the single endorsement/commit fields in the E1 CSV;
+7. the plausible bands/source for the `make_figures.py` E0 sanity checker referenced by the student specification but absent from the supplied repository.
 
 The earlier ECDSA 222/224 TPS probe remains diagnostic evidence only and is not a final `tps_sustained` value.
 
