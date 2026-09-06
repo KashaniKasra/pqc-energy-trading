@@ -155,6 +155,31 @@ class SustainabilityTests(unittest.TestCase):
         )
         self.assertEqual(spec["run_type"], "sustainability")
 
+    def test_adjacent_integer_boundary_requires_pass_then_fail(self) -> None:
+        passing = {
+            "config": "ECDSA",
+            "offered_tps": "228",
+            "sustainable": "true",
+            "highest_tested_sustainable_tps": "228",
+        }
+        failing = {
+            "config": "ECDSA",
+            "offered_tps": "229",
+            "sustainable": "false",
+            "highest_tested_sustainable_tps": "",
+        }
+        self.assertEqual(
+            ANALYZER.validated_adjacent_integer_boundary(passing, failing), "228"
+        )
+        with self.assertRaisesRegex(ValueError, "not adjacent"):
+            ANALYZER.validated_adjacent_integer_boundary(
+                passing, {**failing, "offered_tps": "230"}
+            )
+        with self.assertRaisesRegex(ValueError, "pass/fail ordering"):
+            ANALYZER.validated_adjacent_integer_boundary(
+                passing, {**failing, "sustainable": "true"}
+            )
+
     def test_ecdsa_230_profile_is_registered_immutably(self) -> None:
         spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
             ("ecdsa", ("sustained-230-tps",))

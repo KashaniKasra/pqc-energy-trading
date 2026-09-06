@@ -325,6 +325,23 @@ def rate_from_round_label(round_label: str) -> int:
     return int(match.group(1))
 
 
+def validated_adjacent_integer_boundary(
+    passing: dict[str, str], failing: dict[str, str]
+) -> str:
+    """Return the lower rate only for an adjacent pass/fail integer boundary."""
+    if passing["config"] != failing["config"]:
+        raise ValueError("sustainability boundary mixes configurations")
+    passing_rate = int(passing["offered_tps"])
+    failing_rate = int(failing["offered_tps"])
+    if failing_rate != passing_rate + 1:
+        raise ValueError("sustainability boundary rates are not adjacent integers")
+    if passing["sustainable"] != "true" or failing["sustainable"] != "false":
+        raise ValueError("sustainability boundary does not have pass/fail ordering")
+    if passing["highest_tested_sustainable_tps"] != str(passing_rate):
+        raise ValueError("passing boundary row does not identify its sustainable rate")
+    return str(passing_rate)
+
+
 def one_csv_row(path: Path) -> tuple[list[str], dict[str, str]]:
     with path.open(newline="", encoding="utf-8") as source:
         reader = csv.DictReader(source)
@@ -675,6 +692,27 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
     rows[2]["endorsements_per_tx"] = ml_dsa_65_transaction["endorsements_per_tx"]
     rows[3]["tx_bytes_mean"] = sphincs_transaction["tx_bytes_mean"]
     rows[3]["endorsements_per_tx"] = sphincs_transaction["endorsements_per_tx"]
+    ecdsa_boundary = metadata["e1_benchmark"]["caliper"][
+        "prepared_remaining_profiles"
+    ]["ecdsa_integer_boundary"]
+    ecdsa_passing = build_sustainability_rows(
+        project_root, ecdsa_boundary["highest_sustainable_run_namespace"]
+    )[0]
+    ecdsa_failing = build_sustainability_rows(
+        project_root, ecdsa_boundary["first_failing_run_namespace"]
+    )[0]
+    ecdsa_sustained = validated_adjacent_integer_boundary(
+        ecdsa_passing, ecdsa_failing
+    )
+    if (
+        ecdsa_boundary["status"] != "complete"
+        or str(ecdsa_boundary["highest_sustainable_integer_tps"]) != ecdsa_sustained
+        or str(ecdsa_boundary["first_failing_integer_tps"])
+        != ecdsa_failing["offered_tps"]
+        or str(ecdsa_boundary["final_tps_sustained"]) != ecdsa_sustained
+    ):
+        raise ValueError("ECDSA integer sustained-TPS boundary metadata is inconsistent")
+    rows[0]["tps_sustained"] = ecdsa_sustained
     boundary = metadata["e1_benchmark"]["caliper"]["sphincs_low_rate_sweep"]
     if boundary["integer_boundary_search"]["status"] != "complete":
         raise ValueError("SPHINCS+ integer sustained-TPS boundary is not complete")
