@@ -331,7 +331,9 @@ The 35 TPS midpoint probe was not sustainable: 1,294/2,101 succeeded, `tx_succes
 
 The 28 TPS probe also was not sustainable: 1,433/1,681 succeeded, `tx_success_rate=0.852468769`, successful throughput was 23.883333 TPS (`0.852976` of offered), and successful e2e median/p95/p99 were 12452.633946/32294.910555/34388.419210 ms. Its success-rate and throughput gates failed, and its end/beginning p95 ratio of 2.660599 also failed the latency-stability gate. Exact source hashes are retained in `data/e1_sphincs_boundary_28.csv`.
 
-The tested boundary is therefore 20 TPS passing and 28 TPS failing. The next single probe is their exact integer midpoint, 24 TPS. `benchmark_sphincs_boundary_24.yaml` contains only the discarded warm-up and one 60-second 24 TPS round. Analyze it before choosing any later rate.
+The 24 TPS probe is not sustainable despite completing all 1,441 requests successfully. Its successful throughput was 24.016667 TPS (`1.000694` of offered), so the success-rate and throughput gates passed. However, successful e2e median/p95/p99 were 7191.702027/13479.916965/15162.890049 ms, and the ending/beginning p95 ratio was 2.861839, which fails the preregistered latency-stability gate. Exact source hashes are retained in `data/e1_sphincs_boundary_24.csv`.
+
+The tested boundary is therefore 20 TPS passing and 24 TPS failing. The next single probe is their exact integer midpoint, 22 TPS. `benchmark_sphincs_boundary_22.yaml` contains only the discarded warm-up and one 60-second 22 TPS round. Analyze it before choosing any later rate.
 
 The final E1 schema, once all decisions and measurements are valid, is:
 
