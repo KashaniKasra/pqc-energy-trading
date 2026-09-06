@@ -88,8 +88,8 @@ case "$(basename "$BENCHMARK_CONFIG")" in
         fi
         ;;
     benchmark_tx_evidence_50.yaml)
-        if [[ "$CONFIG" != "ecdsa" || "$RUN_TYPE" != "evidence" || -z "$RUN_LABEL" ]]; then
-            echo "ERROR: The transaction-evidence profile requires config=ecdsa, E1_RUN_TYPE=evidence, and a nonempty E1_RUN_LABEL."
+        if [[ ! "$CONFIG" =~ ^(ecdsa|ml-dsa-44|ml-dsa-65)$ || "$RUN_TYPE" != "evidence" || -z "$RUN_LABEL" ]]; then
+            echo "ERROR: The transaction-evidence profile requires config=ecdsa|ml-dsa-44|ml-dsa-65, E1_RUN_TYPE=evidence, and a nonempty E1_RUN_LABEL."
             exit 1
         fi
         ;;
