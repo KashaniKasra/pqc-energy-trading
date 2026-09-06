@@ -339,6 +339,8 @@ The 23 TPS probe is not sustainable despite completing all 1,381 requests succes
 
 The integer boundary search is complete: 22 TPS is the highest tested sustainable integer rate and 23 TPS is the first tested nonsustainable integer rate. Therefore the working final SPHINCS+ `tps_sustained` is 22 TPS; no additional integer boundary probe is required.
 
+The separate common-profile latency populations requested for professor review are retained in `data/e1_latency_professor_review.csv`. Regenerate it with `./src/e1/analyze_timings.py --latency-professor-review --output data/e1_latency_professor_review.csv --replace`. The table keeps 50-TPS and 200-TPS samples separate. Its ECDSA, ML-DSA-44, and ML-DSA-65 rows are validated zero-failure latency candidates, with the caveat that their historical logs predate full standardized CPU-preflight capture in-log. Its SPHINCS+-SHA2-128s-simple rows retain common-profile success/error and saturation evidence, but all latency fields are intentionally empty. The professor has not yet selected which rate supplies the single final latency fields.
+
 The final E1 schema, once all decisions and measurements are valid, is:
 
 ```text

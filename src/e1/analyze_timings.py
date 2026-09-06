@@ -5,6 +5,10 @@ The default output contains per-round candidate timing statistics. SPHINCS+
 fixed-profile outcomes are exposed separately with ``--fixed-outcomes`` because
 the saturation run is reportable but is not a valid normal-latency data point.
 
+``--latency-professor-review`` produces the separate 50-TPS and 200-TPS
+populations requested for professor review. It never combines rounds and leaves
+SPHINCS+ latency fields empty because that fixed-profile run was saturated.
+
 ``--working-e1`` emits the exact final E1 schema to stdout, but leaves unresolved
 or unmeasured fields empty. It populates only values supported by retained
 evidence or the verified Fabric endorsement policy. This mode cannot write an
@@ -50,6 +54,31 @@ FINAL_FIELDS = (
     "endorsements_per_tx",
     "block_bytes_mean",
     "block_utilisation",
+)
+LATENCY_REVIEW_FIELDS = (
+    "config",
+    "offered_tps",
+    "total",
+    "success",
+    "fail",
+    "tx_success_rate",
+    "tx_error_rate",
+    "endorse_sample_count",
+    "endorse_median_ms",
+    "endorse_p95_ms",
+    "endorse_p99_ms",
+    "commit_sample_count",
+    "commit_median_ms",
+    "commit_p95_ms",
+    "commit_p99_ms",
+    "status",
+    "notes",
+    "endorse_source",
+    "endorse_sha256",
+    "commit_source",
+    "commit_sha256",
+    "log_source",
+    "log_sha256",
 )
 IDENTITY_PEERS = {
     "peer0.org1.example.com",
@@ -623,6 +652,122 @@ def build_fixed_outcome_rows(project_root: Path) -> list[dict[str, str]]:
     return rows
 
 
+def build_latency_professor_review_rows(project_root: Path) -> list[dict[str, str]]:
+    """Build separate fixed-profile populations without selecting a final one."""
+    raw_dir = project_root / "raw" / "e1"
+    timing_candidates = {
+        (row["config"], row["round_label"]): row
+        for row in build_rows(project_root)
+    }
+    outcomes = build_fixed_outcome_rows(project_root)
+    rows = []
+
+    for outcome in outcomes:
+        round_label = outcome["round_label"]
+        success = int(outcome["caliper_success"])
+        fail = int(outcome["caliper_fail"])
+        total = success + fail
+        if outcome["normal_latency_candidate"] == "true":
+            candidate = timing_candidates[(outcome["config"], round_label)]
+            for field in (
+                "caliper_success", "caliper_fail", "tx_success_rate", "tx_error_rate"
+            ):
+                if candidate[field] != outcome[field]:
+                    raise ValueError(
+                        f"{outcome['config']} {round_label}: timing/outcome {field} mismatch"
+                    )
+            if int(candidate["endorse_n"]) != success or int(candidate["commit_n"]) != success:
+                raise ValueError(
+                    f"{outcome['config']} {round_label}: timing counts do not reconcile "
+                    "with successful transactions"
+                )
+            row = {
+                "config": outcome["implementation"],
+                "offered_tps": outcome["send_rate_tps"],
+                "total": str(total),
+                "success": str(success),
+                "fail": str(fail),
+                "tx_success_rate": outcome["tx_success_rate"],
+                "tx_error_rate": outcome["tx_error_rate"],
+                "endorse_sample_count": candidate["endorse_n"],
+                "endorse_median_ms": candidate["endorse_median_ms"],
+                "endorse_p95_ms": candidate["endorse_p95_ms"],
+                "endorse_p99_ms": candidate["endorse_p99_ms"],
+                "commit_sample_count": candidate["commit_n"],
+                "commit_median_ms": candidate["commit_median_ms"],
+                "commit_p95_ms": candidate["commit_p95_ms"],
+                "commit_p99_ms": candidate["commit_p99_ms"],
+                "status": "valid_latency_candidate_historical_preflight_not_captured",
+                "notes": (
+                    "Zero failures and timing counts reconcile; retained historical log "
+                    "predates full standardized CPU preflight capture in the run log; "
+                    "50-TPS and 200-TPS populations remain separate pending professor review."
+                ),
+                "endorse_source": candidate["endorse_source"],
+                "endorse_sha256": candidate["endorse_sha256"],
+                "commit_source": candidate["commit_source"],
+                "commit_sha256": candidate["commit_sha256"],
+                "log_source": candidate["log_source"],
+                "log_sha256": candidate["log_sha256"],
+            }
+        else:
+            endorse_path = one_matching_file(
+                raw_dir, f"sphincs_endorse_{round_label}_worker0_*.csv"
+            )
+            commit_path = one_matching_file(
+                raw_dir, f"sphincs_commit_{round_label}_worker0_*.csv"
+            )
+            endorse_samples = load_samples(endorse_path, minimum_samples=1)
+            commit_samples = load_samples(commit_path, minimum_samples=1)
+            if len(commit_samples) != success:
+                raise ValueError(
+                    f"SPHINCS+ {round_label}: commit samples do not reconcile with successes"
+                )
+            if not success <= len(endorse_samples) <= total:
+                raise ValueError(
+                    f"SPHINCS+ {round_label}: endorsement samples are outside the "
+                    "successful-to-total request range"
+                )
+            if fail == 0:
+                raise ValueError(f"SPHINCS+ {round_label}: expected retained saturation failures")
+            row = {
+                "config": outcome["implementation"],
+                "offered_tps": outcome["send_rate_tps"],
+                "total": str(total),
+                "success": str(success),
+                "fail": str(fail),
+                "tx_success_rate": outcome["tx_success_rate"],
+                "tx_error_rate": outcome["tx_error_rate"],
+                "endorse_sample_count": str(len(endorse_samples)),
+                "endorse_median_ms": "",
+                "endorse_p95_ms": "",
+                "endorse_p99_ms": "",
+                "commit_sample_count": str(len(commit_samples)),
+                "commit_median_ms": "",
+                "commit_p95_ms": "",
+                "commit_p99_ms": "",
+                "status": "saturation_only_not_a_valid_latency_candidate",
+                "notes": (
+                    "Common-profile Gateway concurrency-limit saturation; success/error "
+                    "outcome is reportable, but timing fields are intentionally blank. "
+                    "SLH-DSA row maps to SPHINCS+-SHA2-128s-simple."
+                ),
+                "endorse_source": relative(endorse_path, project_root),
+                "endorse_sha256": sha256_file(endorse_path),
+                "commit_source": relative(commit_path, project_root),
+                "commit_sha256": sha256_file(commit_path),
+                "log_source": outcome["log_source"],
+                "log_sha256": outcome["log_sha256"],
+            }
+        rows.append(row)
+
+    if len(rows) != 8 or [row["offered_tps"] for row in rows].count("50.0") != 4 or [
+        row["offered_tps"] for row in rows
+    ].count("200.0") != 4:
+        raise ValueError("professor-review table must contain four separate rows per rate")
+    return rows
+
+
 def load_e2e_samples(path: Path) -> list[dict[str, float | str]]:
     with path.open(newline="", encoding="utf-8") as source:
         reader = csv.DictReader(source)
@@ -1141,6 +1286,14 @@ def main() -> int:
         help="report fixed-profile success/error rates and saturation status",
     )
     mode.add_argument(
+        "--latency-professor-review",
+        action="store_true",
+        help=(
+            "report separate 50-TPS and 200-TPS latency populations, retaining "
+            "SPHINCS+ as saturation-only evidence"
+        ),
+    )
+    mode.add_argument(
         "--identity-public-keys",
         action="store_true",
         help="validate and report public-key-only identity_bytes evidence",
@@ -1183,6 +1336,8 @@ def main() -> int:
     try:
         if args.working_e1:
             rows = build_working_e1_rows(project_root)
+        elif args.latency_professor_review:
+            rows = build_latency_professor_review_rows(project_root)
         elif args.fixed_outcomes:
             rows = build_fixed_outcome_rows(project_root)
         elif args.identity_public_keys:
