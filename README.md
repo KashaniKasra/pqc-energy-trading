@@ -327,7 +327,9 @@ Same-ledger evidence for the 20 TPS round contains 1,201 serialized endorser-tra
 
 The same evidence independently supports `tx_bytes_mean=19711.570358`, calculated from each exact serialized `common.Envelope`, and empirical `endorsements_per_tx=2.000000` with min=max=2 across all 1,201 transactions. Validation codes are unavailable because `peer channel fetch` obtained the orderer's block copy without peer-added `TRANSACTIONS_FILTER` metadata. The original raw summary grouped these unavailable codes with invalid transactions; it remains unchanged, while `data/e1_sphincs_transaction_evidence.csv` records the corrected interpretation as valid=0, invalid=0, unavailable=1201. This limitation does not affect envelope sizes or embedded endorsement counts.
 
-The next minimal boundary probe is 35 TPS, the integer midpoint between the passing 20 TPS point and the separately retained saturated common-profile 50 TPS point. `benchmark_sphincs_boundary_35.yaml` contains only the discarded warm-up and one 60-second 35 TPS round. Analyze that result before selecting any subsequent midpoint; do not run a predetermined sequence.
+The 35 TPS midpoint probe was not sustainable: 1,294/2,101 succeeded, `tx_success_rate=0.615897192`, successful throughput was 21.566667 TPS (`0.616190` of offered), and successful e2e median/p95/p99 were 17072.196082/32763.050961/36082.802465 ms. The success-rate and throughput gates failed. The end/beginning p95 ratio was 1.286502, so the latency-stability gate alone passed. Exact source hashes are retained in `data/e1_sphincs_boundary_35.csv`.
+
+The tested boundary is therefore 20 TPS passing and 35 TPS failing. The next single probe is 28 TPS: the midpoint is 27.5 and the documented nearest-integer tie rule rounds half-up. `benchmark_sphincs_boundary_28.yaml` contains only the discarded warm-up and one 60-second 28 TPS round. Analyze it before choosing any later rate.
 
 The final E1 schema, once all decisions and measurements are valid, is:
 

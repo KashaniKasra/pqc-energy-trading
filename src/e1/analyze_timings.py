@@ -669,6 +669,8 @@ def validate_sweep_provenance(
         benchmark_relative = "env/caliper/e1/benchmark_sphincs_refine_3_4.yaml"
     elif rates == [35]:
         benchmark_relative = "env/caliper/e1/benchmark_sphincs_boundary_35.yaml"
+    elif rates == [28]:
+        benchmark_relative = "env/caliper/e1/benchmark_sphincs_boundary_28.yaml"
     else:
         raise ValueError(f"unsupported SPHINCS+ sweep rate sequence: {rates}")
     benchmark_path = project_root / benchmark_relative
@@ -803,10 +805,15 @@ def build_sustainability_rows(
             endorse_samples = load_samples(endorse_path, minimum_samples=1)
             commit_samples = load_samples(commit_path, minimum_samples=1)
             validated_paths.update((endorse_path, commit_path))
-            if len(endorse_samples) != success or len(commit_samples) != success:
+            if len(commit_samples) != success:
                 raise ValueError(
-                    f"{round_label}: endorsement/commit sample counts do not reconcile "
-                    "with successful transactions"
+                    f"{round_label}: commit sample count does not reconcile with "
+                    "successful transactions"
+                )
+            if not success <= len(endorse_samples) <= success + fail:
+                raise ValueError(
+                    f"{round_label}: endorsement sample count is outside the "
+                    "successful-to-total request range"
                 )
         beginning = sorted(
             float(sample["latency_ms"])
@@ -848,6 +855,10 @@ def build_sustainability_rows(
             "successful_throughput_tps": f"{successful_throughput:.6f}",
             "achieved_offered_ratio": f"{achieved_offered_ratio:.6f}",
             "caliper_reported_throughput_tps": result["throughput_tps"],
+            **({
+                "endorsement_timing_n": str(len(endorse_samples)),
+                "commit_timing_n": str(len(commit_samples)),
+            } if validate_all_raw else {}),
             "overall_successful_e2e_median_ms": f"{percentile(successful_latencies, 0.50):.6f}",
             "overall_successful_e2e_p95_ms": f"{percentile(successful_latencies, 0.95):.6f}",
             "overall_successful_e2e_p99_ms": f"{percentile(successful_latencies, 0.99):.6f}",
