@@ -13,48 +13,192 @@ SPEC.loader.exec_module(ANALYZER)
 
 
 class SustainabilityTests(unittest.TestCase):
-    def write_fixture(self, root: Path, ending_latency: float) -> None:
+    def successful_rows(
+        self, count: int = 60, beginning_latency: float = 10.0,
+        ending_latency: float = 20.0,
+    ) -> list[dict[str, str | float]]:
+        rows = []
+        for index in range(count):
+            offset = index * 59000 / (count - 1) if count > 1 else 0
+            latency = ending_latency if offset >= 48000 else beginning_latency
+            rows.append({
+                "start_offset_ms": offset,
+                "latency_ms": latency,
+                "status": "success",
+                "tx_id": f"success-{index}",
+            })
+        return rows
+
+    def write_fixture(
+        self,
+        root: Path,
+        rows: list[dict[str, str | float]],
+        success: int | None = None,
+        fail: int | None = None,
+        run_namespace: str = "test_sphincs",
+        round_label: str = "sphincs-1-tps",
+        offered_rate: int = 1,
+    ) -> None:
         raw = root / "raw" / "e1"
         raw.mkdir(parents=True)
-        (raw / "test_sphincs_caliper_run.log").write_text(
-            "| sphincs-1-tps | 60 | 0 | 1.0 | 10.0 | 1.0 | 10.0 | 1.0 |\n",
+        if success is None:
+            success = sum(row["status"] == "success" for row in rows)
+        if fail is None:
+            fail = sum(row["status"] == "failure" for row in rows)
+        (raw / f"{run_namespace}_caliper_run.log").write_text(
+            f"| {round_label} | {success} | {fail} | {offered_rate:.1f} | 10.0 | 1.0 | 10.0 | {offered_rate:.1f} |\n",
             encoding="utf-8",
         )
-        timing_path = raw / "test_sphincs_e2e_sphincs-1-tps_worker0_1.csv"
+        timing_path = raw / f"{run_namespace}_e2e_{round_label}_worker0_1.csv"
         with timing_path.open("w", newline="", encoding="utf-8") as destination:
             writer = csv.DictWriter(destination, fieldnames=ANALYZER.E2E_FIELDS)
             writer.writeheader()
-            for index in range(60):
-                latency = ending_latency if index >= 48 else 10.0
-                writer.writerow({
-                    "start_offset_ms": index * 1000,
-                    "latency_ms": latency,
-                    "status": "success",
-                    "tx_id": f"tx-{index}",
-                })
+            writer.writerows(rows)
+
+    def analyze(
+        self, root: Path, run_namespace: str = "test_sphincs"
+    ) -> dict[str, str]:
+        return ANALYZER.build_sustainability_rows(
+            root, run_namespace, validate_all_raw=False
+        )[0]
 
     def test_all_three_criteria_pass(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            self.write_fixture(root, ending_latency=20.0)
-            rows = ANALYZER.build_sustainability_rows(
-                root, "test_sphincs", validate_all_raw=False
-            )
-            self.assertEqual(rows[0]["sustainable"], "true")
-            self.assertEqual(rows[0]["highest_tested_sustainable_tps"], "1")
-            self.assertEqual(rows[0]["total"], "60")
-            self.assertEqual(rows[0]["achieved_offered_ratio"], "1.000000")
-            self.assertEqual(rows[0]["overall_successful_e2e_median_ms"], "10.000000")
+            self.write_fixture(root, self.successful_rows())
+            row = self.analyze(root)
+            self.assertEqual(row["sustainable"], "true")
+            self.assertEqual(row["highest_tested_sustainable_tps"], "1")
+            self.assertEqual(row["total"], "60")
+            self.assertEqual(row["achieved_offered_ratio"], "1.000000")
+            self.assertEqual(row["overall_successful_e2e_median_ms"], "10.000000")
+            self.assertEqual(row["ending_to_beginning_p95_ratio"], "2.000000")
+            self.assertEqual(row["latency_stability_pass"], "true")
 
     def test_end_p95_over_twice_beginning_fails(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            self.write_fixture(root, ending_latency=20.001)
-            rows = ANALYZER.build_sustainability_rows(
-                root, "test_sphincs", validate_all_raw=False
+            self.write_fixture(root, self.successful_rows(ending_latency=20.001))
+            row = self.analyze(root)
+            self.assertEqual(row["latency_stability_pass"], "false")
+            self.assertEqual(row["sustainable"], "false")
+
+    def test_generalized_ecdsa_single_rate_label(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rows = self.successful_rows(13_320)
+            self.write_fixture(
+                root,
+                rows,
+                run_namespace="test_ecdsa",
+                round_label="sustained-222-tps",
+                offered_rate=222,
             )
-            self.assertEqual(rows[0]["latency_stability_pass"], "false")
-            self.assertEqual(rows[0]["sustainable"], "false")
+            result = self.analyze(root, "test_ecdsa")
+            self.assertEqual(result["config"], "ECDSA")
+            self.assertEqual(result["run_namespace"], "test_ecdsa")
+            self.assertEqual(result["offered_tps"], "222")
+            self.assertEqual(result["total_count"], "13320")
+            self.assertEqual(result["successful_throughput_tps"], "222.000000")
+            self.assertEqual(result["successful_throughput_ratio"], "1.000000")
+            self.assertEqual(result["begin_window_ms"], "[0,12000)")
+            self.assertEqual(result["end_window_ms"], "[48000,60000)")
+            self.assertEqual(result["sustainable"], "true")
+
+    def test_success_rate_threshold(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rows = self.successful_rows(99)
+            rows.append({
+                "start_offset_ms": 30000,
+                "latency_ms": 9999,
+                "status": "failure",
+                "tx_id": "failure-0",
+            })
+            self.write_fixture(root, rows)
+            self.assertEqual(self.analyze(root)["success_rate_pass"], "true")
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rows = self.successful_rows(98)
+            for index in range(2):
+                rows.append({
+                    "start_offset_ms": 30000 + index,
+                    "latency_ms": 9999,
+                    "status": "failure",
+                    "tx_id": f"failure-{index}",
+                })
+            self.write_fixture(root, rows)
+            self.assertEqual(self.analyze(root)["success_rate_pass"], "false")
+
+    def test_successful_throughput_threshold(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_fixture(root, self.successful_rows(57))
+            self.assertEqual(self.analyze(root)["throughput_pass"], "true")
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_fixture(root, self.successful_rows(56))
+            self.assertEqual(self.analyze(root)["throughput_pass"], "false")
+
+    def test_window_boundaries_are_exact(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            offsets = [0, 1000, 2000, 3000, 11999, 12000, 30000,
+                       48000, 50000, 55000, 59000, 59999, 60000]
+            rows = [{
+                "start_offset_ms": offset,
+                "latency_ms": 10,
+                "status": "success",
+                "tx_id": f"tx-{index}",
+            } for index, offset in enumerate(offsets)]
+            self.write_fixture(root, rows)
+            result = self.analyze(root)
+            self.assertEqual(result["beginning_success_n"], "5")
+            self.assertEqual(result["ending_success_n"], "5")
+
+    def test_each_window_requires_five_successes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            offsets = [0, 1000, 2000, 11999, 12000, 30000,
+                       48000, 50000, 55000, 59000, 59999]
+            rows = [{
+                "start_offset_ms": offset,
+                "latency_ms": 10,
+                "status": "success",
+                "tx_id": f"tx-{index}",
+            } for index, offset in enumerate(offsets)]
+            self.write_fixture(root, rows)
+            with self.assertRaisesRegex(ValueError, "at least five successful"):
+                self.analyze(root)
+
+    def test_percentile_interpolates_rank_p_times_n_minus_one(self) -> None:
+        self.assertEqual(ANALYZER.percentile([0.0, 10.0], 0.95), 9.5)
+
+    def test_failures_count_but_do_not_enter_latency_population(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rows = self.successful_rows(60, ending_latency=10)
+            for index in range(10):
+                rows.append({
+                    "start_offset_ms": 1000 if index < 5 else 50000,
+                    "latency_ms": 999999,
+                    "status": "failure",
+                    "tx_id": f"failure-{index}",
+                })
+            self.write_fixture(root, rows)
+            result = self.analyze(root)
+            self.assertEqual(result["total"], "70")
+            self.assertEqual(result["caliper_fail"], "10")
+            self.assertEqual(result["overall_successful_e2e_p99_ms"], "10.000000")
+
+    def test_source_count_mismatch_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_fixture(root, self.successful_rows(59), success=60, fail=0)
+            with self.assertRaisesRegex(ValueError, "does not reconcile"):
+                self.analyze(root)
 
 
 class TransactionEvidenceTests(unittest.TestCase):

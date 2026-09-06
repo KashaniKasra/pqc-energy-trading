@@ -195,6 +195,46 @@
       ],
       "profile_file": "env/caliper/e1/benchmark.yaml",
       "fixed_profile_status": "unchanged common-profile comparison for all four configurations",
+      "prepared_remaining_profiles": {
+        "status": "tooling prepared; no measurements claimed",
+        "sustainability_definition": "Same preregistered 60-second gates as e1_benchmark.caliper.sustainability; successful throughput is success_count/60.0 and not Caliper displayed throughput.",
+        "ecdsa_222": {
+          "profile_file": "env/caliper/e1/benchmark_ecdsa_sustained_222.yaml",
+          "profile_sha256": "3de7abf0704c17a4c35a2d230d3aef75bcca74c966c7c7cdf02ac0901efd8f3f",
+          "allowed_config": "ecdsa",
+          "required_run_type": "sustainability",
+          "warmup_rate_tps": 50,
+          "warmup_duration_seconds": 20,
+          "measured_rate_tps": 222,
+          "measured_duration_seconds": 60,
+          "measurement_status": "not_run"
+        },
+        "ml_dsa_200": {
+          "profile_file": "env/caliper/e1/benchmark_ml_dsa_sustained_200.yaml",
+          "profile_sha256": "0f03fb1546102f602509061334d9ad21aae66b71f9b4b52ee5e28d09be607290",
+          "allowed_configs": ["ml-dsa-44", "ml-dsa-65"],
+          "required_run_type": "sustainability",
+          "warmup_rate_tps": 50,
+          "warmup_duration_seconds": 20,
+          "measured_rate_tps": 200,
+          "measured_duration_seconds": 60,
+          "same_ledger_block_extraction_required": true,
+          "measurement_status": "not_run"
+        },
+        "sphincs_blockutil_54": {
+          "profile_file": "env/caliper/e1/benchmark_sphincs_blockutil_54.yaml",
+          "profile_sha256": "a2a785f7ca2304bd44ff76f17782c056bc85ef6d9a5a5d43c8a8d3c17066dc25",
+          "allowed_config": "sphincs",
+          "required_run_type": "diagnostic",
+          "warmup_rate_tps": 1,
+          "warmup_duration_seconds": 20,
+          "diagnostic_rate_tps": 54,
+          "diagnostic_duration_seconds": 60,
+          "purpose": "Test only whether unchanged Fabric parameters produce a clean traffic-volume-driven ordinary-block population; not a tps_sustained or normal-latency run.",
+          "automatic_rate_escalation_allowed": false,
+          "measurement_status": "not_run"
+        }
+      },
       "sphincs_low_rate_sweep": {
         "reason": "Supplemental sustainable-rate characterization after scientifically reportable saturation under the unchanged common 50 TPS workload.",
         "profile_file": "env/caliper/e1/benchmark_sphincs_sweep.yaml",

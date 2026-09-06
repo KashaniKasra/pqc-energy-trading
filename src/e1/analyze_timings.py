@@ -102,6 +102,48 @@ SUCCESS_RATE_MINIMUM = 0.99
 THROUGHPUT_FRACTION_MINIMUM = 0.95
 LATENCY_P95_RATIO_MAXIMUM = 2.0
 E2E_FIELDS = ["start_offset_ms", "latency_ms", "status", "tx_id"]
+SUSTAINABILITY_PROFILE_SPECS = {
+    ("sphincs", ("sphincs-1-tps", "sphincs-2-tps", "sphincs-5-tps", "sphincs-10-tps", "sphincs-20-tps")): {
+        "path": "env/caliper/e1/benchmark_sphincs_sweep.yaml",
+        "run_type": "sweep",
+    },
+    ("sphincs", ("sphincs-3-tps", "sphincs-4-tps")): {
+        "path": "env/caliper/e1/benchmark_sphincs_refine_3_4.yaml",
+        "run_type": "sweep",
+    },
+    ("sphincs", ("sphincs-35-tps",)): {
+        "path": "env/caliper/e1/benchmark_sphincs_boundary_35.yaml",
+        "run_type": "sweep",
+    },
+    ("sphincs", ("sphincs-28-tps",)): {
+        "path": "env/caliper/e1/benchmark_sphincs_boundary_28.yaml",
+        "run_type": "sweep",
+    },
+    ("sphincs", ("sphincs-24-tps",)): {
+        "path": "env/caliper/e1/benchmark_sphincs_boundary_24.yaml",
+        "run_type": "sweep",
+    },
+    ("sphincs", ("sphincs-22-tps",)): {
+        "path": "env/caliper/e1/benchmark_sphincs_boundary_22.yaml",
+        "run_type": "sweep",
+    },
+    ("sphincs", ("sphincs-23-tps",)): {
+        "path": "env/caliper/e1/benchmark_sphincs_boundary_23.yaml",
+        "run_type": "sweep",
+    },
+    ("ecdsa", ("sustained-222-tps",)): {
+        "path": "env/caliper/e1/benchmark_ecdsa_sustained_222.yaml",
+        "run_type": "sustainability",
+    },
+    ("ml-dsa-44", ("sustained-200-tps",)): {
+        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_200.yaml",
+        "run_type": "sustainability",
+    },
+    ("ml-dsa-65", ("sustained-200-tps",)): {
+        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_200.yaml",
+        "run_type": "sustainability",
+    },
+}
 TRANSACTION_EVIDENCE_FIELDS = [
     "config", "run_label", "benchmark_label", "block_number", "tx_index",
     "channel_header_type", "tx_id", "envelope_bytes", "envelope_sha256",
@@ -218,6 +260,20 @@ def transaction_rates(success_text: str, fail_text: str) -> tuple[str, str]:
 
 def relative(path: Path, project_root: Path) -> str:
     return str(path.relative_to(project_root))
+
+
+def config_from_run_namespace(run_namespace: str) -> str:
+    for config in sorted(FIXED_CONFIGS, key=len, reverse=True):
+        if run_namespace.endswith(f"_{config}"):
+            return config
+    raise ValueError(f"{run_namespace}: namespace does not end with a supported config")
+
+
+def rate_from_round_label(round_label: str) -> int:
+    match = re.fullmatch(r"(?:sphincs|sustained)-(\d+)-tps", round_label)
+    if match is None:
+        raise ValueError(f"unsupported sustainability round label: {round_label}")
+    return int(match.group(1))
 
 
 def one_csv_row(path: Path) -> tuple[list[str], dict[str, str]]:
@@ -826,29 +882,20 @@ def load_e2e_samples(path: Path) -> list[dict[str, float | str]]:
 def validate_sweep_provenance(
     project_root: Path,
     run_namespace: str,
+    config: str,
     round_labels: list[str],
 ) -> tuple[Path, Path, Path]:
-    """Validate the retained log, height markers, and fixed sweep definition."""
+    """Validate the retained log, height markers, and immutable rate profile."""
     raw_dir = project_root / "raw" / "e1"
     log_path = raw_dir / f"{run_namespace}_caliper_run.log"
     heights_path = raw_dir / f"{run_namespace}_block_heights.csv"
-    rates = [int(label.split("-")[1]) for label in round_labels]
-    if rates == [1, 2, 5, 10, 20]:
-        benchmark_relative = "env/caliper/e1/benchmark_sphincs_sweep.yaml"
-    elif rates == [3, 4]:
-        benchmark_relative = "env/caliper/e1/benchmark_sphincs_refine_3_4.yaml"
-    elif rates == [35]:
-        benchmark_relative = "env/caliper/e1/benchmark_sphincs_boundary_35.yaml"
-    elif rates == [28]:
-        benchmark_relative = "env/caliper/e1/benchmark_sphincs_boundary_28.yaml"
-    elif rates == [24]:
-        benchmark_relative = "env/caliper/e1/benchmark_sphincs_boundary_24.yaml"
-    elif rates == [22]:
-        benchmark_relative = "env/caliper/e1/benchmark_sphincs_boundary_22.yaml"
-    elif rates == [23]:
-        benchmark_relative = "env/caliper/e1/benchmark_sphincs_boundary_23.yaml"
-    else:
-        raise ValueError(f"unsupported SPHINCS+ sweep rate sequence: {rates}")
+    spec = SUSTAINABILITY_PROFILE_SPECS.get((config, tuple(round_labels)))
+    if spec is None:
+        raise ValueError(
+            f"unsupported sustainability config/round sequence: "
+            f"config={config}, rounds={round_labels}"
+        )
+    benchmark_relative = spec["path"]
     benchmark_path = project_root / benchmark_relative
     metadata = json.loads((project_root / "meta.json").read_text(encoding="utf-8"))
     images = metadata["e1_benchmark"]["installed_images_at_metadata_update"]
@@ -856,8 +903,8 @@ def validate_sweep_provenance(
 
     log_text = log_path.read_text(encoding="utf-8", errors="strict")
     required_log_lines = [
-        "[E1] configuration=sphincs",
-        "[E1] run_type=sweep",
+        f"[E1] configuration={config}",
+        f"[E1] run_type={spec['run_type']}",
         f"[E1] run_namespace={run_namespace}",
         f"[E1] benchmark_config={benchmark_relative}",
         f"[E1] benchmark_config_sha256={sha256_file(benchmark_path)}",
@@ -881,6 +928,11 @@ def validate_sweep_provenance(
             f"[E1] cpu{cpu}_state=governor:performance,min_khz:3201000,max_khz:3201000"
         )
     missing = [line for line in required_log_lines if line not in log_text]
+    if spec["run_type"] == "sustainability":
+        policy_path = project_root / "env/caliper/e1/run_policy.sh"
+        required_policy_line = f"[E1] e1_run_policy_sha256={sha256_file(policy_path)}"
+        if required_policy_line not in log_text:
+            missing.append(required_policy_line)
     if missing:
         raise ValueError(f"{log_path}: missing required provenance: {missing}")
     if re.search(r"^\[E1\] project_git_commit=[0-9a-f]{40}$", log_text, re.MULTILINE) is None:
@@ -918,13 +970,14 @@ def build_sustainability_rows(
 ) -> list[dict[str, str]]:
     if re.fullmatch(r"[a-z0-9][a-z0-9._-]*", run_namespace) is None:
         raise ValueError("run namespace contains unsupported characters")
+    config = config_from_run_namespace(run_namespace)
     raw_dir = project_root / "raw" / "e1"
     log_path = raw_dir / f"{run_namespace}_caliper_run.log"
-    e2e_paths = sorted(raw_dir.glob(f"{run_namespace}_e2e_sphincs-*-tps_worker0_*.csv"))
+    e2e_paths = sorted(raw_dir.glob(f"{run_namespace}_e2e_*-tps_worker0_*.csv"))
     by_round: dict[str, Path] = {}
     for path in e2e_paths:
         match = re.fullmatch(
-            rf"{re.escape(run_namespace)}_e2e_(sphincs-(\d+)-tps)_worker0_\d+\.csv",
+            rf"{re.escape(run_namespace)}_e2e_((?:sphincs|sustained)-(\d+)-tps)_worker0_\d+\.csv",
             path.name,
         )
         if match is None or match.group(1) in by_round:
@@ -933,13 +986,13 @@ def build_sustainability_rows(
     if not by_round:
         raise ValueError(f"{raw_dir}: no end-to-end timing files for {run_namespace}")
 
-    round_labels = sorted(by_round, key=lambda label: int(label.split("-")[1]))
+    round_labels = sorted(by_round, key=rate_from_round_label)
     caliper_results = load_caliper_results(log_path, round_labels)
     heights_path: Path | None = None
     benchmark_path: Path | None = None
     if validate_all_raw:
         log_path, heights_path, benchmark_path = validate_sweep_provenance(
-            project_root, run_namespace, round_labels
+            project_root, run_namespace, config, round_labels
         )
         for sample_type in ("endorse", "commit"):
             if list(raw_dir.glob(f"{run_namespace}_{sample_type}_warmup_worker0_*.csv")):
@@ -949,8 +1002,12 @@ def build_sustainability_rows(
     rows = []
     validated_paths = {log_path, heights_path, *by_round.values()}
     for round_label in round_labels:
-        offered_rate = int(round_label.split("-")[1])
+        offered_rate = rate_from_round_label(round_label)
         result = caliper_results[round_label]
+        if float(result["send_rate_tps"]) != offered_rate:
+            raise ValueError(
+                f"{log_path}: offered rate for {round_label} does not match its label"
+            )
         success = int(result["caliper_success"])
         fail = int(result["caliper_fail"])
         samples = load_e2e_samples(by_round[round_label])
@@ -1019,7 +1076,7 @@ def build_sustainability_rows(
         latency_pass = ratio <= LATENCY_P95_RATIO_MAXIMUM
         sustainable = success_pass and throughput_pass and latency_pass
 
-        rows.append({
+        row = {
             "round_label": round_label,
             "offered_rate_tps": str(offered_rate),
             "duration_seconds": str(SWEEP_DURATION_SECONDS),
@@ -1063,7 +1120,57 @@ def build_sustainability_rows(
             } if validate_all_raw else {}),
             "log_source": relative(log_path, project_root),
             "log_sha256": sha256_file(log_path),
-        })
+        }
+        if config != "sphincs":
+            row = {
+                "config": FIXED_CONFIGS[config],
+                "run_namespace": run_namespace,
+                "run_type": "sustainability",
+                "round_label": round_label,
+                "offered_tps": str(offered_rate),
+                "duration_seconds": str(SWEEP_DURATION_SECONDS),
+                "total_count": str(success + fail),
+                "success_count": str(success),
+                "fail_count": str(fail),
+                "tx_success_rate": tx_success_rate,
+                "tx_error_rate": tx_error_rate,
+                "successful_throughput_tps": f"{successful_throughput:.6f}",
+                "successful_throughput_ratio": f"{achieved_offered_ratio:.6f}",
+                "caliper_reported_throughput_tps": result["throughput_tps"],
+                **({
+                    "endorsement_timing_count": str(len(endorse_samples)),
+                    "commit_timing_count": str(len(commit_samples)),
+                } if validate_all_raw else {}),
+                "e2e_median_ms": f"{percentile(successful_latencies, 0.50):.6f}",
+                "e2e_p95_ms": f"{percentile(successful_latencies, 0.95):.6f}",
+                "e2e_p99_ms": f"{percentile(successful_latencies, 0.99):.6f}",
+                "begin_window_ms": "[0,12000)",
+                "end_window_ms": "[48000,60000)",
+                "begin_window_success_count": str(len(beginning)),
+                "end_window_success_count": str(len(end)),
+                "begin_window_p95_ms": f"{beginning_p95:.6f}",
+                "end_window_p95_ms": f"{end_p95:.6f}",
+                "latency_stability_ratio": f"{ratio:.6f}",
+                "success_rate_gate_pass": str(success_pass).lower(),
+                "throughput_gate_pass": str(throughput_pass).lower(),
+                "latency_stability_gate_pass": str(latency_pass).lower(),
+                "sustainable": str(sustainable).lower(),
+                "e2e_source": relative(by_round[round_label], project_root),
+                "e2e_sha256": sha256_file(by_round[round_label]),
+                **({
+                    "endorse_source": relative(endorse_path, project_root),
+                    "endorse_sha256": sha256_file(endorse_path),
+                    "commit_source": relative(commit_path, project_root),
+                    "commit_sha256": sha256_file(commit_path),
+                    "heights_source": relative(heights_path, project_root),
+                    "heights_sha256": sha256_file(heights_path),
+                    "benchmark_source": relative(benchmark_path, project_root),
+                    "benchmark_sha256": sha256_file(benchmark_path),
+                } if validate_all_raw else {}),
+                "log_source": relative(log_path, project_root),
+                "log_sha256": sha256_file(log_path),
+            }
+        rows.append(row)
 
     if validate_all_raw:
         namespace_paths = set(raw_dir.glob(f"{run_namespace}_*"))
@@ -1079,7 +1186,10 @@ def build_sustainability_rows(
                 f"unexpected={unexpected}, missing={missing}"
             )
 
-    passing_rates = [int(row["offered_rate_tps"]) for row in rows if row["sustainable"] == "true"]
+    rate_field = "offered_rate_tps" if config == "sphincs" else "offered_tps"
+    passing_rates = [
+        int(row[rate_field]) for row in rows if row["sustainable"] == "true"
+    ]
     highest = str(max(passing_rates)) if passing_rates else ""
     for row in rows:
         row["highest_tested_sustainable_tps"] = highest
@@ -1331,7 +1441,7 @@ def main() -> int:
     mode.add_argument(
         "--sustainability",
         metavar="RUN_NAMESPACE",
-        help="evaluate a completed SPHINCS+ sweep from namespaced raw evidence",
+        help="evaluate an allowlisted 60-second rate probe from namespaced raw evidence",
     )
     mode.add_argument(
         "--block-transactions",

@@ -349,6 +349,14 @@ The 23 TPS probe is not sustainable despite completing all 1,381 requests succes
 
 The integer boundary search is complete: 22 TPS is the highest tested sustainable integer rate and 23 TPS is the first tested nonsustainable integer rate. Therefore the working final SPHINCS+ `tps_sustained` is 22 TPS; no additional integer boundary probe is required.
 
+## Prepared remaining E1 rate profiles
+
+Three immutable profiles are prepared but have not yet been run. `benchmark_ecdsa_sustained_222.yaml` contains a discarded 20-second 50-TPS warm-up and one 60-second ECDSA round at 222 TPS. `benchmark_ml_dsa_sustained_200.yaml` is shared, without parameter substitution, by separate ML-DSA-44 and ML-DSA-65 networks; it contains the same warm-up and one 60-second round at 200 TPS. Those measured rounds use exactly the sustainability gates and request-start windows defined above. The shared ML-DSA profile does not merge configurations: `run_e1.sh` provisions the selected matching network, and its profile policy accepts only ML-DSA-44 or ML-DSA-65 with `E1_RUN_TYPE=sustainability` and a collision-safe label.
+
+`benchmark_sphincs_blockutil_54.yaml` is a separate block-filling diagnostic with a discarded 20-second 1-TPS warm-up and one 60-second 54-TPS round. It is not a latency or sustained-TPS profile and cannot change the accepted SPHINCS+ `tps_sustained=22`. Its only purpose is to determine empirically whether the unchanged Fabric parameters can produce a clean traffic-volume-driven block population. If it produces timeout-driven or degraded blocks, no higher rate or parameter change is automatic.
+
+For allowlisted sustainability runs, `analyze_timings.py --sustainability <run_namespace>` applies the same mathematics used for SPHINCS+. Its output retains total/success/failure counts, success/error rates, successful throughput and offered-rate ratio, successful E2E median/p95/p99, beginning/ending window counts and p95 values, the stability ratio, each gate result, overall sustainability, and paths plus SHA-256 hashes for every validated source. Caliper displayed throughput remains provenance only and is never used for the throughput gate.
+
 The separate common-profile latency populations requested for professor review are retained in `data/e1_latency_professor_review.csv`. Regenerate it with `./src/e1/analyze_timings.py --latency-professor-review --output data/e1_latency_professor_review.csv --replace`. The table keeps 50-TPS and 200-TPS samples separate. Its ECDSA, ML-DSA-44, and ML-DSA-65 rows are validated zero-failure latency candidates, with the caveat that their historical logs predate full standardized CPU-preflight capture in-log. Its SPHINCS+-SHA2-128s-simple rows retain common-profile success/error and saturation evidence, but all latency fields are intentionally empty. The professor has not yet selected which rate supplies the single final latency fields.
 
 The final E1 schema, once all decisions and measurements are valid, is:
@@ -365,7 +373,7 @@ An explicitly incomplete working-schema view can be regenerated with:
 ./src/e1/analyze_timings.py --working-e1
 ```
 
-It validates the historical signcert evidence without treating it as `identity_bytes`, validates the public-key-only sizes, verifies common-profile success/error outcomes and the configured endorsement policy, and verifies the ECDSA block and exact-envelope summaries against retained raw sources and `meta.json`. It emits the exact four-row schema to stdout. Supported public-key means, common-50-TPS success/error rates, the completed SPHINCS+ sustained rate, empirical ECDSA/SPHINCS+ transaction-size and endorsement evidence, and the accepted boundary-inclusive ECDSA block fields are populated. ML-DSA transaction-size/endorsement cells and unresolved latency fields remain empty. It intentionally refuses `--output`, preventing the working view from being mistaken for the final deliverable.
+It validates the historical signcert evidence without treating it as `identity_bytes`, validates the public-key-only sizes, verifies common-profile success/error outcomes and the configured endorsement policy, and verifies the ECDSA block and all four exact-envelope summaries against retained raw sources and `meta.json`. It emits the exact four-row schema to stdout. Supported public-key means, common-50-TPS success/error rates, the completed SPHINCS+ sustained rate, all four empirical transaction-size and endorsement results, and the accepted boundary-inclusive ECDSA block fields are populated. Unmeasured block/sustained-TPS fields and unresolved latency fields remain empty. It intentionally refuses `--output`, preventing the working view from being mistaken for the final deliverable.
 
 ## Remaining E1 final-output decision
 

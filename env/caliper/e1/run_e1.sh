@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 FABRIC_E1_DIR="$PROJECT_ROOT/env/fabric/e1"
+source "$SCRIPT_DIR/run_policy.sh"
 
 CPUSET="2-15"
 TARGET_FREQ_KHZ=3201000
@@ -80,20 +81,11 @@ if [[ -z "$RUN_LABEL" && "$RUN_TYPE" != "fixed-profile" ]]; then
     exit 1
 fi
 
-case "$(basename "$BENCHMARK_CONFIG")" in
-    benchmark_sphincs_sweep.yaml|benchmark_sphincs_refine_3_4.yaml|benchmark_sphincs_boundary_35.yaml|benchmark_sphincs_boundary_28.yaml|benchmark_sphincs_boundary_24.yaml|benchmark_sphincs_boundary_22.yaml|benchmark_sphincs_boundary_23.yaml)
-        if [[ "$CONFIG" != "sphincs" || "$RUN_TYPE" != "sweep" || -z "$RUN_LABEL" ]]; then
-            echo "ERROR: SPHINCS+ sweep profiles require config=sphincs, E1_RUN_TYPE=sweep, and a nonempty E1_RUN_LABEL."
-            exit 1
-        fi
-        ;;
-    benchmark_tx_evidence_50.yaml)
-        if [[ ! "$CONFIG" =~ ^(ecdsa|ml-dsa-44|ml-dsa-65)$ || "$RUN_TYPE" != "evidence" || -z "$RUN_LABEL" ]]; then
-            echo "ERROR: The transaction-evidence profile requires config=ecdsa|ml-dsa-44|ml-dsa-65, E1_RUN_TYPE=evidence, and a nonempty E1_RUN_LABEL."
-            exit 1
-        fi
-        ;;
-esac
+validate_e1_run_policy \
+    "$CONFIG" \
+    "$(basename "$BENCHMARK_CONFIG")" \
+    "$RUN_TYPE" \
+    "$RUN_LABEL"
 
 PEER_GATEWAY_FILE="$SCRIPT_DIR/node_modules/@hyperledger/caliper-fabric/lib/connector-versions/peer-gateway/PeerGateway.js"
 if [[ ! -f "$PEER_GATEWAY_FILE" ]] || ! grep -Fq 'start_offset_ms,latency_ms,status,tx_id' "$PEER_GATEWAY_FILE"; then
@@ -108,12 +100,7 @@ mkdir -p "$RAW_DIR"
 LOG_FILE="$RAW_DIR/${RUN_NAMESPACE}_caliper_run.log"
 HEIGHTS_FILE="$RAW_DIR/${RUN_NAMESPACE}_block_heights.csv"
 
-if compgen -G "$RAW_DIR/${RUN_NAMESPACE}_*" > /dev/null; then
-    echo "ERROR: Existing raw artifacts found for run namespace: $RUN_NAMESPACE"
-    echo "Refusing to overwrite or mix measurement runs:"
-    compgen -G "$RAW_DIR/${RUN_NAMESPACE}_*" | sort
-    exit 1
-fi
+ensure_e1_namespace_available "$RAW_DIR" "$RUN_NAMESPACE"
 
 PROJECT_GIT_COMMIT="$(git -C "$PROJECT_ROOT" rev-parse HEAD)"
 PROJECT_GIT_STATUS="$(git -C "$PROJECT_ROOT" status --porcelain --untracked-files=normal)"
@@ -244,6 +231,7 @@ echo "[E1] caliper_connection_org1_sha256=$(sha256sum "$SCRIPT_DIR/connection-or
 echo "[E1] caliper_connection_org2_sha256=$(sha256sum "$SCRIPT_DIR/connection-org2.yaml" | awk '{print $1}')"
 echo "[E1] caliper_workload_sha256=$(sha256sum "$SCRIPT_DIR/workload/set.js" | awk '{print $1}')"
 echo "[E1] caliper_timing_patch_sha256=$(sha256sum "$SCRIPT_DIR/patches/peer-gateway-e1-timing.patch" | awk '{print $1}')"
+echo "[E1] e1_run_policy_sha256=$(sha256sum "$SCRIPT_DIR/run_policy.sh" | awk '{print $1}')"
 echo "[E1] e1_runner_sha256=$(sha256sum "$SCRIPT_DIR/run_e1.sh" | awk '{print $1}')"
 
 echo "[E1] Setting up Fabric network for configuration: $CONFIG"
