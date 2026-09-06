@@ -27,7 +27,7 @@ for label_value in "$RUN_LABEL" "$BENCHMARK_LABEL"; do
     fi
 done
 
-for command_name in awk docker jq openssl realpath sha256sum stat; do
+for command_name in awk docker go jq openssl realpath sha256sum stat; do
     if ! command -v "$command_name" >/dev/null 2>&1; then
         echo "ERROR: Required command not found: $command_name"
         exit 1
@@ -46,6 +46,8 @@ RUN_NAMESPACE="${RUN_LABEL}_${CONFIG}"
 HEIGHTS_FILE="$RAW_DIR/${RUN_NAMESPACE}_block_heights.csv"
 RAW_BLOCKS_FILE="$RAW_DIR/${RUN_NAMESPACE}_blocks_${BENCHMARK_LABEL}.csv"
 SUMMARY_FILE="$RAW_DIR/${RUN_NAMESPACE}_blocks_${BENCHMARK_LABEL}_summary.csv"
+TRANSACTIONS_FILE="$RAW_DIR/${RUN_NAMESPACE}_transactions_${BENCHMARK_LABEL}.csv"
+EVIDENCE_MODULE="$PROJECT_ROOT/src/e1/evidence"
 
 if [[ ! -x "$CONFIGTXLATOR" ]]; then
     echo "ERROR: configtxlator not found or not executable: $CONFIGTXLATOR"
@@ -57,7 +59,7 @@ if [[ ! -f "$HEIGHTS_FILE" ]]; then
     exit 1
 fi
 
-for output_file in "$RAW_BLOCKS_FILE" "$SUMMARY_FILE"; do
+for output_file in "$RAW_BLOCKS_FILE" "$SUMMARY_FILE" "$TRANSACTIONS_FILE"; do
     if [[ -e "$output_file" ]]; then
         echo "ERROR: Refusing to overwrite existing measurement output: $output_file"
         exit 1
@@ -128,14 +130,21 @@ if [[ ! -f "$ORDERER_CA" ]]; then
 fi
 
 HOST_TEMP_DIR="$(mktemp -d)"
+TEMP_RAW_BLOCKS="$(mktemp "$RAW_DIR/.${RUN_NAMESPACE}_blocks.XXXXXX")"
+TEMP_TRANSACTIONS="$(mktemp "$RAW_DIR/.${RUN_NAMESPACE}_transactions.XXXXXX")"
+TEMP_SUMMARY="$(mktemp "$RAW_DIR/.${RUN_NAMESPACE}_summary.XXXXXX")"
 CONTAINER_PREFIX="/tmp/e1-block-measure-${RUN_NAMESPACE}-$$"
 CONTAINER_CA="${CONTAINER_PREFIX}-orderer-ca.crt"
 
 cleanup() {
     docker exec "$PEER_CONTAINER" sh -c "rm -f ${CONTAINER_PREFIX}-*.pb ${CONTAINER_CA}" >/dev/null 2>&1 || true
     rm -rf "$HOST_TEMP_DIR"
+    rm -f "$TEMP_RAW_BLOCKS" "$TEMP_TRANSACTIONS" "$TEMP_SUMMARY"
 }
 trap cleanup EXIT
+
+(cd "$EVIDENCE_MODULE" && go build -o "$HOST_TEMP_DIR/blockinspect" ./cmd/blockinspect)
+BLOCK_INSPECTOR="$HOST_TEMP_DIR/blockinspect"
 
 docker cp "$ORDERER_CA" "$PEER_CONTAINER:$CONTAINER_CA" >/dev/null
 
@@ -185,12 +194,23 @@ fi
 
 printf '%s\n' \
     'config,run_label,benchmark_label,block_number,block_bytes,transaction_count,header_types,classification,accepted_for_mean' \
-    > "$RAW_BLOCKS_FILE"
+    > "$TEMP_RAW_BLOCKS"
+
+printf '%s\n' \
+    'config,run_label,benchmark_label,block_number,tx_index,channel_header_type,tx_id,envelope_bytes,envelope_sha256,validation_code,validation_name,endorsements,block_classification,accepted_for_tx_mean' \
+    > "$TEMP_TRANSACTIONS"
 
 ordinary_count=0
 excluded_count=0
 ordinary_total_bytes=0
 ordinary_total_transactions=0
+ordinary_transaction_count=0
+ordinary_transaction_total_bytes=0
+ordinary_valid_transaction_count=0
+ordinary_invalid_transaction_count=0
+endorsement_total=0
+endorsement_min=-1
+endorsement_max=-1
 
 for (( block=START_BLOCK; block<=END_BLOCK; block++ )); do
     container_block="${CONTAINER_PREFIX}-${block}.pb"
@@ -222,6 +242,14 @@ for (( block=START_BLOCK; block<=END_BLOCK; block++ )); do
 
     IFS=$'\t' read -r transaction_count header_types classification <<< "$block_metadata"
 
+    transaction_metadata="$HOST_TEMP_DIR/block-${block}-transactions.csv"
+    "$BLOCK_INSPECTOR" --input "$host_block" > "$transaction_metadata"
+    inspected_transaction_count="$(awk 'END {print NR - 1}' "$transaction_metadata")"
+    if [[ "$inspected_transaction_count" != "$transaction_count" ]]; then
+        echo "ERROR: Block $block transaction count differs between protobuf inspectors."
+        exit 1
+    fi
+
     if [[ "$classification" == "ordinary_transaction" ]]; then
         accepted_for_mean="true"
         ordinary_count=$((ordinary_count + 1))
@@ -242,7 +270,52 @@ for (( block=START_BLOCK; block<=END_BLOCK; block++ )); do
         "$header_types" \
         "$classification" \
         "$accepted_for_mean" \
-        >> "$RAW_BLOCKS_FILE"
+        >> "$TEMP_RAW_BLOCKS"
+
+    while IFS=, read -r tx_index header_type tx_id envelope_bytes envelope_sha256 validation_code validation_name endorsements; do
+        if [[ "$tx_index" == "tx_index" ]]; then
+            continue
+        fi
+        accepted_for_tx_mean="false"
+        if [[ "$classification" == "ordinary_transaction" ]]; then
+            if [[ "$header_type" != "3" || ! "$envelope_bytes" =~ ^[0-9]+$ || ! "$endorsements" =~ ^[0-9]+$ ]]; then
+                echo "ERROR: Block $block contains malformed ordinary-transaction evidence."
+                exit 1
+            fi
+            accepted_for_tx_mean="true"
+            ordinary_transaction_count=$((ordinary_transaction_count + 1))
+            ordinary_transaction_total_bytes=$((ordinary_transaction_total_bytes + envelope_bytes))
+            endorsement_total=$((endorsement_total + endorsements))
+            if (( endorsement_min < 0 || endorsements < endorsement_min )); then
+                endorsement_min="$endorsements"
+            fi
+            if (( endorsements > endorsement_max )); then
+                endorsement_max="$endorsements"
+            fi
+            if [[ "$validation_code" == "0" ]]; then
+                ordinary_valid_transaction_count=$((ordinary_valid_transaction_count + 1))
+            else
+                ordinary_invalid_transaction_count=$((ordinary_invalid_transaction_count + 1))
+            fi
+        fi
+
+        printf '%s,%s,%s,%d,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
+            "$CONFIG" \
+            "$RUN_LABEL" \
+            "$BENCHMARK_LABEL" \
+            "$block" \
+            "$tx_index" \
+            "$header_type" \
+            "$tx_id" \
+            "$envelope_bytes" \
+            "$envelope_sha256" \
+            "$validation_code" \
+            "$validation_name" \
+            "$endorsements" \
+            "$classification" \
+            "$accepted_for_tx_mean" \
+            >> "$TEMP_TRANSACTIONS"
+    done < "$transaction_metadata"
 
     docker exec "$PEER_CONTAINER" rm -f "$container_block" >/dev/null
 done
@@ -255,13 +328,20 @@ fi
 BLOCK_BYTES_MEAN="$(awk -v total="$ordinary_total_bytes" -v n="$ordinary_count" 'BEGIN { printf "%.6f", total / n }')"
 TRANSACTIONS_MEAN="$(awk -v total="$ordinary_total_transactions" -v n="$ordinary_count" 'BEGIN { printf "%.6f", total / n }')"
 BLOCK_UTILISATION="$(awk -v mean="$BLOCK_BYTES_MEAN" -v preferred="$PREFERRED_MAX_BYTES" 'BEGIN { printf "%.9f", mean / preferred }')"
-RAW_BLOCKS_SHA256="$(sha256sum "$RAW_BLOCKS_FILE" | awk '{print $1}')"
+if (( ordinary_transaction_count == 0 )); then
+    echo "ERROR: No serialized ordinary transactions were extracted."
+    exit 1
+fi
+TX_BYTES_MEAN="$(awk -v total="$ordinary_transaction_total_bytes" -v n="$ordinary_transaction_count" 'BEGIN { printf "%.6f", total / n }')"
+ENDORSEMENTS_PER_TX="$(awk -v total="$endorsement_total" -v n="$ordinary_transaction_count" 'BEGIN { printf "%.6f", total / n }')"
+RAW_BLOCKS_SHA256="$(sha256sum "$TEMP_RAW_BLOCKS" | awk '{print $1}')"
+RAW_TRANSACTIONS_SHA256="$(sha256sum "$TEMP_TRANSACTIONS" | awk '{print $1}')"
 
 printf '%s\n' \
-    'config,run_label,benchmark_label,start_block,end_block,ordinary_block_count,excluded_block_count,block_bytes_mean,transactions_per_block_mean,effective_preferred_max_bytes,block_utilisation,BatchTimeout,MaxMessageCount,AbsoluteMaxBytes,effective_config_block_number,effective_config_block_sha256,raw_blocks_file,raw_blocks_sha256,measurement_status' \
-    > "$SUMMARY_FILE"
+    'config,run_label,benchmark_label,start_block,end_block,ordinary_block_count,excluded_block_count,block_bytes_mean,transactions_per_block_mean,effective_preferred_max_bytes,block_utilisation,BatchTimeout,MaxMessageCount,AbsoluteMaxBytes,effective_config_block_number,effective_config_block_sha256,raw_blocks_file,raw_blocks_sha256,ordinary_transaction_count,valid_transaction_count,invalid_transaction_count,tx_bytes_mean,endorsements_per_tx,endorsements_min,endorsements_max,raw_transactions_file,raw_transactions_sha256,measurement_status' \
+    > "$TEMP_SUMMARY"
 
-printf '%s,%s,%s,%d,%d,%d,%d,%s,%s,%d,%s,%s,%d,%d,%d,%s,%s,%s,%s\n' \
+printf '%s,%s,%s,%d,%d,%d,%d,%s,%s,%d,%s,%s,%d,%d,%d,%s,%s,%s,%d,%d,%d,%s,%s,%d,%d,%s,%s,%s\n' \
     "$CONFIG" \
     "$RUN_LABEL" \
     "$BENCHMARK_LABEL" \
@@ -280,8 +360,23 @@ printf '%s,%s,%s,%d,%d,%d,%d,%s,%s,%d,%s,%s,%d,%d,%d,%s,%s,%s,%s\n' \
     "$CONFIG_BLOCK_SHA256" \
     "$(realpath --relative-to="$PROJECT_ROOT" "$RAW_BLOCKS_FILE")" \
     "$RAW_BLOCKS_SHA256" \
+    "$ordinary_transaction_count" \
+    "$ordinary_valid_transaction_count" \
+    "$ordinary_invalid_transaction_count" \
+    "$TX_BYTES_MEAN" \
+    "$ENDORSEMENTS_PER_TX" \
+    "$endorsement_min" \
+    "$endorsement_max" \
+    "$(realpath --relative-to="$PROJECT_ROOT" "$TRANSACTIONS_FILE")" \
+    "$RAW_TRANSACTIONS_SHA256" \
     'diagnostic_unreviewed' \
-    >> "$SUMMARY_FILE"
+    >> "$TEMP_SUMMARY"
+
+mv "$TEMP_RAW_BLOCKS" "$RAW_BLOCKS_FILE"
+mv "$TEMP_TRANSACTIONS" "$TRANSACTIONS_FILE"
+mv "$TEMP_SUMMARY" "$SUMMARY_FILE"
+rm -rf "$HOST_TEMP_DIR"
+trap - EXIT
 
 echo "Block measurement completed."
 echo "  run_namespace=$RUN_NAMESPACE"
@@ -291,6 +386,10 @@ echo "  excluded_blocks=$excluded_count"
 echo "  block_bytes_mean=$BLOCK_BYTES_MEAN"
 echo "  effective_PreferredMaxBytes=$PREFERRED_MAX_BYTES"
 echo "  block_utilisation=$BLOCK_UTILISATION"
+echo "  tx_bytes_mean=$TX_BYTES_MEAN"
+echo "  endorsements_per_tx=$ENDORSEMENTS_PER_TX"
+echo "  endorsements_range=${endorsement_min}-${endorsement_max}"
 echo "  raw_blocks_file=$RAW_BLOCKS_FILE"
+echo "  raw_transactions_file=$TRANSACTIONS_FILE"
 echo "  summary_file=$SUMMARY_FILE"
 echo "  measurement_status=diagnostic_unreviewed"

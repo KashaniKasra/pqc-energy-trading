@@ -1,0 +1,98 @@
+test:
+  name: E1 SPHINCS+ Sustainable-Rate Sweep
+  description: SPHINCS+-SHA2-128s-simple low-rate characterization after common-profile saturation
+  workers:
+    type: local
+    number: 1
+
+  rounds:
+    - label: warmup
+      description: Warm-up round; results are discarded
+      txDuration: 20
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 1
+      workload:
+        module: workload/set.js
+        arguments:
+          contractId: simplekv
+          roundLabel: warmup
+
+    - label: sphincs-1-tps
+      description: Offer 1 TPS for 60 seconds
+      txDuration: 60
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 1
+      workload:
+        module: workload/set.js
+        arguments:
+          contractId: simplekv
+          roundLabel: sphincs-1-tps
+
+    - label: sphincs-2-tps
+      description: Offer 2 TPS for 60 seconds
+      txDuration: 60
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 2
+      workload:
+        module: workload/set.js
+        arguments:
+          contractId: simplekv
+          roundLabel: sphincs-2-tps
+
+    - label: sphincs-5-tps
+      description: Offer 5 TPS for 60 seconds
+      txDuration: 60
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 5
+      workload:
+        module: workload/set.js
+        arguments:
+          contractId: simplekv
+          roundLabel: sphincs-5-tps
+
+    - label: sphincs-10-tps
+      description: Offer 10 TPS for 60 seconds
+      txDuration: 60
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 10
+      workload:
+        module: workload/set.js
+        arguments:
+          contractId: simplekv
+          roundLabel: sphincs-10-tps
+
+    - label: sphincs-20-tps
+      description: Offer 20 TPS for 60 seconds
+      txDuration: 60
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 20
+      workload:
+        module: workload/set.js
+        arguments:
+          contractId: simplekv
+          roundLabel: sphincs-20-tps
+
+monitors:
+  resource:
+    - module: docker
+      options:
+        interval: 1
+        containers:
+          - orderer.example.com
+          - peer0.org1.example.com
+          - peer1.org1.example.com
+          - peer0.org2.example.com
+          - peer1.org2.example.com
+

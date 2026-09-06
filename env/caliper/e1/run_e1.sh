@@ -27,7 +27,7 @@ esac
 
 cd "$SCRIPT_DIR"
 
-for command_name in date docker git jq npx realpath sha256sum taskset tee uname; do
+for command_name in basename date docker git grep jq npx realpath sha256sum taskset tee uname; do
     if ! command -v "$command_name" >/dev/null 2>&1; then
         echo "ERROR: Required command not found: $command_name"
         exit 1
@@ -80,6 +80,22 @@ if [[ -z "$RUN_LABEL" && "$RUN_TYPE" != "fixed-profile" ]]; then
     exit 1
 fi
 
+case "$(basename "$BENCHMARK_CONFIG")" in
+    benchmark_sphincs_sweep.yaml|benchmark_sphincs_refine_3_4.yaml)
+        if [[ "$CONFIG" != "sphincs" || "$RUN_TYPE" != "sweep" || -z "$RUN_LABEL" ]]; then
+            echo "ERROR: SPHINCS+ sweep profiles require config=sphincs, E1_RUN_TYPE=sweep, and a nonempty E1_RUN_LABEL."
+            exit 1
+        fi
+        ;;
+esac
+
+PEER_GATEWAY_FILE="$SCRIPT_DIR/node_modules/@hyperledger/caliper-fabric/lib/connector-versions/peer-gateway/PeerGateway.js"
+if [[ ! -f "$PEER_GATEWAY_FILE" ]] || ! grep -Fq 'start_offset_ms,latency_ms,status,tx_id' "$PEER_GATEWAY_FILE"; then
+    echo "ERROR: Caliper's reproducible E1 end-to-end timing patch is not installed."
+    echo "Run: $SCRIPT_DIR/setup_caliper_e1.sh"
+    exit 1
+fi
+
 RAW_DIR="$PROJECT_ROOT/raw/e1"
 mkdir -p "$RAW_DIR"
 
@@ -96,10 +112,19 @@ fi
 PROJECT_GIT_COMMIT="$(git -C "$PROJECT_ROOT" rev-parse HEAD)"
 PROJECT_GIT_STATUS="$(git -C "$PROJECT_ROOT" status --porcelain --untracked-files=normal)"
 PROJECT_GIT_STATUS_SHA256="$(printf '%s' "$PROJECT_GIT_STATUS" | sha256sum | awk '{print $1}')"
+PROJECT_TRACKED_STATUS="$(git -C "$PROJECT_ROOT" status --porcelain --untracked-files=no)"
+PROJECT_TRACKED_STATUS_SHA256="$(printf '%s' "$PROJECT_TRACKED_STATUS" | sha256sum | awk '{print $1}')"
+PROJECT_UNTRACKED_PATHS="$(git -C "$PROJECT_ROOT" ls-files --others --exclude-standard | sort)"
+PROJECT_UNTRACKED_PATHS_SHA256="$(printf '%s' "$PROJECT_UNTRACKED_PATHS" | sha256sum | awk '{print $1}')"
 if [[ -n "$PROJECT_GIT_STATUS" ]]; then
     PROJECT_GIT_STATE="dirty"
 else
     PROJECT_GIT_STATE="clean"
+fi
+if [[ -n "$PROJECT_TRACKED_STATUS" ]]; then
+    PROJECT_TRACKED_STATE="dirty"
+else
+    PROJECT_TRACKED_STATE="clean"
 fi
 
 exec > >(tee "$LOG_FILE") 2>&1
@@ -115,6 +140,9 @@ echo "[E1] benchmark_config_sha256=$BENCHMARK_CONFIG_SHA256"
 echo "[E1] project_git_commit=$PROJECT_GIT_COMMIT"
 echo "[E1] project_git_state_before_log_creation=$PROJECT_GIT_STATE"
 echo "[E1] project_git_status_sha256_before_log_creation=$PROJECT_GIT_STATUS_SHA256"
+echo "[E1] project_tracked_state_before_log_creation=$PROJECT_TRACKED_STATE"
+echo "[E1] project_tracked_status_sha256_before_log_creation=$PROJECT_TRACKED_STATUS_SHA256"
+echo "[E1] project_untracked_paths_sha256_before_log_creation=$PROJECT_UNTRACKED_PATHS_SHA256"
 echo "[E1] host_kernel=$(uname -r)"
 echo "[E1] docker_server_version=$(docker version --format '{{.Server.Version}}')"
 echo "[E1] fixed_cpu_set=$CPUSET"

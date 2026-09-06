@@ -3,8 +3,9 @@ set -euo pipefail
 
 if [[ $# -lt 1 || $# -gt 3 ]]; then
     echo "Usage: $0 <config> [run_label] [crypto_config_dir]"
-    echo "Example (fixed profile): $0 ecdsa"
-    echo "Example (diagnostic):    $0 ecdsa blockutil-300"
+    echo "Measures the public-key representation used by Fabric; it does not measure the signcert PEM."
+    echo "Example (fixed profile): $0 ecdsa public-key-v1"
+    echo "Example (diagnostic):    $0 ecdsa blockutil-public-key-v1"
     echo "Example (offline tree):  $0 ml-dsa-44 identity-only-v1 /tmp/e1-identity/crypto-config"
     exit 1
 fi
@@ -27,7 +28,7 @@ if [[ -n "$RUN_LABEL" && ! "$RUN_LABEL" =~ ^[a-z0-9][a-z0-9._-]*$ ]]; then
     exit 1
 fi
 
-for command_name in find openssl realpath sha256sum stat; do
+for command_name in awk go realpath sha256sum; do
     if ! command -v "$command_name" >/dev/null 2>&1; then
         echo "ERROR: Required command not found: $command_name"
         exit 1
@@ -47,6 +48,7 @@ else
 fi
 PEER_ORGS="$CRYPTO_CONFIG_DIR/peerOrganizations"
 RAW_DIR="$PROJECT_ROOT/raw/e1"
+EVIDENCE_MODULE="$PROJECT_ROOT/src/e1/evidence"
 
 if [[ -n "$RUN_LABEL" ]]; then
     RUN_NAMESPACE="${RUN_LABEL}_${CONFIG}"
@@ -54,83 +56,76 @@ else
     RUN_NAMESPACE="$CONFIG"
 fi
 
-OUTPUT_FILE="$RAW_DIR/${RUN_NAMESPACE}_identity_bytes.csv"
+OUTPUT_FILE="$RAW_DIR/${RUN_NAMESPACE}_public_key_bytes.csv"
 
 if [[ -e "$OUTPUT_FILE" ]]; then
     echo "ERROR: Refusing to overwrite existing identity measurement: $OUTPUT_FILE"
     exit 1
 fi
 
-mapfile -t FILES < <(
-    find "$PEER_ORGS" \
-        -path '*/peers/*/msp/signcerts/*' \
-        -type f \
-        | sort
-)
-
-if [[ "${#FILES[@]}" -ne 4 ]]; then
-    echo "ERROR: Expected 4 peer identity files, found ${#FILES[@]}."
+if [[ ! -d "$PEER_ORGS" ]]; then
+    echo "ERROR: Peer organizations directory not found: $PEER_ORGS"
     exit 1
 fi
 
-case "$CONFIG" in
-    ml-dsa-44)
-        EXPECTED_ALGORITHM="ML-DSA-44"
-        ;;
-    ml-dsa-65)
-        EXPECTED_ALGORITHM="ML-DSA-65"
-        ;;
-    sphincs)
-        EXPECTED_ALGORITHM="SPHINCS+-SHA2-128s-simple"
-        ;;
-esac
-
 mkdir -p "$RAW_DIR"
-TEMP_OUTPUT="$(mktemp "$RAW_DIR/.${RUN_NAMESPACE}_identity_bytes.XXXXXX")"
+TEMP_OUTPUT="$(mktemp "$RAW_DIR/.${RUN_NAMESPACE}_public_key_bytes.XXXXXX")"
+HOST_TEMP_DIR="$(mktemp -d)"
 cleanup() {
     rm -f "$TEMP_OUTPUT"
+    rm -rf "$HOST_TEMP_DIR"
 }
 trap cleanup EXIT
 
-printf '%s\n' 'config,run_label,peer,identity_type,identity_path,bytes,sha256' > "$TEMP_OUTPUT"
+if [[ "$CRYPTO_CONFIG_DIR" == "$SCRIPT_DIR/crypto-config" ]]; then
+    SOURCE_PREFIX="env/fabric/e1/crypto-config"
+else
+    SOURCE_PREFIX="generated_crypto_config"
+fi
 
-for file in "${FILES[@]}"; do
-    cert_text="$(openssl x509 -in "$file" -noout -text)"
+(cd "$EVIDENCE_MODULE" && go build -o "$HOST_TEMP_DIR/identityinspect" ./cmd/identityinspect)
+"$HOST_TEMP_DIR/identityinspect" \
+    --config "$CONFIG" \
+    --run-label "${RUN_LABEL:-canonical}" \
+    --crypto-config "$CRYPTO_CONFIG_DIR" \
+    --source-prefix "$SOURCE_PREFIX" \
+    > "$TEMP_OUTPUT"
 
-    if [[ "$CONFIG" == "ecdsa" ]]; then
-        if grep -q '1.3.6.1.3.9999.1' <<< "$cert_text"; then
-            echo "ERROR: Identity contains the experimental PQ extension but config is ecdsa: $file"
-            exit 1
-        fi
-    elif ! grep -q '1.3.6.1.3.9999.1' <<< "$cert_text" || ! grep -Fq "$EXPECTED_ALGORITHM" <<< "$cert_text"; then
-        echo "ERROR: Identity does not match config $CONFIG ($EXPECTED_ALGORITHM): $file"
-        exit 1
-    fi
+ROW_COUNT="$(awk 'END {print NR - 1}' "$TEMP_OUTPUT")"
+if [[ "$ROW_COUNT" != "4" ]]; then
+    echo "ERROR: Expected four public-key evidence rows, found $ROW_COUNT."
+    exit 1
+fi
 
-    peer="$(basename "$(dirname "$(dirname "$(dirname "$file")")")")"
-    if [[ "$CRYPTO_CONFIG_DIR" == "$SCRIPT_DIR/crypto-config" ]]; then
-        relative_path="$(realpath --relative-to="$PROJECT_ROOT" "$file")"
-    else
-        relative_path="generated_crypto_config/$(realpath --relative-to="$CRYPTO_CONFIG_DIR" "$file")"
-    fi
-    size="$(stat -c '%s' "$file")"
-    digest="$(sha256sum "$file" | awk '{print $1}')"
+read -r KEY_MEAN KEY_MIN KEY_MAX DISPERSION_PERCENT < <(
+    awk -F, '
+        NR == 2 { min = max = $7 }
+        NR > 1 { total += $7; if ($7 < min) min = $7; if ($7 > max) max = $7 }
+        END {
+            mean = total / (NR - 1)
+            dispersion = mean == 0 ? 0 : 100 * (max - min) / mean
+            printf "%.6f %d %d %.6f\n", mean, min, max, dispersion
+        }
+    ' "$TEMP_OUTPUT"
+)
 
-    printf '%s,%s,%s,%s,%s,%d,%s\n' \
-        "$CONFIG" \
-        "${RUN_LABEL:-canonical}" \
-        "$peer" \
-        'msp_signcert_pem' \
-        "$relative_path" \
-        "$size" \
-        "$digest" \
-        >> "$TEMP_OUTPUT"
-done
+if awk -v dispersion="$DISPERSION_PERCENT" 'BEGIN { exit !(dispersion > 3.0) }'; then
+    DISPERSION_FLAG="review_required_over_3_percent"
+else
+    DISPERSION_FLAG="within_3_percent"
+fi
 
 mv "$TEMP_OUTPUT" "$OUTPUT_FILE"
+rm -rf "$HOST_TEMP_DIR"
 trap - EXIT
 
-echo "Per-peer identity evidence written without aggregation:"
+echo "Per-peer public-key evidence written:"
 echo "  run_namespace=$RUN_NAMESPACE"
 echo "  output_file=$OUTPUT_FILE"
+echo "  identity_bytes_definition=public key bytes only"
+echo "  public_key_bytes_mean=$KEY_MEAN"
+echo "  public_key_bytes_min=$KEY_MIN"
+echo "  public_key_bytes_max=$KEY_MAX"
+echo "  public_key_dispersion_percent=$DISPERSION_PERCENT"
+echo "  dispersion_flag=$DISPERSION_FLAG"
 column -s, -t "$OUTPUT_FILE" 2>/dev/null || cat "$OUTPUT_FILE"

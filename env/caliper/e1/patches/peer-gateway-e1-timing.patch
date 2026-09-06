@@ -1,30 +1,17 @@
 --- node_modules/@hyperledger/caliper-fabric/lib/connector-versions/peer-gateway/PeerGateway.js
 +++ node_modules/@hyperledger/caliper-fabric/lib/connector-versions/peer-gateway/PeerGateway.js
-@@ -16,6 +16,8 @@
- 
- const grpc = require('@grpc/grpc-js');
- const crypto = require('crypto');
+@@ -18,0 +19,2 @@
 +const fs = require('fs');
 +const path = require('path');
- const { connect, signers } = require('@hyperledger/fabric-gateway');
- const { ConnectorBase, CaliperUtils, TxStatus, Version, ConfigUtil } = require('@hyperledger/caliper-core');
- const FabricConnectorContext = require('../../FabricConnectorContext');
-@@ -72,6 +74,11 @@
-         this.clients = new Map();
-         this.context = undefined;
- 
+@@ -74,0 +77,7 @@
 +        this.endorseTimingSamples = [];
 +        this.commitTimingSamples = [];
++        this.e2eTimingSamples = [];
++        this.currentRoundStart = undefined;
 +        this.currentRoundLabel = 'unknown';
 +        this.currentConfigLabel = process.env.E1_RUN_NAMESPACE || process.env.E1_CONFIG || 'unknown';
 +
-     }
- 
-     /**
-@@ -166,6 +173,49 @@
-      * @async
-      */
-     async releaseContext() {
+@@ -168,0 +178,62 @@
 +        if (this.currentRoundLabel !== 'warmup') {
 +            const timingDir = path.resolve(
 +                process.cwd(),
@@ -60,33 +47,53 @@
 +                    '\n'
 +                );
 +            }
++
++            if (this.e2eTimingSamples.length > 0) {
++                const e2eFile = path.join(
++                    timingDir,
++                    `${this.currentConfigLabel}_e2e_${this.currentRoundLabel}_worker${this.workerIndex}_${Date.now()}.csv`
++                );
++
++                this.e2eTimingSamples.sort((left, right) => left.startOffsetMs - right.startOffsetMs);
++                fs.writeFileSync(
++                    e2eFile,
++                    'start_offset_ms,latency_ms,status,tx_id\n' +
++                    this.e2eTimingSamples.map((sample) =>
++                        `${sample.startOffsetMs.toFixed(6)},${sample.latencyMs.toFixed(6)},${sample.status},${sample.txId}`
++                    ).join('\n') +
++                    '\n'
++                );
++            }
 +        }
 +
 +        this.endorseTimingSamples = [];
 +        this.commitTimingSamples = [];
++        this.e2eTimingSamples = [];
++        this.currentRoundStart = undefined;
 +
 +        this.currentRoundLabel = 'unknown';
 +        this.currentConfigLabel = process.env.E1_RUN_NAMESPACE || process.env.E1_CONFIG || 'unknown';
 +
-         for (const userName of this.gatewayInstanceByIdentity.keys()) {
-             const gateway = this.gatewayInstanceByIdentity.get(userName);
-             logger.info(`disconnecting gateway for user ${userName}`);
-@@ -315,15 +365,35 @@
- 
-         // set transaction invocation result to return
-         try {
+@@ -291,0 +363,3 @@
++        let e2eStart;
++        let e2eStartOffsetMs;
++        let e2eTransactionId = '';
+@@ -317,0 +392,4 @@
 +            if (invokeSettings.roundLabel) {
 +                this.currentRoundLabel = invokeSettings.roundLabel;
 +            }
 +
-             const proposal = smartContract.newProposal(invokeSettings.contractFunction, proposalOptions);
-             invokeStatus.SetID(proposal.getTransactionId());
-             if (isSubmit) {
-                 invokeStatus.Set('request_type', 'transaction');
-                 invokeStatus.SetTimeCreate(Date.now());
+@@ -322,0 +401,9 @@
++
++                e2eTransactionId = proposal.getTransactionId();
++                e2eStart = process.hrtime.bigint();
++                if (this.currentRoundStart === undefined) {
++                    this.currentRoundStart = e2eStart;
++                }
++                e2eStartOffsetMs = Number(e2eStart - this.currentRoundStart) / 1e6;
 +
 +                const endorseStart = process.hrtime.bigint();
-                 const transaction = await proposal.endorse();
+@@ -323,0 +411,8 @@
 +                const endorseEnd = process.hrtime.bigint();
 +
 +                this.endorseTimingSamples.push(
@@ -95,15 +102,27 @@
 +
 +                const commitStart = process.hrtime.bigint();
 +
-                 const subtx = await transaction.submit();
-                 const status = await subtx.getStatus();
- 
+@@ -326,0 +422,6 @@
 +                const commitEnd = process.hrtime.bigint();
 +
 +                this.commitTimingSamples.push(
 +                    Number(commitEnd - commitStart) / 1e6
 +                );
 +
-                 if (!status.successful) {
-                     throw Error(`Failed to submit trasaction with status code: ${status.code}`);
-                 }
+@@ -330,0 +432,7 @@
++                this.e2eTimingSamples.push({
++                    startOffsetMs: e2eStartOffsetMs,
++                    latencyMs: Number(process.hrtime.bigint() - e2eStart) / 1e6,
++                    status: 'success',
++                    txId: e2eTransactionId
++                });
++
+@@ -341,0 +450,8 @@
++            if (isSubmit && e2eStart !== undefined) {
++                this.e2eTimingSamples.push({
++                    startOffsetMs: e2eStartOffsetMs,
++                    latencyMs: Number(process.hrtime.bigint() - e2eStart) / 1e6,
++                    status: 'failure',
++                    txId: e2eTransactionId
++                });
++            }

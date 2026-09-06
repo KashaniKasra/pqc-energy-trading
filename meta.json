@@ -100,6 +100,61 @@
       "ML-DSA-65": "ML-DSA-65",
       "SLH-DSA": "SPHINCS+-SHA2-128s-simple"
     },
+    "identity_bytes": {
+      "definition": "public key bytes only",
+      "excludes": ["MSP signcert PEM bytes", "certificate signature bytes", "transaction signature bytes"],
+      "aggregation": "arithmetic mean of the four peer public-key byte counts; min and max are retained",
+      "dispersion_review_rule": "Flag (but do not exclude) a configuration when 100*(max-min)/mean exceeds 3.0 percent.",
+      "measurement_tool": "env/fabric/e1/measure_identity_bytes.sh",
+      "measurements": {
+        "ECDSA": {
+          "implementation": "ECDSA P-256",
+          "representation": "DER-encoded X.509 SubjectPublicKeyInfo returned by Fabric ecdsaPublicKey.Bytes() via x509.MarshalPKIXPublicKey",
+          "per_peer_bytes": [91, 91, 91, 91],
+          "mean_bytes": "91.000000",
+          "min_bytes": 91,
+          "max_bytes": 91,
+          "dispersion_percent": "0.000000",
+          "provenance": "Read-only extraction from the four ECDSA certificates whose SHA-256 values match raw/e1/blockutil-300_ecdsa_identity_bytes.csv; cross-checked against Fabric v2.5.16 bccsp/sw/ecdsakey.go."
+        },
+        "ML-DSA-44": {
+          "implementation": "ML-DSA-44",
+          "representation": "raw liboqs public key returned by patched Fabric pqPublicKey.Bytes() and carried in experimental X.509 extension 1.3.6.1.3.9999.1",
+          "per_peer_bytes": [1312, 1312, 1312, 1312],
+          "mean_bytes": "1312.000000",
+          "min_bytes": 1312,
+          "max_bytes": 1312,
+          "dispersion_percent": "0.000000",
+          "provenance": "Four peer generator records in raw/e1/identity-only-v1_ml-dsa-44_identity_generation.log.",
+          "generation_log": "raw/e1/identity-only-v1_ml-dsa-44_identity_generation.log",
+          "generation_log_sha256": "66ce1a4e4cac4be2b39050a3f133faed0d46955e9dd2c695dc85659d83c157ca"
+        },
+        "ML-DSA-65": {
+          "implementation": "ML-DSA-65",
+          "representation": "raw liboqs public key returned by patched Fabric pqPublicKey.Bytes() and carried in experimental X.509 extension 1.3.6.1.3.9999.1",
+          "per_peer_bytes": [1952, 1952, 1952, 1952],
+          "mean_bytes": "1952.000000",
+          "min_bytes": 1952,
+          "max_bytes": 1952,
+          "dispersion_percent": "0.000000",
+          "provenance": "Four peer generator records in raw/e1/identity-only-v1_ml-dsa-65_identity_generation.log.",
+          "generation_log": "raw/e1/identity-only-v1_ml-dsa-65_identity_generation.log",
+          "generation_log_sha256": "b291d91883851a4f257611f5e1e277d979f9d2e9952b09d43a9b9cca1083e347"
+        },
+        "SLH-DSA": {
+          "implementation": "SPHINCS+-SHA2-128s-simple",
+          "representation": "raw liboqs public key returned by patched Fabric pqPublicKey.Bytes() and carried in experimental X.509 extension 1.3.6.1.3.9999.1",
+          "per_peer_bytes": [32, 32, 32, 32],
+          "mean_bytes": "32.000000",
+          "min_bytes": 32,
+          "max_bytes": 32,
+          "dispersion_percent": "0.000000",
+          "provenance": "Four peer generator records in raw/e1/identity-only-v1_sphincs_identity_generation.log.",
+          "generation_log": "raw/e1/identity-only-v1_sphincs_identity_generation.log",
+          "generation_log_sha256": "ebe8a11a5e8406adeae0b042c2ed28397fc8107507fd5494226fddc2bcda5366"
+        }
+      }
+    },
     "hybrid_pq_identity": {
       "description": "Experimental hybrid Fabric identity mechanism: ECDSA X.509 membership and CA chain, a noncritical extension carrying the PQ algorithm and public key, and real liboqs-based peer transaction/endorsement signing and verification.",
       "not_claimed": [
@@ -139,11 +194,50 @@
         }
       ],
       "profile_file": "env/caliper/e1/benchmark.yaml",
+      "fixed_profile_status": "unchanged common-profile comparison for all four configurations",
+      "sphincs_low_rate_sweep": {
+        "reason": "Supplemental sustainable-rate characterization after scientifically reportable saturation under the unchanged common 50 TPS workload.",
+        "profile_file": "env/caliper/e1/benchmark_sphincs_sweep.yaml",
+        "rates_tps": [1, 2, 5, 10, 20],
+        "duration_seconds_per_rate": 60,
+        "sample_count_note": "At low rates, 60-second rounds intentionally yield fewer than 1000 requests. The later professor-specified duration is the topic-specific authority for this sweep and must be disclosed.",
+        "refinement_profile_file": "env/caliper/e1/benchmark_sphincs_refine_3_4.yaml",
+        "refinement_rates_tps": [3, 4],
+        "status": "prepared_not_measured"
+      },
       "endorsement_timing_boundary": "proposal.endorse()",
       "commit_timing_boundary": "transaction.submit() through submittedTransaction.getStatus()",
+      "end_to_end_timing_boundary": "immediately before proposal.endorse() through successful commit status or the caught failure",
       "timing_clock": "process.hrtime.bigint()",
       "timing_unit": "milliseconds",
-      "instrumentation": "env/caliper/e1/patches/peer-gateway-e1-timing.patch"
+      "instrumentation": "env/caliper/e1/patches/peer-gateway-e1-timing.patch",
+      "sustainability": {
+        "success_rate_minimum": 0.99,
+        "successful_throughput_fraction_of_offered_minimum": 0.95,
+        "successful_throughput_definition": "Caliper success count divided by the configured 60-second round duration; Caliper displayed throughput is retained but is not used because it can include failed completions.",
+        "latency_population": "successful end-to-end transaction samples ordered by monotonic request-start offset",
+        "beginning_window": "start offsets in [0,12000) ms, the first 20 percent of a 60-second round",
+        "ending_window": "start offsets in [48000,60000) ms, the last 20 percent of a 60-second round",
+        "minimum_successful_samples_per_window": 5,
+        "latency_stability_rule": "ending-window p95 <= 2.0 * beginning-window p95",
+        "percentile_method": "linear interpolation using rank p*(n-1)",
+        "final_sphincs_rule": "highest tested low-rate sweep point passing all three criteria",
+        "evaluator": "./src/e1/analyze_timings.py --sustainability <run_namespace>"
+      }
+    },
+    "endorsement_policy": {
+      "chaincode_definition_policy": "/Channel/Application/Endorsement (Fabric lifecycle default because setup_fabric_e1.sh supplies neither --signature-policy nor --channel-config-policy)",
+      "channel_policy": "ImplicitMeta MAJORITY Endorsement",
+      "organization_subpolicies": {
+        "Org1MSP": "OR('Org1MSP.peer')",
+        "Org2MSP": "OR('Org2MSP.peer')"
+      },
+      "organization_count": 2,
+      "configured_minimum_endorsements_per_tx": 2,
+      "configured_interpretation": "MAJORITY of two organization Endorsement subpolicies requires one peer endorsement from each organization.",
+      "generated_channel_artifact_verification": "Read-only configtxlator decode of the current generated energychannel.block showed Application Endorsement = ImplicitMeta MAJORITY and each Org1MSP/Org2MSP Endorsement subpolicy = 1-of-1 peer.",
+      "verification_command": "./src/e1/analyze_timings.py --endorsement-policy",
+      "actual_serialized_count_check": "Future block evidence records the endorsement count in every serialized endorser transaction and reports mean/min/max; current retained block CSV predates envelope extraction."
     },
     "cpu_control": {
       "fixed_cpu_set": "2-15",
@@ -199,9 +293,13 @@
           "status": "diagnostic comparison only; not the current working result",
           "block_count": 31,
           "block_bytes_mean": "1966319.451613",
-          "block_utilisation": "0.937614179"
+          "block_utilisation": "0.937614179",
+          "difference_from_boundary_inclusive_percentage_points": "0.666250900"
         }
-      }
+      },
+      "transaction_size_method": "For each fetched serialized common.Block, decode protobuf Block.Data.Data[i] as the exact common.Envelope bytes. Record len(Data[i]), SHA-256, transaction ID, validation code, and endorsement count per transaction. tx_bytes_mean is the arithmetic mean of these exact envelope lengths for endorser transactions in accepted ordinary blocks; it is never estimated as block bytes divided by transaction count.",
+      "transaction_evidence_tool": "env/fabric/e1/measure_block_bytes.sh using src/e1/evidence/cmd/blockinspect",
+      "tx_bytes_status": "not yet extracted; retained ECDSA block-size CSV predates per-envelope extraction"
     },
     "installed_images_at_metadata_update": {
       "observed_at": "2026-09-04",
@@ -213,7 +311,7 @@
     "data_provenance": {
       "candidate_timing_summary": "data/e1_timing_candidates.csv",
       "candidate_timing_status": "ECDSA/ML-DSA-44/ML-DSA-65 pass sample-count and zero-failure checks, but historical logs did not retain the full preflight now required.",
-      "sphincs_status": "Current working report is fixed-profile saturation: warmup 700/301 success/fail, 50 TPS 891/5110, and 200 TPS 46/23955, with Gateway concurrency-limit errors. This is excluded from normal latency candidates; no lower-rate replacement is currently authorized.",
+      "sphincs_status": "The unchanged common-profile saturation is scientifically reportable and retained. A separate 1/2/5/10/20 TPS sweep is prepared for supplemental sustainable-rate characterization; it does not replace the common result.",
       "sphincs_evidence": {
         "classification": "fixed_profile_saturation_failure_evidence",
         "latency_candidate": false,
@@ -223,11 +321,16 @@
           "warmup": {"success": 700, "fail": 301},
           "50-tps": {"success": 891, "fail": 5110},
           "200-tps": {"success": 46, "fail": 23955}
+        },
+        "common_50_tps": {
+          "tx_success_rate": "0.148475254",
+          "tx_error_rate": "0.851524746",
+          "saturation_status": "saturation_observed_gateway_concurrency_limit"
         }
       },
-      "identity_evidence": {
-        "status": "Scientifically supported per-peer MSP signcert PEM sizes are retained for all four E1 configurations.",
-        "aggregation_status": "unresolved; no single identity_bytes value has been selected",
+      "supporting_signcert_evidence": {
+        "status": "Historically collected per-peer MSP signcert PEM sizes are preserved for all four configurations as supporting evidence only.",
+        "identity_bytes_eligible": false,
         "measurements": {
           "ECDSA": {
             "file_config": "ecdsa",
@@ -262,6 +365,8 @@
           }
         }
       },
+      "fixed_profile_outcomes_command": "./src/e1/analyze_timings.py --fixed-outcomes",
+      "public_key_summary_command": "./src/e1/analyze_timings.py --identity-public-keys",
       "working_e1_schema_command": "./src/e1/analyze_timings.py --working-e1",
       "final_summary": "data/e1_fabric.csv (not yet created)",
       "raw_sources": "raw/e1/"
@@ -307,11 +412,8 @@
     "license": null
   },
   "known_scientific_decisions_pending": {
-    "sphincs_fixed_profile": "Current decision is to report identical-profile saturation and not run a lower-rate benchmark now; ask later whether supplemental lower-rate latency characterization is required.",
     "block_filling": "Ask whether MaxMessageCount-driven closure at about 93.76% of PreferredMaxBytes satisfies the intended filled-by-volume methodology.",
     "terminal_residual_block": "The current working ECDSA rho includes terminal ordinary block 48 (386 transactions), because only genesis/config exclusion was specified; ask whether terminal partial ordinary blocks should instead be excluded.",
-    "identity_bytes_aggregation": "Ask how four per-peer identity file sizes map to the single E1 CSV field (mean, median, max, or another rule).",
-    "tps_sustained_criterion": "Exact operational threshold for highest linear/sustainable rate.",
     "latency_field_population": "The E1 schema has one endorsement/commit value per configuration while the fixed profile has 50 TPS and 200 TPS rounds; no authoritative rule yet selects one round or a combined population.",
     "sanity_gate_source": "The student specification references a supplied make_figures.py checker, but its plausible bands/source file are absent."
   },
