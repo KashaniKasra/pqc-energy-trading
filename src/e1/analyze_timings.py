@@ -530,6 +530,18 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
     ecdsa_transaction = validate_transaction_summary(
         project_root, ecdsa_transaction_summary
     )[0]
+    ml_dsa_44_transaction_summary = metadata["e1_benchmark"]["block_utilisation"][
+        "ml_dsa_44_transaction_evidence"
+    ]["raw_summary"]
+    ml_dsa_44_transaction = validate_transaction_summary(
+        project_root, ml_dsa_44_transaction_summary
+    )[0]
+    ml_dsa_65_transaction_summary = metadata["e1_benchmark"]["block_utilisation"][
+        "ml_dsa_65_transaction_evidence"
+    ]["raw_summary"]
+    ml_dsa_65_transaction = validate_transaction_summary(
+        project_root, ml_dsa_65_transaction_summary
+    )[0]
     sphincs_transaction_summary = metadata["e1_benchmark"]["caliper"][
         "sphincs_low_rate_sweep"
     ]["transaction_evidence_20_tps"]["raw_summary"]
@@ -552,6 +564,10 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
     rows[0]["block_utilisation"] = block_utilisation
     rows[0]["tx_bytes_mean"] = ecdsa_transaction["tx_bytes_mean"]
     rows[0]["endorsements_per_tx"] = ecdsa_transaction["endorsements_per_tx"]
+    rows[1]["tx_bytes_mean"] = ml_dsa_44_transaction["tx_bytes_mean"]
+    rows[1]["endorsements_per_tx"] = ml_dsa_44_transaction["endorsements_per_tx"]
+    rows[2]["tx_bytes_mean"] = ml_dsa_65_transaction["tx_bytes_mean"]
+    rows[2]["endorsements_per_tx"] = ml_dsa_65_transaction["endorsements_per_tx"]
     rows[3]["tx_bytes_mean"] = sphincs_transaction["tx_bytes_mean"]
     rows[3]["endorsements_per_tx"] = sphincs_transaction["endorsements_per_tx"]
     boundary = metadata["e1_benchmark"]["caliper"]["sphincs_low_rate_sweep"]
