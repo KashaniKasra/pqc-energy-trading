@@ -521,9 +521,15 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
     validate_supporting_signcert_evidence(project_root)
     public_key_rows = validated_public_key_rows(project_root)
     fixed_outcomes = build_fixed_outcome_rows(project_root)
-    endorsement_policy = validated_endorsement_policy(project_root)[0]
+    validated_endorsement_policy(project_root)
     block_mean, block_utilisation = validated_ecdsa_block_result(project_root)
     metadata = json.loads((project_root / "meta.json").read_text(encoding="utf-8"))
+    ecdsa_transaction_summary = metadata["e1_benchmark"]["block_utilisation"][
+        "ecdsa_transaction_evidence"
+    ]["raw_summary"]
+    ecdsa_transaction = validate_transaction_summary(
+        project_root, ecdsa_transaction_summary
+    )[0]
     sphincs_transaction_summary = metadata["e1_benchmark"]["caliper"][
         "sphincs_low_rate_sweep"
     ]["transaction_evidence_20_tps"]["raw_summary"]
@@ -535,9 +541,6 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
         row["config"] = config
     for row, key_row in zip(rows, public_key_rows):
         row["identity_bytes"] = key_row["identity_bytes_mean"]
-        row["endorsements_per_tx"] = endorsement_policy[
-            "endorsements_per_tx_configured_minimum"
-        ]
     common_50_outcomes = {
         row["config"]: row for row in fixed_outcomes if row["round_label"] == "50-tps"
     }
@@ -547,8 +550,14 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
         row["tx_error_rate"] = outcome["tx_error_rate"]
     rows[0]["block_bytes_mean"] = block_mean
     rows[0]["block_utilisation"] = block_utilisation
+    rows[0]["tx_bytes_mean"] = ecdsa_transaction["tx_bytes_mean"]
+    rows[0]["endorsements_per_tx"] = ecdsa_transaction["endorsements_per_tx"]
     rows[3]["tx_bytes_mean"] = sphincs_transaction["tx_bytes_mean"]
     rows[3]["endorsements_per_tx"] = sphincs_transaction["endorsements_per_tx"]
+    boundary = metadata["e1_benchmark"]["caliper"]["sphincs_low_rate_sweep"]
+    if boundary["integer_boundary_search"]["status"] != "complete":
+        raise ValueError("SPHINCS+ integer sustained-TPS boundary is not complete")
+    rows[3]["tps_sustained"] = str(boundary["highest_tested_sustainable_tps"])
     return rows
 
 

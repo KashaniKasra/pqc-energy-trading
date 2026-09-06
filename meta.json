@@ -537,23 +537,57 @@
       },
       "transaction_size_method": "For each fetched serialized common.Block, decode protobuf Block.Data.Data[i] as the exact common.Envelope bytes. Record len(Data[i]), SHA-256, transaction ID, validation code, and endorsement count per transaction. tx_bytes_mean is the arithmetic mean of these exact envelope lengths for endorser transactions in accepted ordinary blocks; it is never estimated as block bytes divided by transaction count.",
       "transaction_evidence_tool": "env/fabric/e1/measure_block_bytes.sh using src/e1/evidence/cmd/blockinspect",
-      "tx_bytes_status": "SPHINCS+ has accepted exact-envelope evidence from its 20 TPS round; ECDSA and both ML-DSA configurations remain unmeasured. The retained ECDSA block-size CSV predates per-envelope extraction.",
-      "ecdsa_transaction_evidence_plan": {
-        "status": "prepared_not_measured",
+      "tx_bytes_status": "ECDSA and SPHINCS+ have accepted exact-envelope evidence; ML-DSA-44 and ML-DSA-65 remain unmeasured. The older ECDSA block-filling CSV still predates per-envelope extraction and remains the separate accepted block-utilisation source.",
+      "ecdsa_transaction_evidence": {
+        "status": "validated_transaction_size_and_endorsement_evidence; block utilisation diagnostic-only because closure was BatchTimeout-driven",
         "profile_file": "env/caliper/e1/benchmark_tx_evidence_50.yaml",
         "profile_sha256": "784b043d83307d6b36b0f6fa4cac69e2fef8ca33809d3a3d42d3b825c186ec99",
         "run_label": "tx-evidence-50-v1",
         "run_namespace": "tx-evidence-50-v1_ecdsa",
         "benchmark_label": "50-tps",
+        "project_commit_at_run": "5def4b6225f6a6190fea8829bcf2898e6776eeab",
         "population": "unchanged common-profile warm-up followed by the unchanged 120-second 50-TPS round; the 200-TPS round is omitted",
         "reason": "The historical ECDSA block evidence contains no serialized envelopes. The standard 50-TPS population yields about 6001 transactions, preserves the common workload payload sequence, avoids congestion, and does not depend on the unresolved final latency-population choice.",
         "latency_use": "evidence-only; must not replace the retained historical latency candidate",
         "same_ledger_collection": "env/fabric/e1/measure_block_bytes.sh ecdsa tx-evidence-50-v1 50-tps",
-        "required_outputs": [
-          "raw/e1/tx-evidence-50-v1_ecdsa_blocks_50-tps.csv",
-          "raw/e1/tx-evidence-50-v1_ecdsa_transactions_50-tps.csv",
-          "raw/e1/tx-evidence-50-v1_ecdsa_blocks_50-tps_summary.csv"
-        ]
+        "caliper_success": 6001,
+        "caliper_fail": 0,
+        "run_log": "raw/e1/tx-evidence-50-v1_ecdsa_caliper_run.log",
+        "run_log_sha256": "eb699e9a5a2840352ebdb5b0b8db55498912b51031d6816aee324753259bdde4",
+        "block_heights": "raw/e1/tx-evidence-50-v1_ecdsa_block_heights.csv",
+        "block_heights_sha256": "8f8e004df64362950582ef699100164aa737efa2839e89d05827351dd702937c",
+        "block_interval": "17-76",
+        "ordinary_block_count": 60,
+        "excluded_block_count": 0,
+        "block_transaction_count_distribution": {
+          "36": 1,
+          "100": 4,
+          "101": 45,
+          "102": 10
+        },
+        "closure_interpretation": "BatchTimeout-driven: 60 ordinary blocks over the 120-second round matches BatchTimeout=2s; 59 nonterminal blocks contain 100-102 transactions and the terminal residual contains 36, with no block approaching MaxMessageCount=500.",
+        "block_bytes_mean": "394327.216667",
+        "block_utilisation": "0.188029869",
+        "block_utilisation_eligible_for_final": false,
+        "ordinary_transaction_count": 6001,
+        "tx_bytes_mean": "3929.301450",
+        "tx_bytes_mean_eligible_for_final": true,
+        "endorsements_per_tx": "2.000000",
+        "endorsements_min": 2,
+        "endorsements_max": 2,
+        "endorsement_count_distribution": {
+          "2": 6001
+        },
+        "endorsements_eligible_for_final": true,
+        "validation_evidence": "valid=0, invalid=0, unavailable=6001 because the orderer-sourced block copy has no peer-added TRANSACTIONS_FILTER metadata; unavailable is not invalid and does not affect envelope lengths or embedded endorsement counts.",
+        "raw_blocks": "raw/e1/tx-evidence-50-v1_ecdsa_blocks_50-tps.csv",
+        "raw_blocks_sha256": "5f91558ea23a630d3f8c6af9cafa5b00ef3ce7379da43b5125a5b227a69a194b",
+        "raw_transactions": "raw/e1/tx-evidence-50-v1_ecdsa_transactions_50-tps.csv",
+        "raw_transactions_sha256": "06d4d202e614c541aef73717838577d6f541210edaa0e79fd0f48fd390e78d3e",
+        "raw_summary": "raw/e1/tx-evidence-50-v1_ecdsa_blocks_50-tps_summary.csv",
+        "raw_summary_sha256": "f815f04ba148e234cf868e9ebe1beb42184028347eb10579003584ad1fbfec28",
+        "derived_summary": "data/e1_ecdsa_transaction_evidence.csv",
+        "derived_summary_sha256": "445d02b9b83234288013f1b610e38eddd268429ec1324b10e8f17303d9999b3a"
       }
     },
     "installed_images_at_metadata_update": {
@@ -566,7 +600,7 @@
     "data_provenance": {
       "candidate_timing_summary": "data/e1_timing_candidates.csv",
       "candidate_timing_status": "ECDSA/ML-DSA-44/ML-DSA-65 pass sample-count and zero-failure checks, but historical logs did not retain the full preflight now required.",
-      "sphincs_status": "The unchanged common-profile saturation is scientifically reportable and retained. The supplemental 1/2/5/10/20 TPS sweep completed with all points sustainable; 20 TPS is the current highest tested passing rate and does not replace the common result.",
+      "sphincs_status": "The unchanged common-profile saturation is scientifically reportable and retained. Supplemental sweep/boundary evidence establishes 22 TPS as the highest tested sustainable integer rate and 23 TPS as the first nonsustainable integer rate; it does not replace the common result.",
       "sphincs_evidence": {
         "classification": "fixed_profile_saturation_failure_evidence",
         "latency_candidate": false,
