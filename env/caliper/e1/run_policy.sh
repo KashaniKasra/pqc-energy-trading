@@ -45,10 +45,10 @@ validate_e1_run_policy() {
                 return 1
             fi
             ;;
-        benchmark_ecdsa_sustained_222.yaml)
+        benchmark_ecdsa_sustained_222.yaml|benchmark_ecdsa_sustained_223.yaml)
             require_e1_run_label "$run_label" || return 1
             if [[ "$config" != "ecdsa" || "$run_type" != "sustainability" ]]; then
-                echo "ERROR: The ECDSA 222-TPS profile requires config=ecdsa and E1_RUN_TYPE=sustainability."
+                echo "ERROR: ECDSA sustainability profiles require config=ecdsa and E1_RUN_TYPE=sustainability."
                 return 1
             fi
             ;;

@@ -349,9 +349,11 @@ The 23 TPS probe is not sustainable despite completing all 1,381 requests succes
 
 The integer boundary search is complete: 22 TPS is the highest tested sustainable integer rate and 23 TPS is the first tested nonsustainable integer rate. Therefore the working final SPHINCS+ `tps_sustained` is 22 TPS; no additional integer boundary probe is required.
 
-## Prepared remaining E1 rate profiles
+## Remaining E1 rate profiles
 
-Three immutable profiles are prepared but have not yet been run. `benchmark_ecdsa_sustained_222.yaml` contains a discarded 20-second 50-TPS warm-up and one 60-second ECDSA round at 222 TPS. `benchmark_ml_dsa_sustained_200.yaml` is shared, without parameter substitution, by separate ML-DSA-44 and ML-DSA-65 networks; it contains the same warm-up and one 60-second round at 200 TPS. Those measured rounds use exactly the sustainability gates and request-start windows defined above. The shared ML-DSA profile does not merge configurations: `run_e1.sh` provisions the selected matching network, and its profile policy accepts only ML-DSA-44 or ML-DSA-65 with `E1_RUN_TYPE=sustainability` and a collision-safe label.
+The immutable `benchmark_ecdsa_sustained_222.yaml` profile has now been run as `sustained-222-v1_ecdsa`. All 13,321 requests succeeded; successful throughput was 222.016667 TPS, the beginning/end p95 values were 2137.139872/2119.418924 ms, and every preregistered gate passed. The byte-for-byte reproducible result is retained in `data/e1_ecdsa_sustainability_222.csv` (SHA-256 `153f64978b858010835e8e55efeff2ed9cbf5a61386df19d5482ed35de24855d`). This establishes 222 TPS as the highest tested sustainable ECDSA rate, not yet the final boundary.
+
+`benchmark_ecdsa_sustained_223.yaml` is the next immutable ECDSA boundary probe: it contains a discarded 20-second 50-TPS warm-up and one 60-second round at 223 TPS. `benchmark_ml_dsa_sustained_200.yaml` is shared, without parameter substitution, by separate ML-DSA-44 and ML-DSA-65 networks; it contains the same warm-up and one 60-second round at 200 TPS. Those measured rounds use exactly the sustainability gates and request-start windows defined above. The shared ML-DSA profile does not merge configurations: `run_e1.sh` provisions the selected matching network, and its profile policy accepts only ML-DSA-44 or ML-DSA-65 with `E1_RUN_TYPE=sustainability` and a collision-safe label.
 
 `benchmark_sphincs_blockutil_54.yaml` is a separate block-filling diagnostic with a discarded 20-second 1-TPS warm-up and one 60-second 54-TPS round. It is not a latency or sustained-TPS profile and cannot change the accepted SPHINCS+ `tps_sustained=22`. Its only purpose is to determine empirically whether the unchanged Fabric parameters can produce a clean traffic-volume-driven block population. If it produces timeout-driven or degraded blocks, no higher rate or parameter change is automatic.
 
@@ -381,7 +383,7 @@ The only intentionally unresolved E1 final-output methodology item is which fixe
 
 Separately, the plausible bands/source for the `make_figures.py` E0 sanity checker referenced by the student specification are absent from the supplied repository; this is a later repository-level implementation gap, not an E1 output-methodology decision.
 
-The earlier ECDSA 222/224 TPS probe remains diagnostic evidence only and is not a final `tps_sustained` value.
+The older pre-standardized ECDSA 222/224 TPS probe remains diagnostic evidence only. It is distinct from the controlled `sustained-222-v1_ecdsa` measurement above; the latter passed at 222 TPS and is the starting point for the preregistered integer boundary search.
 
 ## Later experiments
 

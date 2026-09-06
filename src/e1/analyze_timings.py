@@ -25,6 +25,7 @@ import json
 import math
 from pathlib import Path
 import re
+import subprocess
 import sys
 
 
@@ -135,6 +136,10 @@ SUSTAINABILITY_PROFILE_SPECS = {
         "path": "env/caliper/e1/benchmark_ecdsa_sustained_222.yaml",
         "run_type": "sustainability",
     },
+    ("ecdsa", ("sustained-223-tps",)): {
+        "path": "env/caliper/e1/benchmark_ecdsa_sustained_223.yaml",
+        "run_type": "sustainability",
+    },
     ("ml-dsa-44", ("sustained-200-tps",)): {
         "path": "env/caliper/e1/benchmark_ml_dsa_sustained_200.yaml",
         "run_type": "sustainability",
@@ -158,6 +163,22 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: source.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def sha256_git_file(project_root: Path, commit: str, relative_path: str) -> str:
+    """Hash a tracked file exactly as it existed at a recorded run commit."""
+    result = subprocess.run(
+        ["git", "-C", str(project_root), "show", f"{commit}:{relative_path}"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise ValueError(
+            f"cannot recover {relative_path} at recorded commit {commit}: {detail}"
+        )
+    return hashlib.sha256(result.stdout).hexdigest()
 
 
 def percentile(sorted_samples: list[float], fraction: float) -> float:
@@ -928,15 +949,22 @@ def validate_sweep_provenance(
             f"[E1] cpu{cpu}_state=governor:performance,min_khz:3201000,max_khz:3201000"
         )
     missing = [line for line in required_log_lines if line not in log_text]
+    commit_match = re.search(
+        r"^\[E1\] project_git_commit=([0-9a-f]{40})$", log_text, re.MULTILINE
+    )
+    if commit_match is None:
+        raise ValueError(f"{log_path}: missing full project commit")
     if spec["run_type"] == "sustainability":
-        policy_path = project_root / "env/caliper/e1/run_policy.sh"
-        required_policy_line = f"[E1] e1_run_policy_sha256={sha256_file(policy_path)}"
+        policy_relative = "env/caliper/e1/run_policy.sh"
+        recorded_commit = commit_match.group(1)
+        policy_sha256 = sha256_git_file(
+            project_root, recorded_commit, policy_relative
+        )
+        required_policy_line = f"[E1] e1_run_policy_sha256={policy_sha256}"
         if required_policy_line not in log_text:
             missing.append(required_policy_line)
     if missing:
         raise ValueError(f"{log_path}: missing required provenance: {missing}")
-    if re.search(r"^\[E1\] project_git_commit=[0-9a-f]{40}$", log_text, re.MULTILINE) is None:
-        raise ValueError(f"{log_path}: missing full project commit")
     if re.search(r"^\[E1\] started_at=.+$", log_text, re.MULTILINE) is None or re.search(
         r"^\[E1\] finished_at=.+$", log_text, re.MULTILINE
     ) is None:
