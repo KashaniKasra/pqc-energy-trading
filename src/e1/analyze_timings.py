@@ -144,6 +144,10 @@ SUSTAINABILITY_PROFILE_SPECS = {
         "path": "env/caliper/e1/benchmark_ecdsa_sustained_224.yaml",
         "run_type": "sustainability",
     },
+    ("ecdsa", ("sustained-230-tps",)): {
+        "path": "env/caliper/e1/benchmark_ecdsa_sustained_230.yaml",
+        "run_type": "sustainability",
+    },
     ("ecdsa", ("sustained-237-tps",)): {
         "path": "env/caliper/e1/benchmark_ecdsa_sustained_237.yaml",
         "run_type": "sustainability",
