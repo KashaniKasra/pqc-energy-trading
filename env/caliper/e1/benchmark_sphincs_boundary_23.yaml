@@ -1,0 +1,45 @@
+test:
+  name: E1 SPHINCS+ Sustainable-Rate Boundary Probe at 23 TPS
+  description: Single midpoint probe between the sustainable 22 TPS result and nonsustainable 24 TPS result
+  workers:
+    type: local
+    number: 1
+
+  rounds:
+    - label: warmup
+      description: Warm-up round; results are discarded
+      txDuration: 20
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 1
+      workload:
+        module: workload/set.js
+        arguments:
+          contractId: simplekv
+          roundLabel: warmup
+
+    - label: sphincs-23-tps
+      description: Offer 23 TPS for 60 seconds
+      txDuration: 60
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 23
+      workload:
+        module: workload/set.js
+        arguments:
+          contractId: simplekv
+          roundLabel: sphincs-23-tps
+
+monitors:
+  resource:
+    - module: docker
+      options:
+        interval: 1
+        containers:
+          - orderer.example.com
+          - peer0.org1.example.com
+          - peer1.org1.example.com
+          - peer0.org2.example.com
+          - peer1.org2.example.com

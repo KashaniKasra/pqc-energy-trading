@@ -321,7 +321,7 @@ These are the first and last 20% of the configured 60-second round, selected by 
 ./src/e1/analyze_timings.py --sustainability sphincs-lowrate-v1_sphincs
 ```
 
-The retained `sphincs-lowrate-v1_sphincs` sweep completed with zero failures at every tested rate. All 1/2/5/10/20 TPS points pass the preregistered success-rate, successful-throughput, and latency-stability gates, so the current highest tested sustainable rate is 20 TPS. Exact statistics and hashes are retained in `data/e1_sphincs_sustainability.csv`. The earlier 3/4-TPS refinement profile is unnecessary because both rates lie below an already-passing 20 TPS point.
+The retained `sphincs-lowrate-v1_sphincs` sweep completed with zero failures at every tested rate. All 1/2/5/10/20 TPS points pass the preregistered success-rate, successful-throughput, and latency-stability gates, so that initial sweep established 20 TPS as sustainable. Exact statistics and hashes are retained in `data/e1_sphincs_sustainability.csv`. The earlier 3/4-TPS refinement profile is unnecessary because both rates lie below an already-passing 20 TPS point. Subsequent boundary probes are documented below.
 
 Same-ledger evidence for the 20 TPS round contains 1,201 serialized endorser-transaction envelopes in 30 ordinary blocks. The blocks are BatchTimeout-driven: 30 blocks over about 60 seconds matches `BatchTimeout=2s`; the 29 nonterminal blocks contain 35–46 transactions (mean 41.206897), close to the 40 expected from 20 TPS for two seconds; no block approaches `MaxMessageCount=500` or `PreferredMaxBytes`. Consequently its `block_bytes_mean=790308.966667` and rho `0.376848682` are retained as diagnostic evidence and are ineligible for final SPHINCS+ block utilisation.
 
@@ -333,7 +333,9 @@ The 28 TPS probe also was not sustainable: 1,433/1,681 succeeded, `tx_success_ra
 
 The 24 TPS probe is not sustainable despite completing all 1,441 requests successfully. Its successful throughput was 24.016667 TPS (`1.000694` of offered), so the success-rate and throughput gates passed. However, successful e2e median/p95/p99 were 7191.702027/13479.916965/15162.890049 ms, and the ending/beginning p95 ratio was 2.861839, which fails the preregistered latency-stability gate. Exact source hashes are retained in `data/e1_sphincs_boundary_24.csv`.
 
-The tested boundary is therefore 20 TPS passing and 24 TPS failing. The next single probe is their exact integer midpoint, 22 TPS. `benchmark_sphincs_boundary_22.yaml` contains only the discarded warm-up and one 60-second 22 TPS round. Analyze it before choosing any later rate.
+The 22 TPS probe is sustainable: all 1,321 requests succeeded, successful throughput was 22.016667 TPS (`1.000758` of offered), and successful e2e median/p95/p99 were 3444.793506/5941.405725/6501.009460 ms. Its success-rate and throughput gates passed, and its ending/beginning p95 ratio of 1.876994 passed the latency-stability gate. Exact source hashes are retained in `data/e1_sphincs_boundary_22.csv`.
+
+The tested boundary is therefore 22 TPS passing and 24 TPS failing. The only untested integer midpoint is 23 TPS. `benchmark_sphincs_boundary_23.yaml` contains only the discarded warm-up and one 60-second 23 TPS round. Analyze it before choosing any later rate.
 
 The final E1 schema, once all decisions and measurements are valid, is:
 
