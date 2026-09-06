@@ -261,19 +261,20 @@
       "definition": "mean(actual ordinary-transaction block bytes) / effective PreferredMaxBytes",
       "denominator_source": "e1_benchmark.fabric_block_parameters.PreferredMaxBytes_effective_bytes",
       "excluded_blocks": ["genesis", "config", "other/non-ordinary"],
-      "scientific_condition": "Use blocks closed by volume, not a BatchTimeout-driven half-empty regime.",
+      "scientific_condition": "Exclude genesis/config/other blocks; retain terminal ordinary partial blocks. The observed steady-state population must not be BatchTimeout-driven.",
       "diagnostic_profile": "env/caliper/e1/benchmark_blockutil.yaml",
-      "diagnostic_rate_status": "300 TPS was a block-filling probe only; Gateway concurrency-limit failures make it invalid for final latency or tps_sustained.",
-      "observed_closure": "Blocks 17-47 each contain MaxMessageCount=500 ordinary transactions, demonstrating steady-state count-limit closure rather than BatchTimeout closure. Block 48 is a terminal 386-transaction ordinary block.",
+      "diagnostic_rate_status": "300 TPS was a block-filling probe only. Its block evidence is accepted for block utilisation; Gateway concurrency-limit failures make the run invalid for final latency or tps_sustained.",
+      "observed_closure": "Documented empirical observation: blocks 17-47 each contain MaxMessageCount=500 ordinary transactions, demonstrating steady-state count-limit closure rather than BatchTimeout closure. Block 48 is a terminal 386-transaction ordinary block retained in the accepted population.",
       "working_result": {
         "config": "ECDSA",
-        "status": "working_boundary_inclusive_pending_professor_review",
+        "status": "accepted_boundary_inclusive_methodology_pending_final_csv",
         "run_label": "blockutil-300",
         "benchmark_label": "blockutil-300-tps",
         "block_interval": "17-48",
         "ordinary_block_count": 32,
         "excluded_block_count": 0,
         "terminal_partial_included": true,
+        "population_rule": "Exclude genesis/config/other blocks and retain every ordinary transaction block in the measured interval, including the terminal partial block.",
         "block_bytes_mean": "1952347.156250",
         "effective_preferred_max_bytes": 2097152,
         "block_utilisation": "0.930951670",
@@ -290,7 +291,7 @@
         "raw_blocks_source": "raw/e1/blockutil-300_ecdsa_blocks_blockutil-300-tps.csv",
         "raw_blocks_sha256": "ca48b8c5ed503157e7ac1c863e7692584bd7c757beb006323d2557f9e37f22b6",
         "full_500_transaction_block_diagnostic_comparison": {
-          "status": "diagnostic comparison only; not the current working result",
+          "status": "diagnostic comparison only; does not replace the accepted boundary-inclusive result",
           "block_count": 31,
           "block_bytes_mean": "1966319.451613",
           "block_utilisation": "0.937614179",
@@ -368,6 +369,21 @@
       "fixed_profile_outcomes_command": "./src/e1/analyze_timings.py --fixed-outcomes",
       "public_key_summary_command": "./src/e1/analyze_timings.py --identity-public-keys",
       "working_e1_schema_command": "./src/e1/analyze_timings.py --working-e1",
+      "final_output_schema": [
+        "config",
+        "identity_bytes",
+        "endorse_median_ms",
+        "endorse_p95_ms",
+        "commit_median_ms",
+        "tps_sustained",
+        "tx_success_rate",
+        "tx_error_rate",
+        "tx_bytes_mean",
+        "endorsements_per_tx",
+        "block_bytes_mean",
+        "block_utilisation"
+      ],
+      "common_profile_rate_population": "tx_success_rate and tx_error_rate use the retained common 50 TPS round; SPHINCS+ saturation remains reportable in this population.",
       "final_summary": "data/e1_fabric.csv (not yet created)",
       "raw_sources": "raw/e1/"
     }
@@ -412,13 +428,11 @@
     "license": null
   },
   "known_scientific_decisions_pending": {
-    "block_filling": "Ask whether MaxMessageCount-driven closure at about 93.76% of PreferredMaxBytes satisfies the intended filled-by-volume methodology.",
-    "terminal_residual_block": "The current working ECDSA rho includes terminal ordinary block 48 (386 transactions), because only genesis/config exclusion was specified; ask whether terminal partial ordinary blocks should instead be excluded.",
-    "latency_field_population": "The E1 schema has one endorsement/commit value per configuration while the fixed profile has 50 TPS and 200 TPS rounds; no authoritative rule yet selects one round or a combined population.",
-    "sanity_gate_source": "The student specification references a supplied make_figures.py checker, but its plausible bands/source file are absent."
+    "latency_field_population": "The E1 schema has one endorsement/commit value per configuration while the fixed profile has 50 TPS and 200 TPS rounds; both populations remain separate until professor review selects the final population."
   },
   "notes": {
     "falcon_liboqs_caveat": "Falcon in liboqs 0.15.0 follows the round-3 submission rather than final FIPS 206.",
-    "ecdsa_api_note": "E0 uses the low-level OpenSSL ECDSA API, deprecated in OpenSSL 3.0, to measure the primitive directly without provider dispatch."
+    "ecdsa_api_note": "E0 uses the low-level OpenSSL ECDSA API, deprecated in OpenSSL 3.0, to measure the primitive directly without provider dispatch.",
+    "make_figures_sanity_gate_gap": "The student specification references a supplied make_figures.py checker, but its plausible bands/source file are absent; this is not an E1 final-output methodology decision."
   }
 }

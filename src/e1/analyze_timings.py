@@ -5,11 +5,11 @@ The default output contains per-round candidate timing statistics. SPHINCS+
 fixed-profile outcomes are exposed separately with ``--fixed-outcomes`` because
 the saturation run is reportable but is not a valid normal-latency data point.
 
-``--working-e1`` emits the exact final E1 schema to stdout, but leaves every
-scientifically unresolved field empty. It currently populates only the accepted
-boundary-inclusive ECDSA block-utilisation working result after validating its
-retained summary and per-block source. This mode cannot write an output file, so
-it cannot be mistaken for the completed ``data/e1_fabric.csv`` deliverable.
+``--working-e1`` emits the exact final E1 schema to stdout, but leaves unresolved
+or unmeasured fields empty. It populates only values supported by retained
+evidence or the verified Fabric endorsement policy. This mode cannot write an
+output file, so it cannot be mistaken for the completed
+``data/e1_fabric.csv`` deliverable.
 """
 
 from __future__ import annotations
@@ -44,6 +44,10 @@ FINAL_FIELDS = (
     "endorse_p95_ms",
     "commit_median_ms",
     "tps_sustained",
+    "tx_success_rate",
+    "tx_error_rate",
+    "tx_bytes_mean",
+    "endorsements_per_tx",
     "block_bytes_mean",
     "block_utilisation",
 )
@@ -487,12 +491,24 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
     """Build an explicitly incomplete E1-schema view from supported evidence."""
     validate_supporting_signcert_evidence(project_root)
     public_key_rows = validated_public_key_rows(project_root)
+    fixed_outcomes = build_fixed_outcome_rows(project_root)
+    endorsement_policy = validated_endorsement_policy(project_root)[0]
     block_mean, block_utilisation = validated_ecdsa_block_result(project_root)
     rows = [{field: "" for field in FINAL_FIELDS} for _ in FINAL_CONFIGS]
     for row, config in zip(rows, FINAL_CONFIGS):
         row["config"] = config
     for row, key_row in zip(rows, public_key_rows):
         row["identity_bytes"] = key_row["identity_bytes_mean"]
+        row["endorsements_per_tx"] = endorsement_policy[
+            "endorsements_per_tx_configured_minimum"
+        ]
+    common_50_outcomes = {
+        row["config"]: row for row in fixed_outcomes if row["round_label"] == "50-tps"
+    }
+    for row in rows:
+        outcome = common_50_outcomes[row["config"]]
+        row["tx_success_rate"] = outcome["tx_success_rate"]
+        row["tx_error_rate"] = outcome["tx_error_rate"]
     rows[0]["block_bytes_mean"] = block_mean
     rows[0]["block_utilisation"] = block_utilisation
     return rows

@@ -11,7 +11,7 @@ This repository is an empirical measurement package for a research testbed. Its 
 - Candidate fixed-profile data exist for ECDSA, ML-DSA-44, and ML-DSA-65. They pass sample-count and zero-failure checks, but their retained logs predate full preflight capture, so they are not silently promoted to final data.
 - The identical-profile SPHINCS+ run saturated and failed heavily. Its raw samples, 50-TPS success/error rates, and saturation status are reportable, but the run is excluded from normal latency. A separate 1/2/5/10/20 TPS sweep is prepared to characterize SPHINCS+ sustainable throughput without replacing the common-profile result.
 - `identity_bytes` now means public-key bytes only. The four peer values are 91 bytes (ECDSA DER SubjectPublicKeyInfo), 1312 (ML-DSA-44), 1952 (ML-DSA-65), and 32 (SPHINCS+) within each configuration. Historical signcert-size evidence remains preserved but is supporting evidence, not `identity_bytes`.
-- The ECDSA block-filling probe provides a boundary-inclusive working block-utilisation value of `0.930951670`. Its retained block CSV predates exact per-envelope extraction, so `tx_bytes_mean` still requires a future block-evidence collection. Final latency population remains unresolved, so `data/e1_fabric.csv` has not been created.
+- The ECDSA block-filling probe provides the accepted boundary-inclusive block-utilisation value `0.930951670`. Its retained block CSV predates exact per-envelope extraction, so `tx_bytes_mean` still requires a future block-evidence collection. Final latency population remains unresolved, so `data/e1_fabric.csv` has not been created.
 - E2 and later experiments are not implemented.
 
 No final figure should be produced from unresolved E1 data.
@@ -244,14 +244,14 @@ block_utilisation = mean(accepted ordinary-transaction block bytes)
 
 The generated config decodes `2 MB` to 2,097,152 bytes. `AbsoluteMaxBytes` (10,485,760 bytes) is not the denominator. Genesis and config blocks are excluded.
 
-For the retained ECDSA probe, blocks 17–47 each contain exactly `MaxMessageCount=500` ordinary transactions. The steady-state active block-cutting constraint was therefore MaxMessageCount, not `BatchTimeout`. Terminal block 48 contains 386 transactions. Because the professor explicitly excluded genesis/config blocks but did not explicitly exclude terminal partial ordinary blocks, the current working calculation includes all 32 ordinary blocks:
+For the retained ECDSA probe, blocks 17–47 each contain exactly `MaxMessageCount=500` ordinary transactions. This is the documented empirical block-filling result: the steady-state active block-cutting constraint was MaxMessageCount, not `BatchTimeout`. Terminal block 48 contains 386 transactions. Following the professor's latest clarification, genesis/config blocks are excluded and terminal ordinary partial blocks are retained, so the accepted population contains all 32 ordinary blocks:
 
 ```text
 block_bytes_mean = 1952347.156250
 block_utilisation = 1952347.156250 / 2097152 = 0.930951670
 ```
 
-The 31 full blocks alone have mean 1,966,319.451613 bytes and rho 0.937614179. The difference is `0.006662509` in rho, or about **0.666251 percentage points**. That value is retained only as a diagnostic comparison and does not replace the boundary-inclusive working result. Professor review is still required on whether MaxMessageCount closure satisfies the intended volume-filled condition and whether terminal residual ordinary blocks should be excluded.
+The 31 full blocks alone have mean 1,966,319.451613 bytes and rho 0.937614179. The difference is `0.006662509` in rho, or about **0.666251 percentage points**. That value is retained only as a diagnostic comparison and does not replace the accepted boundary-inclusive result. MaxMessageCount-driven closure and inclusion of the terminal ordinary block are no longer professor-decision blockers.
 
 ## Public-key identity evidence
 
@@ -326,7 +326,7 @@ These are the first and last 20% of the configured 60-second round, selected by 
 The final E1 schema, once all decisions and measurements are valid, is:
 
 ```text
-config,identity_bytes,endorse_median_ms,endorse_p95_ms,commit_median_ms,tps_sustained,block_bytes_mean,block_utilisation
+config,identity_bytes,endorse_median_ms,endorse_p95_ms,commit_median_ms,tps_sustained,tx_success_rate,tx_error_rate,tx_bytes_mean,endorsements_per_tx,block_bytes_mean,block_utilisation
 ```
 
 P99 endorsement and commit statistics remain required in traceable supporting data even though they are not fields in this main CSV.
@@ -337,17 +337,13 @@ An explicitly incomplete working-schema view can be regenerated with:
 ./src/e1/analyze_timings.py --working-e1
 ```
 
-It validates the historical signcert evidence without treating it as `identity_bytes`, validates the public-key-only sizes, and verifies the ECDSA block summary against the retained per-block source and `meta.json`. It emits the exact four-row schema to stdout, populates the supported public-key means and boundary-inclusive ECDSA block fields, and leaves unresolved latency/TPS/transaction-size cells empty. It intentionally refuses `--output`, preventing the working view from being mistaken for the final deliverable.
+It validates the historical signcert evidence without treating it as `identity_bytes`, validates the public-key-only sizes, verifies common-profile success/error outcomes and the configured endorsement policy, and verifies the ECDSA block summary against the retained per-block source and `meta.json`. It emits the exact four-row schema to stdout. Supported public-key means, common-50-TPS success/error rates, configured minimum endorsements per transaction, and the accepted boundary-inclusive ECDSA block fields are populated; unresolved latency and unmeasured sustained-TPS/transaction-size cells remain empty. It intentionally refuses `--output`, preventing the working view from being mistaken for the final deliverable.
 
-## Pending scientific decisions
+## Remaining E1 final-output decision
 
-The following must not be guessed and should be surfaced at the professor meeting:
+The only intentionally unresolved E1 final-output methodology item is which fixed-profile round or combined 50-TPS/200-TPS sample population supplies the single endorsement/commit fields in `e1_fabric.csv`. Both round-specific results remain separate for professor review. The added `tx_success_rate`, `tx_error_rate`, `tx_bytes_mean`, and `endorsements_per_tx` columns are part of the final E1 schema.
 
-1. whether MaxMessageCount-driven blocks at about 93.76% of PreferredMaxBytes satisfy the intended filled-by-volume condition;
-2. whether terminal partial ordinary blocks such as block 48 should be excluded, despite the explicit instruction naming only genesis/config blocks;
-3. which fixed-profile round or combined sample population supplies the single endorsement/commit fields in the E1 CSV;
-4. whether the new supporting metrics belong in the main `e1_fabric.csv` or a separate traceable E1 outcome table;
-5. the plausible bands/source for the `make_figures.py` E0 sanity checker referenced by the student specification but absent from the supplied repository.
+Separately, the plausible bands/source for the `make_figures.py` E0 sanity checker referenced by the student specification are absent from the supplied repository; this is a later repository-level implementation gap, not an E1 output-methodology decision.
 
 The earlier ECDSA 222/224 TPS probe remains diagnostic evidence only and is not a final `tps_sustained` value.
 
