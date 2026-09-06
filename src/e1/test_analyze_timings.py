@@ -37,15 +37,22 @@ class SustainabilityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.write_fixture(root, ending_latency=20.0)
-            rows = ANALYZER.build_sustainability_rows(root, "test_sphincs")
+            rows = ANALYZER.build_sustainability_rows(
+                root, "test_sphincs", validate_all_raw=False
+            )
             self.assertEqual(rows[0]["sustainable"], "true")
             self.assertEqual(rows[0]["highest_tested_sustainable_tps"], "1")
+            self.assertEqual(rows[0]["total"], "60")
+            self.assertEqual(rows[0]["achieved_offered_ratio"], "1.000000")
+            self.assertEqual(rows[0]["overall_successful_e2e_median_ms"], "10.000000")
 
     def test_end_p95_over_twice_beginning_fails(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.write_fixture(root, ending_latency=20.001)
-            rows = ANALYZER.build_sustainability_rows(root, "test_sphincs")
+            rows = ANALYZER.build_sustainability_rows(
+                root, "test_sphincs", validate_all_raw=False
+            )
             self.assertEqual(rows[0]["latency_stability_pass"], "false")
             self.assertEqual(rows[0]["sustainable"], "false")
 
@@ -56,6 +63,25 @@ class TransactionEvidenceTests(unittest.TestCase):
             root = Path(directory)
             raw = root / "raw" / "e1"
             raw.mkdir(parents=True)
+            blocks = raw / "test_blocks.csv"
+            with blocks.open("w", newline="", encoding="utf-8") as destination:
+                writer = csv.DictWriter(destination, fieldnames=[
+                    "config", "run_label", "benchmark_label", "block_number",
+                    "block_bytes", "transaction_count", "header_types",
+                    "classification", "accepted_for_mean",
+                ])
+                writer.writeheader()
+                writer.writerow({
+                    "config": "ecdsa",
+                    "run_label": "test",
+                    "benchmark_label": "test-rate",
+                    "block_number": "1",
+                    "block_bytes": "100",
+                    "transaction_count": "1",
+                    "header_types": "3",
+                    "classification": "ordinary_transaction",
+                    "accepted_for_mean": "true",
+                })
             transactions = raw / "test_transactions.csv"
             with transactions.open("w", newline="", encoding="utf-8") as destination:
                 writer = csv.DictWriter(
@@ -81,6 +107,10 @@ class TransactionEvidenceTests(unittest.TestCase):
             summary = raw / "test_summary.csv"
             fields = [
                 "config", "run_label", "benchmark_label",
+                "start_block", "end_block", "ordinary_block_count",
+                "excluded_block_count", "block_bytes_mean",
+                "transactions_per_block_mean", "effective_preferred_max_bytes",
+                "block_utilisation", "raw_blocks_file", "raw_blocks_sha256",
                 "ordinary_transaction_count", "valid_transaction_count",
                 "invalid_transaction_count", "tx_bytes_mean", "endorsements_per_tx",
                 "endorsements_min", "endorsements_max", "raw_transactions_file",
@@ -93,6 +123,16 @@ class TransactionEvidenceTests(unittest.TestCase):
                     "config": "ecdsa",
                     "run_label": "test",
                     "benchmark_label": "test-rate",
+                    "start_block": "1",
+                    "end_block": "1",
+                    "ordinary_block_count": "1",
+                    "excluded_block_count": "0",
+                    "block_bytes_mean": "100.000000",
+                    "transactions_per_block_mean": "1.000000",
+                    "effective_preferred_max_bytes": "200",
+                    "block_utilisation": "0.500000000",
+                    "raw_blocks_file": "raw/e1/test_blocks.csv",
+                    "raw_blocks_sha256": ANALYZER.sha256_file(blocks),
                     "ordinary_transaction_count": "1",
                     "valid_transaction_count": "1",
                     "invalid_transaction_count": "0",

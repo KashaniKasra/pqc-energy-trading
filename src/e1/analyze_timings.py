@@ -101,7 +101,7 @@ def percentile(sorted_samples: list[float], fraction: float) -> float:
     )
 
 
-def load_samples(path: Path) -> list[float]:
+def load_samples(path: Path, minimum_samples: int = MINIMUM_SAMPLES) -> list[float]:
     with path.open(newline="", encoding="utf-8") as source:
         reader = csv.DictReader(source)
         if reader.fieldnames != ["latency_ms"]:
@@ -118,9 +118,9 @@ def load_samples(path: Path) -> list[float]:
                 )
             samples.append(value)
 
-    if len(samples) < MINIMUM_SAMPLES:
+    if len(samples) < minimum_samples:
         raise ValueError(
-            f"{path}: {len(samples)} samples is below the required {MINIMUM_SAMPLES}"
+            f"{path}: {len(samples)} samples is below the required {minimum_samples}"
         )
     return sorted(samples)
 
@@ -494,6 +494,13 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
     fixed_outcomes = build_fixed_outcome_rows(project_root)
     endorsement_policy = validated_endorsement_policy(project_root)[0]
     block_mean, block_utilisation = validated_ecdsa_block_result(project_root)
+    metadata = json.loads((project_root / "meta.json").read_text(encoding="utf-8"))
+    sphincs_transaction_summary = metadata["e1_benchmark"]["caliper"][
+        "sphincs_low_rate_sweep"
+    ]["transaction_evidence_20_tps"]["raw_summary"]
+    sphincs_transaction = validate_transaction_summary(
+        project_root, sphincs_transaction_summary
+    )[0]
     rows = [{field: "" for field in FINAL_FIELDS} for _ in FINAL_CONFIGS]
     for row, config in zip(rows, FINAL_CONFIGS):
         row["config"] = config
@@ -511,6 +518,8 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
         row["tx_error_rate"] = outcome["tx_error_rate"]
     rows[0]["block_bytes_mean"] = block_mean
     rows[0]["block_utilisation"] = block_utilisation
+    rows[3]["tx_bytes_mean"] = sphincs_transaction["tx_bytes_mean"]
+    rows[3]["endorsements_per_tx"] = sphincs_transaction["endorsements_per_tx"]
     return rows
 
 
@@ -644,7 +653,91 @@ def load_e2e_samples(path: Path) -> list[dict[str, float | str]]:
     return rows
 
 
-def build_sustainability_rows(project_root: Path, run_namespace: str) -> list[dict[str, str]]:
+def validate_sweep_provenance(
+    project_root: Path,
+    run_namespace: str,
+    round_labels: list[str],
+) -> tuple[Path, Path, Path]:
+    """Validate the retained log, height markers, and fixed sweep definition."""
+    raw_dir = project_root / "raw" / "e1"
+    log_path = raw_dir / f"{run_namespace}_caliper_run.log"
+    heights_path = raw_dir / f"{run_namespace}_block_heights.csv"
+    rates = [int(label.split("-")[1]) for label in round_labels]
+    if rates == [1, 2, 5, 10, 20]:
+        benchmark_relative = "env/caliper/e1/benchmark_sphincs_sweep.yaml"
+    elif rates == [3, 4]:
+        benchmark_relative = "env/caliper/e1/benchmark_sphincs_refine_3_4.yaml"
+    elif rates == [35]:
+        benchmark_relative = "env/caliper/e1/benchmark_sphincs_boundary_35.yaml"
+    else:
+        raise ValueError(f"unsupported SPHINCS+ sweep rate sequence: {rates}")
+    benchmark_path = project_root / benchmark_relative
+    metadata = json.loads((project_root / "meta.json").read_text(encoding="utf-8"))
+    images = metadata["e1_benchmark"]["installed_images_at_metadata_update"]
+    block = metadata["e1_benchmark"]["fabric_block_parameters"]
+
+    log_text = log_path.read_text(encoding="utf-8", errors="strict")
+    required_log_lines = [
+        "[E1] configuration=sphincs",
+        "[E1] run_type=sweep",
+        f"[E1] run_namespace={run_namespace}",
+        f"[E1] benchmark_config={benchmark_relative}",
+        f"[E1] benchmark_config_sha256={sha256_file(benchmark_path)}",
+        "[E1] project_tracked_state_before_log_creation=clean",
+        "[E1] amd_pstate_mode=passive",
+        "[E1] boost_state=0",
+        "[E1] fabric_source_tag=v2.5.16",
+        "[E1] fabric_source_commit=f871cf92a026aba7b12e6f06d71ded3e6e659d71",
+        "[E1] fabric_source_state=clean",
+        f"[E1] fabric_peer_image_id={images['peer']}",
+        f"[E1] fabric_orderer_image_id={images['orderer']}",
+        f"[E1] fabric_pq_patch_sha256={images['fabric_pq_patch_sha256']}",
+        f"[E1] effective_BatchTimeout={block['BatchTimeout']}",
+        f"[E1] effective_MaxMessageCount={block['MaxMessageCount']}",
+        f"[E1] effective_PreferredMaxBytes={block['PreferredMaxBytes_effective_bytes']}",
+        f"[E1] effective_AbsoluteMaxBytes={block['AbsoluteMaxBytes_effective_bytes']}",
+        "[E1] Benchmark finished.",
+    ]
+    for cpu in range(2, 16):
+        required_log_lines.append(
+            f"[E1] cpu{cpu}_state=governor:performance,min_khz:3201000,max_khz:3201000"
+        )
+    missing = [line for line in required_log_lines if line not in log_text]
+    if missing:
+        raise ValueError(f"{log_path}: missing required provenance: {missing}")
+    if re.search(r"^\[E1\] project_git_commit=[0-9a-f]{40}$", log_text, re.MULTILINE) is None:
+        raise ValueError(f"{log_path}: missing full project commit")
+    if re.search(r"^\[E1\] started_at=.+$", log_text, re.MULTILINE) is None or re.search(
+        r"^\[E1\] finished_at=.+$", log_text, re.MULTILINE
+    ) is None:
+        raise ValueError(f"{log_path}: missing start/finish timestamps")
+
+    with heights_path.open(newline="", encoding="utf-8") as source:
+        reader = csv.DictReader(source)
+        if reader.fieldnames != ["marker", "height"]:
+            raise ValueError(f"{heights_path}: unexpected height-marker schema")
+        height_rows = list(reader)
+    expected_labels = ["warmup", *round_labels]
+    expected_markers = [
+        marker
+        for label in expected_labels
+        for marker in (f"before_{label}", f"after_{label}")
+    ]
+    if [row["marker"] for row in height_rows] != expected_markers:
+        raise ValueError(f"{heights_path}: unexpected height-marker sequence")
+    heights = [parse_uint(heights_path, "height", row["height"]) for row in height_rows]
+    if any(after < before for before, after in zip(heights[::2], heights[1::2])):
+        raise ValueError(f"{heights_path}: a round's ending height precedes its start")
+    if any(heights[index] != heights[index + 1] for index in range(1, len(heights) - 1, 2)):
+        raise ValueError(f"{heights_path}: adjacent round boundaries do not reconcile")
+    return log_path, heights_path, benchmark_path
+
+
+def build_sustainability_rows(
+    project_root: Path,
+    run_namespace: str,
+    validate_all_raw: bool = True,
+) -> list[dict[str, str]]:
     if re.fullmatch(r"[a-z0-9][a-z0-9._-]*", run_namespace) is None:
         raise ValueError("run namespace contains unsupported characters")
     raw_dir = project_root / "raw" / "e1"
@@ -664,7 +757,19 @@ def build_sustainability_rows(project_root: Path, run_namespace: str) -> list[di
 
     round_labels = sorted(by_round, key=lambda label: int(label.split("-")[1]))
     caliper_results = load_caliper_results(log_path, round_labels)
+    heights_path: Path | None = None
+    benchmark_path: Path | None = None
+    if validate_all_raw:
+        log_path, heights_path, benchmark_path = validate_sweep_provenance(
+            project_root, run_namespace, round_labels
+        )
+        for sample_type in ("endorse", "commit"):
+            if list(raw_dir.glob(f"{run_namespace}_{sample_type}_warmup_worker0_*.csv")):
+                raise ValueError(f"{raw_dir}: warm-up {sample_type} samples must not be retained")
+        if list(raw_dir.glob(f"{run_namespace}_e2e_warmup_worker0_*.csv")):
+            raise ValueError(f"{raw_dir}: warm-up end-to-end samples must not be retained")
     rows = []
+    validated_paths = {log_path, heights_path, *by_round.values()}
     for round_label in round_labels:
         offered_rate = int(round_label.split("-")[1])
         result = caliper_results[round_label]
@@ -679,6 +784,30 @@ def build_sustainability_rows(project_root: Path, run_namespace: str) -> list[di
         beginning_limit = SWEEP_DURATION_SECONDS * 1000 * WINDOW_FRACTION
         end_start = SWEEP_DURATION_SECONDS * 1000 * (1 - WINDOW_FRACTION)
         successful = [sample for sample in samples if sample["status"] == "success"]
+        successful_latencies = sorted(float(sample["latency_ms"]) for sample in successful)
+        if len(successful_latencies) != success:
+            raise ValueError(
+                f"{by_round[round_label]}: success status count does not reconcile with Caliper"
+            )
+        endorse_path: Path | None = None
+        commit_path: Path | None = None
+        endorse_samples: list[float] = []
+        commit_samples: list[float] = []
+        if validate_all_raw:
+            endorse_path = one_matching_file(
+                raw_dir, f"{run_namespace}_endorse_{round_label}_worker0_*.csv"
+            )
+            commit_path = one_matching_file(
+                raw_dir, f"{run_namespace}_commit_{round_label}_worker0_*.csv"
+            )
+            endorse_samples = load_samples(endorse_path, minimum_samples=1)
+            commit_samples = load_samples(commit_path, minimum_samples=1)
+            validated_paths.update((endorse_path, commit_path))
+            if len(endorse_samples) != success or len(commit_samples) != success:
+                raise ValueError(
+                    f"{round_label}: endorsement/commit sample counts do not reconcile "
+                    "with successful transactions"
+                )
         beginning = sorted(
             float(sample["latency_ms"])
             for sample in successful
@@ -701,6 +830,7 @@ def build_sustainability_rows(project_root: Path, run_namespace: str) -> list[di
             result["caliper_success"], result["caliper_fail"]
         )
         successful_throughput = success / SWEEP_DURATION_SECONDS
+        achieved_offered_ratio = successful_throughput / offered_rate
         success_pass = float(tx_success_rate) >= SUCCESS_RATE_MINIMUM
         throughput_pass = successful_throughput >= THROUGHPUT_FRACTION_MINIMUM * offered_rate
         latency_pass = ratio <= LATENCY_P95_RATIO_MAXIMUM
@@ -710,12 +840,17 @@ def build_sustainability_rows(project_root: Path, run_namespace: str) -> list[di
             "round_label": round_label,
             "offered_rate_tps": str(offered_rate),
             "duration_seconds": str(SWEEP_DURATION_SECONDS),
+            "total": str(success + fail),
             "caliper_success": str(success),
             "caliper_fail": str(fail),
             "tx_success_rate": tx_success_rate,
             "tx_error_rate": tx_error_rate,
             "successful_throughput_tps": f"{successful_throughput:.6f}",
+            "achieved_offered_ratio": f"{achieved_offered_ratio:.6f}",
             "caliper_reported_throughput_tps": result["throughput_tps"],
+            "overall_successful_e2e_median_ms": f"{percentile(successful_latencies, 0.50):.6f}",
+            "overall_successful_e2e_p95_ms": f"{percentile(successful_latencies, 0.95):.6f}",
+            "overall_successful_e2e_p99_ms": f"{percentile(successful_latencies, 0.99):.6f}",
             "beginning_window_ms": "[0,12000)",
             "ending_window_ms": "[48000,60000)",
             "beginning_success_n": str(len(beginning)),
@@ -729,9 +864,33 @@ def build_sustainability_rows(project_root: Path, run_namespace: str) -> list[di
             "sustainable": str(sustainable).lower(),
             "e2e_source": relative(by_round[round_label], project_root),
             "e2e_sha256": sha256_file(by_round[round_label]),
+            **({
+                "endorse_source": relative(endorse_path, project_root),
+                "endorse_sha256": sha256_file(endorse_path),
+                "commit_source": relative(commit_path, project_root),
+                "commit_sha256": sha256_file(commit_path),
+                "heights_source": relative(heights_path, project_root),
+                "heights_sha256": sha256_file(heights_path),
+                "benchmark_source": relative(benchmark_path, project_root),
+                "benchmark_sha256": sha256_file(benchmark_path),
+            } if validate_all_raw else {}),
             "log_source": relative(log_path, project_root),
             "log_sha256": sha256_file(log_path),
         })
+
+    if validate_all_raw:
+        namespace_paths = set(raw_dir.glob(f"{run_namespace}_*"))
+        supplemental_block_evidence = set(
+            raw_dir.glob(f"{run_namespace}_blocks_*.csv")
+        ) | set(raw_dir.glob(f"{run_namespace}_transactions_*.csv"))
+        namespace_paths -= supplemental_block_evidence
+        if namespace_paths != validated_paths:
+            unexpected = sorted(str(path.name) for path in namespace_paths - validated_paths)
+            missing = sorted(str(path.name) for path in validated_paths - namespace_paths)
+            raise ValueError(
+                f"{raw_dir}: namespace file set does not reconcile; "
+                f"unexpected={unexpected}, missing={missing}"
+            )
 
     passing_rates = [int(row["offered_rate_tps"]) for row in rows if row["sustainable"] == "true"]
     highest = str(max(passing_rates)) if passing_rates else ""
@@ -749,13 +908,93 @@ def validate_transaction_summary(project_root: Path, summary_argument: str) -> l
         raise ValueError("transaction summary must be inside the project")
     _, summary = one_csv_row(summary_path)
     required_summary_fields = {
-        "ordinary_transaction_count", "valid_transaction_count",
+        "start_block", "end_block", "ordinary_block_count", "excluded_block_count",
+        "block_bytes_mean", "transactions_per_block_mean",
+        "effective_preferred_max_bytes", "block_utilisation", "raw_blocks_file",
+        "raw_blocks_sha256", "ordinary_transaction_count", "valid_transaction_count",
         "invalid_transaction_count", "tx_bytes_mean", "endorsements_per_tx",
         "endorsements_min", "endorsements_max", "raw_transactions_file",
         "raw_transactions_sha256",
     }
     if not required_summary_fields.issubset(summary):
         raise ValueError(f"{summary_path}: summary predates serialized transaction evidence")
+
+    raw_blocks_path = (project_root / summary["raw_blocks_file"]).resolve()
+    if not raw_blocks_path.is_relative_to(project_root) or not raw_blocks_path.is_file():
+        raise ValueError(f"{summary_path}: invalid block evidence path")
+    if sha256_file(raw_blocks_path) != summary["raw_blocks_sha256"]:
+        raise ValueError(f"{raw_blocks_path}: SHA-256 does not match summary")
+    with raw_blocks_path.open(newline="", encoding="utf-8") as source:
+        reader = csv.DictReader(source)
+        required_block_fields = {
+            "config", "run_label", "benchmark_label", "block_number", "block_bytes",
+            "transaction_count", "header_types", "classification", "accepted_for_mean",
+        }
+        if reader.fieldnames is None or set(reader.fieldnames) != required_block_fields:
+            raise ValueError(f"{raw_blocks_path}: unexpected per-block schema")
+        block_rows = list(reader)
+    if not block_rows:
+        raise ValueError(f"{raw_blocks_path}: no block evidence")
+
+    accepted_block_counts: dict[int, int] = {}
+    accepted_block_bytes: list[int] = []
+    excluded_blocks = 0
+    block_numbers = []
+    for row in block_rows:
+        if (
+            row["config"] != summary["config"]
+            or row["run_label"] != summary["run_label"]
+            or row["benchmark_label"] != summary["benchmark_label"]
+        ):
+            raise ValueError(f"{raw_blocks_path}: mixed block provenance")
+        number = parse_uint(raw_blocks_path, "block_number", row["block_number"])
+        size = parse_uint(raw_blocks_path, "block_bytes", row["block_bytes"])
+        tx_count = parse_uint(
+            raw_blocks_path, "transaction_count", row["transaction_count"]
+        )
+        header_types = row["header_types"].split(";") if row["header_types"] else []
+        if len(header_types) != tx_count:
+            raise ValueError(f"{raw_blocks_path}: block {number} header count mismatch")
+        accepted = row["accepted_for_mean"] == "true"
+        if row["accepted_for_mean"] not in {"true", "false"}:
+            raise ValueError(f"{raw_blocks_path}: block {number} invalid acceptance flag")
+        if accepted:
+            if (
+                number == 0
+                or row["classification"] != "ordinary_transaction"
+                or any(header_type != "3" for header_type in header_types)
+            ):
+                raise ValueError(f"{raw_blocks_path}: block {number} is not ordinary")
+            accepted_block_counts[number] = tx_count
+            accepted_block_bytes.append(size)
+        else:
+            if row["classification"] == "ordinary_transaction":
+                raise ValueError(f"{raw_blocks_path}: ordinary block {number} was excluded")
+            excluded_blocks += 1
+        block_numbers.append(number)
+    if len(set(block_numbers)) != len(block_numbers) or sorted(block_numbers) != list(
+        range(min(block_numbers), max(block_numbers) + 1)
+    ):
+        raise ValueError(f"{raw_blocks_path}: block interval is not unique and contiguous")
+    preferred = parse_uint(
+        summary_path, "effective_preferred_max_bytes",
+        summary["effective_preferred_max_bytes"],
+    )
+    block_mean = sum(accepted_block_bytes) / len(accepted_block_bytes)
+    block_regenerated = {
+        "start_block": str(min(block_numbers)),
+        "end_block": str(max(block_numbers)),
+        "ordinary_block_count": str(len(accepted_block_counts)),
+        "excluded_block_count": str(excluded_blocks),
+        "block_bytes_mean": f"{block_mean:.6f}",
+        "transactions_per_block_mean": (
+            f"{sum(accepted_block_counts.values()) / len(accepted_block_counts):.6f}"
+        ),
+        "block_utilisation": f"{block_mean / preferred:.9f}",
+    }
+    for field, value in block_regenerated.items():
+        if summary[field] != value:
+            raise ValueError(f"{summary_path}: {field} does not regenerate from blocks")
 
     transaction_path = (project_root / summary["raw_transactions_file"]).resolve()
     if not transaction_path.is_relative_to(project_root) or not transaction_path.is_file():
@@ -773,6 +1012,8 @@ def validate_transaction_summary(project_root: Path, summary_argument: str) -> l
     endorsements = []
     valid_count = 0
     invalid_count = 0
+    unavailable_count = 0
+    accepted_transactions_by_block: dict[int, int] = {}
     for row in rows:
         if (
             row["config"] != summary["config"]
@@ -793,30 +1034,72 @@ def validate_transaction_summary(project_root: Path, summary_argument: str) -> l
             raise ValueError(f"{transaction_path}: invalid serialized-envelope evidence")
         accepted_bytes.append(envelope_bytes)
         endorsements.append(endorsement_count)
+        block_number = parse_uint(transaction_path, "block_number", row["block_number"])
+        accepted_transactions_by_block[block_number] = (
+            accepted_transactions_by_block.get(block_number, 0) + 1
+        )
         if row["validation_code"] == "0":
             valid_count += 1
+        elif row["validation_code"] == "-1" and row["validation_name"] == "unavailable":
+            unavailable_count += 1
         else:
             invalid_count += 1
 
     if not accepted_bytes:
         raise ValueError(f"{transaction_path}: no accepted ordinary transactions")
+    if accepted_transactions_by_block != accepted_block_counts:
+        raise ValueError(
+            f"{transaction_path}: per-block transaction counts do not match block evidence"
+        )
     regenerated = {
         "ordinary_transaction_count": str(len(accepted_bytes)),
         "valid_transaction_count": str(valid_count),
         "invalid_transaction_count": str(invalid_count),
+        "validation_unavailable_count": str(unavailable_count),
         "tx_bytes_mean": f"{sum(accepted_bytes) / len(accepted_bytes):.6f}",
         "endorsements_per_tx": f"{sum(endorsements) / len(endorsements):.6f}",
         "endorsements_min": str(min(endorsements)),
         "endorsements_max": str(max(endorsements)),
     }
-    for field, value in regenerated.items():
+    for field in (
+        "ordinary_transaction_count", "tx_bytes_mean", "endorsements_per_tx",
+        "endorsements_min", "endorsements_max",
+    ):
+        value = regenerated[field]
         if summary[field] != value:
             raise ValueError(f"{summary_path}: {field} does not regenerate from transactions")
+    if "validation_unavailable_count" in summary:
+        for field in (
+            "valid_transaction_count", "invalid_transaction_count",
+            "validation_unavailable_count",
+        ):
+            if summary[field] != regenerated[field]:
+                raise ValueError(
+                    f"{summary_path}: {field} does not regenerate from transactions"
+                )
+        validation_semantics = "validation_codes_reported_separately"
+    else:
+        legacy_invalid = invalid_count + unavailable_count
+        if (
+            summary["valid_transaction_count"] != str(valid_count)
+            or summary["invalid_transaction_count"] != str(legacy_invalid)
+        ):
+            raise ValueError(
+                f"{summary_path}: legacy validation counts do not regenerate"
+            )
+        validation_semantics = (
+            "legacy_summary_grouped_validation_unavailable_with_invalid; "
+            "derived invalid/unavailable counts above supersede those two raw-summary fields"
+        )
     return [{
         "config": summary["config"],
         "run_label": summary["run_label"],
         "benchmark_label": summary["benchmark_label"],
+        **block_regenerated,
         **regenerated,
+        "validation_evidence_status": validation_semantics,
+        "raw_blocks_file": summary["raw_blocks_file"],
+        "raw_blocks_sha256": summary["raw_blocks_sha256"],
         "raw_transactions_file": summary["raw_transactions_file"],
         "raw_transactions_sha256": summary["raw_transactions_sha256"],
         "summary_source": relative(summary_path, project_root),

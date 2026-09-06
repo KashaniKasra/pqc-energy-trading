@@ -9,7 +9,7 @@ This repository is an empirical measurement package for a research testbed. Its 
 - E0 server primitive measurements are complete: 21 scheme/operation rows, 10,000 retained samples per row, and median/p95/p99 summaries. Meter/SBC measurements and the supplied sanity-gate implementation are still missing.
 - E1 is functionally implemented for ECDSA, ML-DSA-44, ML-DSA-65, and SPHINCS+-SHA2-128s-simple using one Fabric topology and one fixed Caliper profile.
 - Candidate fixed-profile data exist for ECDSA, ML-DSA-44, and ML-DSA-65. They pass sample-count and zero-failure checks, but their retained logs predate full preflight capture, so they are not silently promoted to final data.
-- The identical-profile SPHINCS+ run saturated and failed heavily. Its raw samples, 50-TPS success/error rates, and saturation status are reportable, but the run is excluded from normal latency. A separate 1/2/5/10/20 TPS sweep is prepared to characterize SPHINCS+ sustainable throughput without replacing the common-profile result.
+- The identical-profile SPHINCS+ run saturated and failed heavily. Its raw samples, 50-TPS success/error rates, and saturation status are reportable, but the run is excluded from normal latency. The supplemental 1/2/5/10/20 TPS sweep completed with every point sustainable under the fixed gates; 20 TPS is the current highest tested passing rate and does not replace the common-profile result.
 - `identity_bytes` now means public-key bytes only. The four peer values are 91 bytes (ECDSA DER SubjectPublicKeyInfo), 1312 (ML-DSA-44), 1952 (ML-DSA-65), and 32 (SPHINCS+) within each configuration. Historical signcert-size evidence remains preserved but is supporting evidence, not `identity_bytes`.
 - The ECDSA block-filling probe provides the accepted boundary-inclusive block-utilisation value `0.930951670`. Its retained block CSV predates exact per-envelope extraction, so `tx_bytes_mean` still requires a future block-evidence collection. Final latency population remains unresolved, so `data/e1_fabric.csv` has not been created.
 - E2 and later experiments are not implemented.
@@ -295,7 +295,7 @@ Regenerate common-profile success/error rates and saturation labels with:
 
 ## SPHINCS+ low-rate sweep and sustainability rule
 
-`benchmark_sphincs_sweep.yaml` is a supplemental profile created because SPHINCS+ saturated at the unchanged common 50 TPS point. It has a discarded 20-second 1 TPS warm-up followed by 60 seconds each at 1, 2, 5, 10, and 20 TPS. It does not replace or modify `benchmark.yaml`. `benchmark_sphincs_refine_3_4.yaml` provides optional 3 and 4 TPS boundary points after the first sweep is analyzed.
+`benchmark_sphincs_sweep.yaml` is a supplemental profile created because SPHINCS+ saturated at the unchanged common 50 TPS point. It has a discarded 20-second 1 TPS warm-up followed by 60 seconds each at 1, 2, 5, 10, and 20 TPS. It does not replace or modify `benchmark.yaml`.
 
 The later professor instruction fixes these rounds at 60 seconds. Consequently the lowest rates intentionally contain fewer than 1,000 requests; this topic-specific clarification supersedes the earlier general sample-count rule for this sweep and must be disclosed with its results.
 
@@ -309,19 +309,25 @@ E1_RUN_TYPE=sweep \
 ./run_e1.sh sphincs
 ```
 
-Do not run the 3/4 TPS refinement profile until the initial sweep has been analyzed. It must use a new namespace if it is later needed.
-
 A tested rate is sustainable only if all three deterministic checks pass:
 
 - `tx_success_rate = success / (success + fail) >= 0.99`;
 - successful throughput, defined as `success / 60 seconds`, is at least `0.95 * offered_rate`;
 - successful end-to-end latency is stable: p95 for requests starting in `[48000,60000)` ms is no more than 2.0 times p95 for requests starting in `[0,12000)` ms.
 
-These are the first and last 20% of the configured 60-second round, selected by monotonic request-start offset. Each window must contain at least five successful samples. Percentiles use linear interpolation at rank `p*(n-1)`. The final SPHINCS+ `tps_sustained` is the highest tested low-rate point passing all checks; zero failures are not required. Evaluate a completed run with:
+These are the first and last 20% of the configured 60-second round, selected by monotonic request-start offset. Each window must contain at least five successful samples. Percentiles use linear interpolation at rank `p*(n-1)`. The final SPHINCS+ `tps_sustained` is the highest tested low-rate point passing all checks; zero failures are not required. The evaluator validates the run log, benchmark hash, CPU/Fabric/image provenance, height-marker sequence, all endorsement/commit/e2e file schemas and counts, and every source hash before reporting results:
 
 ```bash
 ./src/e1/analyze_timings.py --sustainability sphincs-lowrate-v1_sphincs
 ```
+
+The retained `sphincs-lowrate-v1_sphincs` sweep completed with zero failures at every tested rate. All 1/2/5/10/20 TPS points pass the preregistered success-rate, successful-throughput, and latency-stability gates, so the current highest tested sustainable rate is 20 TPS. Exact statistics and hashes are retained in `data/e1_sphincs_sustainability.csv`. The earlier 3/4-TPS refinement profile is unnecessary because both rates lie below an already-passing 20 TPS point.
+
+Same-ledger evidence for the 20 TPS round contains 1,201 serialized endorser-transaction envelopes in 30 ordinary blocks. The blocks are BatchTimeout-driven: 30 blocks over about 60 seconds matches `BatchTimeout=2s`; the 29 nonterminal blocks contain 35–46 transactions (mean 41.206897), close to the 40 expected from 20 TPS for two seconds; no block approaches `MaxMessageCount=500` or `PreferredMaxBytes`. Consequently its `block_bytes_mean=790308.966667` and rho `0.376848682` are retained as diagnostic evidence and are ineligible for final SPHINCS+ block utilisation.
+
+The same evidence independently supports `tx_bytes_mean=19711.570358`, calculated from each exact serialized `common.Envelope`, and empirical `endorsements_per_tx=2.000000` with min=max=2 across all 1,201 transactions. Validation codes are unavailable because `peer channel fetch` obtained the orderer's block copy without peer-added `TRANSACTIONS_FILTER` metadata. The original raw summary grouped these unavailable codes with invalid transactions; it remains unchanged, while `data/e1_sphincs_transaction_evidence.csv` records the corrected interpretation as valid=0, invalid=0, unavailable=1201. This limitation does not affect envelope sizes or embedded endorsement counts.
+
+The next minimal boundary probe is 35 TPS, the integer midpoint between the passing 20 TPS point and the separately retained saturated common-profile 50 TPS point. `benchmark_sphincs_boundary_35.yaml` contains only the discarded warm-up and one 60-second 35 TPS round. Analyze that result before selecting any subsequent midpoint; do not run a predetermined sequence.
 
 The final E1 schema, once all decisions and measurements are valid, is:
 

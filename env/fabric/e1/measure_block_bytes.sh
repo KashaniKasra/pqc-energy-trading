@@ -208,6 +208,7 @@ ordinary_transaction_count=0
 ordinary_transaction_total_bytes=0
 ordinary_valid_transaction_count=0
 ordinary_invalid_transaction_count=0
+ordinary_validation_unavailable_count=0
 endorsement_total=0
 endorsement_min=-1
 endorsement_max=-1
@@ -294,6 +295,8 @@ for (( block=START_BLOCK; block<=END_BLOCK; block++ )); do
             fi
             if [[ "$validation_code" == "0" ]]; then
                 ordinary_valid_transaction_count=$((ordinary_valid_transaction_count + 1))
+            elif [[ "$validation_code" == "-1" && "$validation_name" == "unavailable" ]]; then
+                ordinary_validation_unavailable_count=$((ordinary_validation_unavailable_count + 1))
             else
                 ordinary_invalid_transaction_count=$((ordinary_invalid_transaction_count + 1))
             fi
@@ -338,10 +341,10 @@ RAW_BLOCKS_SHA256="$(sha256sum "$TEMP_RAW_BLOCKS" | awk '{print $1}')"
 RAW_TRANSACTIONS_SHA256="$(sha256sum "$TEMP_TRANSACTIONS" | awk '{print $1}')"
 
 printf '%s\n' \
-    'config,run_label,benchmark_label,start_block,end_block,ordinary_block_count,excluded_block_count,block_bytes_mean,transactions_per_block_mean,effective_preferred_max_bytes,block_utilisation,BatchTimeout,MaxMessageCount,AbsoluteMaxBytes,effective_config_block_number,effective_config_block_sha256,raw_blocks_file,raw_blocks_sha256,ordinary_transaction_count,valid_transaction_count,invalid_transaction_count,tx_bytes_mean,endorsements_per_tx,endorsements_min,endorsements_max,raw_transactions_file,raw_transactions_sha256,measurement_status' \
+    'config,run_label,benchmark_label,start_block,end_block,ordinary_block_count,excluded_block_count,block_bytes_mean,transactions_per_block_mean,effective_preferred_max_bytes,block_utilisation,BatchTimeout,MaxMessageCount,AbsoluteMaxBytes,effective_config_block_number,effective_config_block_sha256,raw_blocks_file,raw_blocks_sha256,ordinary_transaction_count,valid_transaction_count,invalid_transaction_count,validation_unavailable_count,tx_bytes_mean,endorsements_per_tx,endorsements_min,endorsements_max,raw_transactions_file,raw_transactions_sha256,measurement_status' \
     > "$TEMP_SUMMARY"
 
-printf '%s,%s,%s,%d,%d,%d,%d,%s,%s,%d,%s,%s,%d,%d,%d,%s,%s,%s,%d,%d,%d,%s,%s,%d,%d,%s,%s,%s\n' \
+printf '%s,%s,%s,%d,%d,%d,%d,%s,%s,%d,%s,%s,%d,%d,%d,%s,%s,%s,%d,%d,%d,%d,%s,%s,%d,%d,%s,%s,%s\n' \
     "$CONFIG" \
     "$RUN_LABEL" \
     "$BENCHMARK_LABEL" \
@@ -363,6 +366,7 @@ printf '%s,%s,%s,%d,%d,%d,%d,%s,%s,%d,%s,%s,%d,%d,%d,%s,%s,%s,%d,%d,%d,%s,%s,%d,
     "$ordinary_transaction_count" \
     "$ordinary_valid_transaction_count" \
     "$ordinary_invalid_transaction_count" \
+    "$ordinary_validation_unavailable_count" \
     "$TX_BYTES_MEAN" \
     "$ENDORSEMENTS_PER_TX" \
     "$endorsement_min" \
@@ -389,6 +393,7 @@ echo "  block_utilisation=$BLOCK_UTILISATION"
 echo "  tx_bytes_mean=$TX_BYTES_MEAN"
 echo "  endorsements_per_tx=$ENDORSEMENTS_PER_TX"
 echo "  endorsements_range=${endorsement_min}-${endorsement_max}"
+echo "  validation_counts=valid:${ordinary_valid_transaction_count},invalid:${ordinary_invalid_transaction_count},unavailable:${ordinary_validation_unavailable_count}"
 echo "  raw_blocks_file=$RAW_BLOCKS_FILE"
 echo "  raw_transactions_file=$TRANSACTIONS_FILE"
 echo "  summary_file=$SUMMARY_FILE"
