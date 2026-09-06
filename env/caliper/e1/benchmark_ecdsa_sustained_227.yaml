@@ -1,0 +1,45 @@
+test:
+  name: E1 ECDSA Sustainable-Rate Probe at 227 TPS
+  description: Single 60-second ECDSA integer-midpoint probe using the preregistered sustainability criteria
+  workers:
+    type: local
+    number: 1
+
+  rounds:
+    - label: warmup
+      description: Warm-up round; results are discarded
+      txDuration: 20
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 50
+      workload:
+        module: workload/set.js
+        arguments:
+          contractId: simplekv
+          roundLabel: warmup
+
+    - label: sustained-227-tps
+      description: Offer 227 TPS for 60 seconds
+      txDuration: 60
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 227
+      workload:
+        module: workload/set.js
+        arguments:
+          contractId: simplekv
+          roundLabel: sustained-227-tps
+
+monitors:
+  resource:
+    - module: docker
+      options:
+        interval: 1
+        containers:
+          - orderer.example.com
+          - peer0.org1.example.com
+          - peer1.org1.example.com
+          - peer0.org2.example.com
+          - peer1.org2.example.com

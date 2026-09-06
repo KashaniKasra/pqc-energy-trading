@@ -125,6 +125,16 @@ class SustainabilityTests(unittest.TestCase):
         )
         self.assertEqual(spec["run_type"], "sustainability")
 
+    def test_ecdsa_227_profile_is_registered_immutably(self) -> None:
+        spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
+            ("ecdsa", ("sustained-227-tps",))
+        ]
+        self.assertEqual(
+            spec["path"],
+            "env/caliper/e1/benchmark_ecdsa_sustained_227.yaml",
+        )
+        self.assertEqual(spec["run_type"], "sustainability")
+
     def test_ecdsa_230_profile_is_registered_immutably(self) -> None:
         spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
             ("ecdsa", ("sustained-230-tps",))
