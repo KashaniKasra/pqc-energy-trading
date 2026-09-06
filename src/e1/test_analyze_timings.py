@@ -125,6 +125,16 @@ class SustainabilityTests(unittest.TestCase):
         )
         self.assertEqual(spec["run_type"], "sustainability")
 
+    def test_ecdsa_250_profile_is_registered_immutably(self) -> None:
+        spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
+            ("ecdsa", ("sustained-250-tps",))
+        ]
+        self.assertEqual(
+            spec["path"],
+            "env/caliper/e1/benchmark_ecdsa_sustained_250.yaml",
+        )
+        self.assertEqual(spec["run_type"], "sustainability")
+
     def test_success_rate_threshold(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
