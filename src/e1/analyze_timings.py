@@ -671,6 +671,8 @@ def validate_sweep_provenance(
         benchmark_relative = "env/caliper/e1/benchmark_sphincs_boundary_35.yaml"
     elif rates == [28]:
         benchmark_relative = "env/caliper/e1/benchmark_sphincs_boundary_28.yaml"
+    elif rates == [24]:
+        benchmark_relative = "env/caliper/e1/benchmark_sphincs_boundary_24.yaml"
     else:
         raise ValueError(f"unsupported SPHINCS+ sweep rate sequence: {rates}")
     benchmark_path = project_root / benchmark_relative

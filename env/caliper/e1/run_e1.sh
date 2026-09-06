@@ -81,7 +81,7 @@ if [[ -z "$RUN_LABEL" && "$RUN_TYPE" != "fixed-profile" ]]; then
 fi
 
 case "$(basename "$BENCHMARK_CONFIG")" in
-    benchmark_sphincs_sweep.yaml|benchmark_sphincs_refine_3_4.yaml|benchmark_sphincs_boundary_35.yaml|benchmark_sphincs_boundary_28.yaml)
+    benchmark_sphincs_sweep.yaml|benchmark_sphincs_refine_3_4.yaml|benchmark_sphincs_boundary_35.yaml|benchmark_sphincs_boundary_28.yaml|benchmark_sphincs_boundary_24.yaml)
         if [[ "$CONFIG" != "sphincs" || "$RUN_TYPE" != "sweep" || -z "$RUN_LABEL" ]]; then
             echo "ERROR: SPHINCS+ sweep profiles require config=sphincs, E1_RUN_TYPE=sweep, and a nonempty E1_RUN_LABEL."
             exit 1
