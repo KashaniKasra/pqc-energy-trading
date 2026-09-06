@@ -229,6 +229,10 @@ The tool derives the range from that run's before/after heights, rejects block 0
 
 For future collections it also writes a per-transaction CSV. The byte value is exactly `len(Block.Data.Data[i])`, i.e. the serialized `common.Envelope` stored in the block—not `block_bytes / transaction_count`. Each row retains the envelope SHA-256, transaction ID, validation code, and actual endorsement count. `tx_bytes_mean` is computed over the serialized endorser-transaction envelopes in accepted ordinary blocks.
 
+The historical ECDSA block evidence predates this envelope extraction, and no serialized historical blocks were retained, so its `tx_bytes_mean` cannot be reconstructed. The minimal replacement workflow uses `benchmark_tx_evidence_50.yaml`: it is exactly the warm-up plus 50-TPS prefix of the unchanged common profile and omits only the unnecessary 200-TPS round. The 120-second 50-TPS population supplies at least 1,000 samples, preserves the common workload's transaction payload sequence, and avoids making transaction-size evidence depend on the unresolved final latency-population choice. This run is evidence-only and must not replace the historical latency candidate.
+
+After a human runs the profile under namespace `tx-evidence-50-v1_ecdsa`, `measure_block_bytes.sh ecdsa tx-evidence-50-v1 50-tps` must run before teardown or any new Fabric setup. It fetches the same ledger interval and empirically counts the embedded endorsements in every retained transaction even though the configured policy already requires two.
+
 After collection, independently reconcile the per-transaction CSV and its summary with:
 
 ```bash

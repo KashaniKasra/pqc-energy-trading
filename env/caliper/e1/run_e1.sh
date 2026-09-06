@@ -87,6 +87,12 @@ case "$(basename "$BENCHMARK_CONFIG")" in
             exit 1
         fi
         ;;
+    benchmark_tx_evidence_50.yaml)
+        if [[ "$CONFIG" != "ecdsa" || "$RUN_TYPE" != "evidence" || -z "$RUN_LABEL" ]]; then
+            echo "ERROR: The transaction-evidence profile requires config=ecdsa, E1_RUN_TYPE=evidence, and a nonempty E1_RUN_LABEL."
+            exit 1
+        fi
+        ;;
 esac
 
 PEER_GATEWAY_FILE="$SCRIPT_DIR/node_modules/@hyperledger/caliper-fabric/lib/connector-versions/peer-gateway/PeerGateway.js"
