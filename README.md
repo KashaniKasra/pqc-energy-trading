@@ -335,7 +335,9 @@ The 24 TPS probe is not sustainable despite completing all 1,441 requests succes
 
 The 22 TPS probe is sustainable: all 1,321 requests succeeded, successful throughput was 22.016667 TPS (`1.000758` of offered), and successful e2e median/p95/p99 were 3444.793506/5941.405725/6501.009460 ms. Its success-rate and throughput gates passed, and its ending/beginning p95 ratio of 1.876994 passed the latency-stability gate. Exact source hashes are retained in `data/e1_sphincs_boundary_22.csv`.
 
-The tested boundary is therefore 22 TPS passing and 24 TPS failing. The only untested integer midpoint is 23 TPS. `benchmark_sphincs_boundary_23.yaml` contains only the discarded warm-up and one 60-second 23 TPS round. Analyze it before choosing any later rate.
+The 23 TPS probe is not sustainable despite completing all 1,381 requests successfully. Its successful throughput was 23.016667 TPS (`1.000725` of offered), so the success-rate and throughput gates passed. Successful e2e median/p95/p99 were 5252.631986/9124.870637/10627.962666 ms, but its ending/beginning p95 ratio of 2.368567 failed the latency-stability gate. Exact source hashes are retained in `data/e1_sphincs_boundary_23.csv`.
+
+The integer boundary search is complete: 22 TPS is the highest tested sustainable integer rate and 23 TPS is the first tested nonsustainable integer rate. Therefore the working final SPHINCS+ `tps_sustained` is 22 TPS; no additional integer boundary probe is required.
 
 The final E1 schema, once all decisions and measurements are valid, is:
 

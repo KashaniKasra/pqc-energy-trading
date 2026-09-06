@@ -215,7 +215,7 @@
         "result_summary": "data/e1_sphincs_sustainability.csv",
         "result_summary_sha256": "3ecb1492db69d2cbc2b866a2b495de7d59809c1a489b0c10ae6c47901a92ea02",
         "highest_tested_sustainable_tps": 22,
-        "final_boundary_status": "current tested boundary is between sustainable 22 TPS and nonsustainable 24 TPS",
+        "final_boundary_status": "integer boundary search complete: 22 TPS is the highest tested sustainable integer rate and 23 TPS is the first tested nonsustainable integer rate",
         "transaction_evidence_20_tps": {
           "status": "transaction-size and endorsement evidence accepted; block utilisation diagnostic-only because closure was BatchTimeout-driven",
           "block_interval": "121-150",
@@ -390,13 +390,44 @@
           "block_heights": "raw/e1/sphincs-boundary-22-v1_sphincs_block_heights.csv",
           "block_heights_sha256": "e3765b163a043c4d5da29ecc63af81c46d26129c89fbe86039d4132b1718401c"
         },
-        "next_boundary_probe": {
+        "boundary_23_tps_result": {
           "profile_file": "env/caliper/e1/benchmark_sphincs_boundary_23.yaml",
           "profile_sha256": "61fbc47facc60720bb919796e8fad8f42b1be7f4e00f584d4005aedbf8bb4c68",
           "rate_tps": 23,
           "duration_seconds": 60,
-          "selection": "only untested integer midpoint between sustainable 22 TPS and nonsustainable 24 TPS; analyze before choosing another rate",
-          "status": "prepared_not_measured"
+          "run_namespace": "sphincs-boundary-23-v1_sphincs",
+          "project_commit_at_run": "34ce366943d8a5184ffbf2fc77ea735fe4540fce",
+          "total": 1381,
+          "success": 1381,
+          "fail": 0,
+          "tx_success_rate": "1.000000000",
+          "tx_error_rate": "0.000000000",
+          "successful_throughput_tps": "23.016667",
+          "achieved_offered_ratio": "1.000725",
+          "overall_successful_e2e_median_ms": "5252.631986",
+          "overall_successful_e2e_p95_ms": "9124.870637",
+          "overall_successful_e2e_p99_ms": "10627.962666",
+          "beginning_p95_e2e_ms": "4487.086282",
+          "ending_p95_e2e_ms": "10627.962666",
+          "ending_to_beginning_p95_ratio": "2.368567",
+          "success_rate_pass": true,
+          "throughput_pass": true,
+          "latency_stability_pass": false,
+          "sustainable": false,
+          "endorsement_timing_count": 1381,
+          "commit_timing_count": 1381,
+          "result_summary": "data/e1_sphincs_boundary_23.csv",
+          "result_summary_sha256": "43af9b9e8345450877b63c520c3749afa7ffd8f9a194099e4ebc9105b54c1a76",
+          "run_log": "raw/e1/sphincs-boundary-23-v1_sphincs_caliper_run.log",
+          "run_log_sha256": "fcf955f7487fcd8d65c2da647038060ec64e5abfa697119b0ad614a4c947f971",
+          "block_heights": "raw/e1/sphincs-boundary-23-v1_sphincs_block_heights.csv",
+          "block_heights_sha256": "09b2ce32bc891cdbae2c78ae45dfe88cc7e1c97c6afc24b59b62e1d22a316f8f"
+        },
+        "integer_boundary_search": {
+          "status": "complete",
+          "highest_tested_sustainable_tps": 22,
+          "first_tested_nonsustainable_integer_tps": 23,
+          "additional_integer_probe_required": false
         }
       },
       "endorsement_timing_boundary": "proposal.endorse()",
