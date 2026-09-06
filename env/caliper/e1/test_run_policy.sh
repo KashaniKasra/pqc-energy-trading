@@ -18,6 +18,7 @@ const expected = {
     'benchmark_ecdsa_sustained_223.yaml': [['warmup', 20, 50], ['sustained-223-tps', 60, 223]],
     'benchmark_ecdsa_sustained_224.yaml': [['warmup', 20, 50], ['sustained-224-tps', 60, 224]],
     'benchmark_ecdsa_sustained_227.yaml': [['warmup', 20, 50], ['sustained-227-tps', 60, 227]],
+    'benchmark_ecdsa_sustained_228.yaml': [['warmup', 20, 50], ['sustained-228-tps', 60, 228]],
     'benchmark_ecdsa_sustained_230.yaml': [['warmup', 20, 50], ['sustained-230-tps', 60, 230]],
     'benchmark_ecdsa_sustained_237.yaml': [['warmup', 20, 50], ['sustained-237-tps', 60, 237]],
     'benchmark_ecdsa_sustained_250.yaml': [['warmup', 20, 50], ['sustained-250-tps', 60, 250]],
@@ -64,6 +65,7 @@ validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_222.yaml sustainability s
 validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_223.yaml sustainability sustained-223-v1
 validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_224.yaml sustainability sustained-224-v1
 validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_227.yaml sustainability sustained-227-v1
+validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_228.yaml sustainability sustained-228-v1
 validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_230.yaml sustainability sustained-230-v1
 validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_237.yaml sustainability sustained-237-v1
 validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_250.yaml sustainability sustained-250-v1
@@ -79,6 +81,8 @@ expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ecdsa_sustained_224.y
 expect_rejected validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_224.yaml diagnostic bad
 expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ecdsa_sustained_227.yaml sustainability bad
 expect_rejected validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_227.yaml diagnostic bad
+expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ecdsa_sustained_228.yaml sustainability bad
+expect_rejected validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_228.yaml diagnostic bad
 expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ecdsa_sustained_230.yaml sustainability bad
 expect_rejected validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_230.yaml diagnostic bad
 expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ecdsa_sustained_237.yaml sustainability bad
@@ -92,6 +96,7 @@ expect_rejected validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_222.yaml 
 expect_rejected validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_223.yaml sustainability ""
 expect_rejected validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_224.yaml sustainability ""
 expect_rejected validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_227.yaml sustainability ""
+expect_rejected validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_228.yaml sustainability ""
 expect_rejected validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_230.yaml sustainability ""
 expect_rejected validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_237.yaml sustainability ""
 expect_rejected validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_250.yaml sustainability ""
