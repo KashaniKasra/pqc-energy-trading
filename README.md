@@ -415,5 +415,3 @@ The student specification defines the dependency order after E1:
 - E7: at least 1,000 raw end-to-end samples per configuration using a documented/licensed 15-minute PV/demand trace. `sets_reimpl` must always be identified as a reimplementation.
 - E8: constrained-hardware energy with separately measured idle/load power and a documented instrument.
 - E6: optional key-aggregation ablation.
-
-No proposal-era energy-market or power-flow logic should be introduced unless the student specification requires it. Mininet represents the communication network only.
