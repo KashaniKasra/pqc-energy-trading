@@ -1103,10 +1103,27 @@ def validate_namespaced_run_provenance(
     benchmark_relative = spec["path"]
     benchmark_path = project_root / benchmark_relative
     metadata = json.loads((project_root / "meta.json").read_text(encoding="utf-8"))
-    images = metadata["e1_benchmark"]["installed_images_at_metadata_update"]
     block = metadata["e1_benchmark"]["fabric_block_parameters"]
 
     log_text = log_path.read_text(encoding="utf-8", errors="strict")
+    patch_match = re.search(
+        r"^\[E1\] fabric_pq_patch_sha256=([0-9a-f]{64})$", log_text, re.MULTILINE
+    )
+    if patch_match is None:
+        raise ValueError(f"{log_path}: missing Fabric PQ patch SHA-256")
+    image_sets = [metadata["e1_benchmark"]["installed_images_at_metadata_update"]]
+    image_sets.extend(metadata["e1_benchmark"].get("superseded_installed_images", []))
+    matching_image_sets = [
+        image_set
+        for image_set in image_sets
+        if image_set["fabric_pq_patch_sha256"] == patch_match.group(1)
+    ]
+    if len(matching_image_sets) != 1:
+        raise ValueError(
+            f"{log_path}: expected exactly one metadata image set for patch "
+            f"{patch_match.group(1)}, found {len(matching_image_sets)}"
+        )
+    images = matching_image_sets[0]
     required_log_lines = [
         f"[E1] configuration={config}",
         f"[E1] run_type={spec['run_type']}",

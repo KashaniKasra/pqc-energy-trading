@@ -172,7 +172,7 @@
       "orderer_binary_note": "Patched to verify requests signed by PQ peer identities",
       "verification_dispatch": "An X.509 certificate carrying experimental extension 1.3.6.1.3.9999.1 is imported as *sw.pqPublicKey before its ECDSA SPKI is considered. BCCSP dispatches that concrete key type only to pqPublicKeyVerifier, which initializes oqs.Signature with the extension algorithm and calls oqs.Signature.Verify. Import, initialization, or verification failure returns an error/false; there is no ECDSA verification fallback for the PQ key type.",
       "runtime_verification_audit": {
-        "status": "tooling prepared; rebuilt images and separate human-controlled functional audit still required before clean latency reruns",
+        "status": "trace-enabled images rebuilt and provenance-validated; separate human-controlled functional audits remain required before clean latency reruns",
         "trace_control": "FABRIC_PQ_VERIFY_TRACE=1 enables one INFO trace per algorithm/result pair per process; Caliper run_e1.sh rejects this setting so trace logging cannot perturb performance runs",
         "collector": "env/fabric/e1/collect_pq_verification_evidence.sh",
         "regression_test": "bccsp/sw TestPQVerifierDispatchRejectsClassicalFallback covers ML-DSA-44, ML-DSA-65, and SPHINCS+-SHA2-128s-simple",
@@ -1160,13 +1160,24 @@
       }
     },
     "installed_images_at_metadata_update": {
-      "observed_at": "2026-09-04",
-      "peer": "sha256:6fe74f12e91ab73a07b13d4a7d2954df8a2ad5a6e00ea2665cfffed7f34f5448",
-      "orderer": "sha256:b56ec95ae9168725b8c8e1dc4bc4126f30f2b661e3dc99dd72225dc87b1f3d1f",
-      "fabric_pq_patch_sha256": "2eeee5582fabd90bb9e675e98bce3daf94a087d2d6848ccfa720f7216e23550f",
-      "validation": "Rebuilt after the pqPublicKey.Private() correction; Fabric PQ regression tests passed, both binaries report Fabric 2.5.16 commit f871cf9 built with Go 1.26.4 and link to liboqs/libcrypto, and local binary disassembly confirms pqPublicKey.Private() returns false.",
-      "current_source_status": "These installed images correspond to patch 2eeee558... and predate the opt-in verifier trace/no-fallback audit additions in current patch 5268f9f6.... They must be rebuilt before runtime verification evidence or clean latency reruns."
+      "observed_at": "2026-09-10",
+      "peer": "sha256:3d71da5ac46b179c981527b69ac832cb7905bd3bc428ee6b2620bc580e3c944e",
+      "orderer": "sha256:4ec6f0287e3fda35a874357bfe9c9f2ef8b9fbb427a42457de3b6b1b98290058",
+      "fabric_pq_patch_sha256": "5268f9f67656233d7e7b9ac7c449f20f05fc8a8257fb91eb0de63698a72d1293",
+      "fabric_commit_label": "f871cf92a026aba7b12e6f06d71ded3e6e659d71",
+      "liboqs_commit_label": "97f6b86b1b6d109cfd43cf276ae39c2e776aed80",
+      "validation": "Trace-enabled peer and orderer images report Fabric 2.5.16 commit f871cf9, Go 1.26.4, linux/amd64, dynamically link to liboqs.so.9/libcrypto, and carry matching Fabric/liboqs/patch provenance labels.",
+      "current_source_status": "Current installed images match repository patch 5268f9f6... and are eligible for the separate functional PQ verification audits and subsequent clean common-profile reruns."
     },
+    "superseded_installed_images": [
+      {
+        "observed_at": "2026-09-04",
+        "peer": "sha256:6fe74f12e91ab73a07b13d4a7d2954df8a2ad5a6e00ea2665cfffed7f34f5448",
+        "orderer": "sha256:b56ec95ae9168725b8c8e1dc4bc4126f30f2b661e3dc99dd72225dc87b1f3d1f",
+        "fabric_pq_patch_sha256": "2eeee5582fabd90bb9e675e98bce3daf94a087d2d6848ccfa720f7216e23550f",
+        "status": "Superseded by the trace-enabled images. Retained only to validate measurements whose own run logs explicitly record these image IDs and patch hash; not attributed to older common-profile runs whose image IDs were not retained."
+      }
+    ],
     "data_provenance": {
       "candidate_timing_summary": "data/e1_timing_candidates.csv",
       "candidate_timing_status": "ECDSA/ML-DSA-44/ML-DSA-65 pass sample-count and zero-failure checks, but are supporting historical candidates only. Their height files verify a common height-7 ledger baseline; exact setup/artifact/image/worktree and complete CPU-preflight equivalence are not retained, so professor-directed clean 200-TPS common-profile reruns are pending.",

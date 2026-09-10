@@ -37,7 +37,7 @@ if [[ ! "$RUN_LABEL" =~ ^[a-z0-9][a-z0-9._-]*$ ]]; then
     exit 1
 fi
 
-for command_name in date docker git grep realpath sed sha256sum tee; do
+for command_name in date docker git grep jq realpath sed sha256sum tee; do
     if ! command -v "$command_name" >/dev/null 2>&1; then
         echo "ERROR: Required command not found: $command_name"
         exit 1
@@ -99,6 +99,15 @@ if [[ -n "$PROJECT_TRACKED_STATUS" ]]; then
 fi
 PEER_IMAGE_ID="$(docker image inspect "$PEER_IMAGE" --format '{{.Id}}')"
 ORDERER_IMAGE_ID="$(docker image inspect "$ORDERER_IMAGE" --format '{{.Id}}')"
+EXPECTED_PEER_IMAGE_ID="$(jq -r '.e1_benchmark.installed_images_at_metadata_update.peer' "$PROJECT_ROOT/meta.json")"
+EXPECTED_ORDERER_IMAGE_ID="$(jq -r '.e1_benchmark.installed_images_at_metadata_update.orderer' "$PROJECT_ROOT/meta.json")"
+if [[ "$PEER_IMAGE_ID" != "$EXPECTED_PEER_IMAGE_ID" ||
+      "$ORDERER_IMAGE_ID" != "$EXPECTED_ORDERER_IMAGE_ID" ]]; then
+    echo "ERROR: Installed image IDs do not match the current meta.json provenance checkpoint."
+    echo "Expected peer=$EXPECTED_PEER_IMAGE_ID orderer=$EXPECTED_ORDERER_IMAGE_ID"
+    echo "Observed peer=$PEER_IMAGE_ID orderer=$ORDERER_IMAGE_ID"
+    exit 1
+fi
 
 exec > >(tee "$LOG_FILE") 2>&1
 

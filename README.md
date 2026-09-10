@@ -129,14 +129,14 @@ cd env/fabric/e1
 
 The script validates pins, applies the repository patch temporarily, runs the narrow Fabric tests, builds both images, checks versions/dynamic libraries, and reverses the patch on exit.
 
-The current repository Fabric patch has SHA-256 `5268f9f67656233d7e7b9ac7c449f20f05fc8a8257fb91eb0de63698a72d1293`. It adds an opt-in, one-shot PQ verification trace and a no-classical-fallback regression test without enabling tracing in performance runs. The previously verified rebuilt images are:
+The current repository Fabric patch has SHA-256 `5268f9f67656233d7e7b9ac7c449f20f05fc8a8257fb91eb0de63698a72d1293`. It adds an opt-in, one-shot PQ verification trace and a no-classical-fallback regression test without enabling tracing in performance runs. The currently installed trace-enabled images are:
 
 ```text
-fabric-peer:2.5.16-pq    sha256:6fe74f12e91ab73a07b13d4a7d2954df8a2ad5a6e00ea2665cfffed7f34f5448
-fabric-orderer:2.5.16-pq sha256:b56ec95ae9168725b8c8e1dc4bc4126f30f2b661e3dc99dd72225dc87b1f3d1f
+fabric-peer:2.5.16-pq    sha256:3d71da5ac46b179c981527b69ac832cb7905bd3bc428ee6b2620bc580e3c944e
+fabric-orderer:2.5.16-pq sha256:4ec6f0287e3fda35a874357bfe9c9f2ef8b9fbb427a42457de3b6b1b98290058
 ```
 
-Both report Fabric 2.5.16 commit `f871cf9`, were built with Go 1.26.4, and dynamically link to liboqs and libcrypto. They correspond to the earlier patch SHA-256 `2eeee5582fabd90bb9e675e98bce3daf94a087d2d6848ccfa720f7216e23550f`; they therefore predate the trace/test addition and must not be used for the clean reruns. The next rebuild records Fabric/liboqs/patch provenance as image labels and will produce new IDs.
+Both report Fabric 2.5.16 commit `f871cf9`, were built with Go 1.26.4 for linux/amd64, dynamically link to liboqs and libcrypto, and carry labels for Fabric commit `f871cf92a026aba7b12e6f06d71ded3e6e659d71`, liboqs commit `97f6b86b1b6d109cfd43cf276ae39c2e776aed80`, and the current patch hash above. The superseded pre-trace image IDs remain recorded in `meta.json` only for runs whose own provenance logs explicitly name them. They are not retroactively attributed to historical common-profile runs whose image IDs were not retained.
 
 Current reproducibility caveat: the build expects this cached Go toolchain archive:
 
