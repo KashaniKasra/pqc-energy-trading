@@ -177,6 +177,11 @@ SUSTAINABILITY_PROFILE_SPECS = {
         "run_type": "sustainability",
     },
 }
+CLEAN_FIXED_PROFILE_SPEC = {
+    "path": "env/caliper/e1/benchmark.yaml",
+    "run_type": "fixed-profile",
+    "require_image_labels": "true",
+}
 TRANSACTION_EVIDENCE_FIELDS = [
     "config", "run_label", "benchmark_label", "block_number", "tx_index",
     "channel_header_type", "tx_id", "envelope_bytes", "envelope_sha256",
@@ -936,6 +941,124 @@ def build_latency_professor_review_rows(project_root: Path) -> list[dict[str, st
     return rows
 
 
+def build_clean_fixed_profile_rows(
+    project_root: Path, run_namespace: str
+) -> list[dict[str, str]]:
+    """Validate one future namespaced common-profile rerun without merging rates."""
+    if re.fullmatch(r"[a-z0-9][a-z0-9._-]*", run_namespace) is None:
+        raise ValueError("run namespace contains unsupported characters")
+    config = config_from_run_namespace(run_namespace)
+    raw_dir = project_root / "raw" / "e1"
+    log_path, heights_path, benchmark_path = validate_namespaced_run_provenance(
+        project_root,
+        run_namespace,
+        config,
+        list(ROUNDS),
+        CLEAN_FIXED_PROFILE_SPEC,
+    )
+    results = load_caliper_results(log_path, ROUNDS)
+    rows = []
+
+    for round_label in ROUNDS:
+        result = results[round_label]
+        success = int(result["caliper_success"])
+        fail = int(result["caliper_fail"])
+        total = success + fail
+        tx_success_rate, tx_error_rate = transaction_rates(str(success), str(fail))
+        endorse_path = one_matching_file(
+            raw_dir, f"{run_namespace}_endorse_{round_label}_worker0_*.csv"
+        )
+        commit_path = one_matching_file(
+            raw_dir, f"{run_namespace}_commit_{round_label}_worker0_*.csv"
+        )
+        e2e_path = one_matching_file(
+            raw_dir, f"{run_namespace}_e2e_{round_label}_worker0_*.csv"
+        )
+        endorse = load_samples(endorse_path, minimum_samples=1)
+        commit = load_samples(commit_path, minimum_samples=1)
+        e2e = load_e2e_samples(e2e_path)
+        if len(e2e) != total:
+            raise ValueError(
+                f"{e2e_path}: sample count does not reconcile with Caliper outcomes"
+            )
+        e2e_success = sum(sample["status"] == "success" for sample in e2e)
+        if e2e_success != success:
+            raise ValueError(
+                f"{e2e_path}: success count does not reconcile with Caliper outcomes"
+            )
+        if not success <= len(endorse) <= total or not success <= len(commit) <= total:
+            raise ValueError(
+                f"{run_namespace} {round_label}: timing counts fall outside the "
+                "successful-to-total request range"
+            )
+
+        valid_latency = (
+            config != "sphincs"
+            and fail == 0
+            and success >= MINIMUM_SAMPLES
+            and len(endorse) == success
+            and len(commit) == success
+        )
+        if valid_latency:
+            status = "clean_equivalent_latency_candidate"
+            notes = (
+                "Fresh height-7 network and full standardized provenance verified; "
+                "50-TPS remains supporting and 200-TPS is professor-selected for final latency."
+            )
+        elif config == "sphincs" and fail > 0:
+            status = "saturation_only_not_a_valid_latency_candidate"
+            notes = (
+                "Common-profile saturation is reportable; timing fields are intentionally "
+                "blank and must not be used as a normal latency population."
+            )
+        else:
+            status = "not_a_valid_normal_latency_candidate"
+            notes = (
+                "Failures or timing-count reconciliation prevent normal latency use; "
+                "retain the outcome and raw evidence for review."
+            )
+
+        row = {
+            "config": (
+                "SPHINCS+-SHA2-128s-simple"
+                if config == "sphincs"
+                else FIXED_CONFIGS[config]
+            ),
+            "round_label": round_label,
+            "offered_tps": result["send_rate_tps"],
+            "total": str(total),
+            "success": str(success),
+            "fail": str(fail),
+            "tx_success_rate": tx_success_rate,
+            "tx_error_rate": tx_error_rate,
+            "endorse_sample_count": str(len(endorse)),
+            "endorse_median_ms": f"{percentile(endorse, 0.50):.6f}" if valid_latency else "",
+            "endorse_p95_ms": f"{percentile(endorse, 0.95):.6f}" if valid_latency else "",
+            "endorse_p99_ms": f"{percentile(endorse, 0.99):.6f}" if valid_latency else "",
+            "commit_sample_count": str(len(commit)),
+            "commit_median_ms": f"{percentile(commit, 0.50):.6f}" if valid_latency else "",
+            "commit_p95_ms": f"{percentile(commit, 0.95):.6f}" if valid_latency else "",
+            "commit_p99_ms": f"{percentile(commit, 0.99):.6f}" if valid_latency else "",
+            "status": status,
+            "notes": notes,
+            "endorse_source": relative(endorse_path, project_root),
+            "endorse_sha256": sha256_file(endorse_path),
+            "commit_source": relative(commit_path, project_root),
+            "commit_sha256": sha256_file(commit_path),
+            "e2e_source": relative(e2e_path, project_root),
+            "e2e_sha256": sha256_file(e2e_path),
+            "heights_source": relative(heights_path, project_root),
+            "heights_sha256": sha256_file(heights_path),
+            "benchmark_source": relative(benchmark_path, project_root),
+            "benchmark_sha256": sha256_file(benchmark_path),
+            "log_source": relative(log_path, project_root),
+            "log_sha256": sha256_file(log_path),
+        }
+        rows.append(row)
+
+    return rows
+
+
 def load_e2e_samples(path: Path) -> list[dict[str, float | str]]:
     with path.open(newline="", encoding="utf-8") as source:
         reader = csv.DictReader(source)
@@ -966,22 +1089,17 @@ def load_e2e_samples(path: Path) -> list[dict[str, float | str]]:
     return rows
 
 
-def validate_sweep_provenance(
+def validate_namespaced_run_provenance(
     project_root: Path,
     run_namespace: str,
     config: str,
     round_labels: list[str],
+    spec: dict[str, str],
 ) -> tuple[Path, Path, Path]:
-    """Validate the retained log, height markers, and immutable rate profile."""
+    """Validate a retained log, height markers, and immutable benchmark profile."""
     raw_dir = project_root / "raw" / "e1"
     log_path = raw_dir / f"{run_namespace}_caliper_run.log"
     heights_path = raw_dir / f"{run_namespace}_block_heights.csv"
-    spec = SUSTAINABILITY_PROFILE_SPECS.get((config, tuple(round_labels)))
-    if spec is None:
-        raise ValueError(
-            f"unsupported sustainability config/round sequence: "
-            f"config={config}, rounds={round_labels}"
-        )
     benchmark_relative = spec["path"]
     benchmark_path = project_root / benchmark_relative
     metadata = json.loads((project_root / "meta.json").read_text(encoding="utf-8"))
@@ -1010,6 +1128,16 @@ def validate_sweep_provenance(
         f"[E1] effective_AbsoluteMaxBytes={block['AbsoluteMaxBytes_effective_bytes']}",
         "[E1] Benchmark finished.",
     ]
+    if spec.get("require_image_labels") == "true":
+        required_log_lines.extend([
+            f"[E1] fabric_image_label_fabric_commit={metadata['software_pins']['hyperledger_fabric']['commit']}",
+            f"[E1] fabric_image_label_liboqs_commit={metadata['software_pins']['liboqs']['commit']}",
+            f"[E1] fabric_image_label_patch_sha256={images['fabric_pq_patch_sha256']}",
+            "[E1] pq_verify_trace=0",
+            "[E1] Removing previous E1 containers and generated artifacts...",
+            "[E1] Previous generated state removed.",
+            f"[E1] Fabric network ready for configuration: {config}",
+        ])
     for cpu in range(2, 16):
         required_log_lines.append(
             f"[E1] cpu{cpu}_state=governor:performance,min_khz:3201000,max_khz:3201000"
@@ -1050,11 +1178,32 @@ def validate_sweep_provenance(
     if [row["marker"] for row in height_rows] != expected_markers:
         raise ValueError(f"{heights_path}: unexpected height-marker sequence")
     heights = [parse_uint(heights_path, "height", row["height"]) for row in height_rows]
+    if spec.get("require_image_labels") == "true" and heights[0] != 7:
+        raise ValueError(
+            f"{heights_path}: clean fixed-profile run must begin at ledger height 7"
+        )
     if any(after < before for before, after in zip(heights[::2], heights[1::2])):
         raise ValueError(f"{heights_path}: a round's ending height precedes its start")
     if any(heights[index] != heights[index + 1] for index in range(1, len(heights) - 1, 2)):
         raise ValueError(f"{heights_path}: adjacent round boundaries do not reconcile")
     return log_path, heights_path, benchmark_path
+
+
+def validate_sweep_provenance(
+    project_root: Path,
+    run_namespace: str,
+    config: str,
+    round_labels: list[str],
+) -> tuple[Path, Path, Path]:
+    spec = SUSTAINABILITY_PROFILE_SPECS.get((config, tuple(round_labels)))
+    if spec is None:
+        raise ValueError(
+            f"unsupported sustainability config/round sequence: "
+            f"config={config}, rounds={round_labels}"
+        )
+    return validate_namespaced_run_provenance(
+        project_root, run_namespace, config, round_labels, spec
+    )
 
 
 def build_sustainability_rows(
@@ -1523,6 +1672,14 @@ def main() -> int:
         ),
     )
     mode.add_argument(
+        "--clean-fixed-profile",
+        metavar="RUN_NAMESPACE",
+        help=(
+            "validate one namespaced clean common-profile rerun, preserving "
+            "separate 50-TPS and 200-TPS rows"
+        ),
+    )
+    mode.add_argument(
         "--identity-public-keys",
         action="store_true",
         help="validate and report public-key-only identity_bytes evidence",
@@ -1565,6 +1722,10 @@ def main() -> int:
     try:
         if args.working_e1:
             rows = build_working_e1_rows(project_root)
+        elif args.clean_fixed_profile:
+            rows = build_clean_fixed_profile_rows(
+                project_root, args.clean_fixed_profile
+            )
         elif args.latency_professor_review:
             rows = build_latency_professor_review_rows(project_root)
         elif args.fixed_outcomes:

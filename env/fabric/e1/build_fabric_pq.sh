@@ -15,6 +15,7 @@ GO_TOOLCHAIN_SHA256="0221cfe82f9c88c717677cb5c1f59f598d177cd7eac18c11f90ae29432d
 GO_TOOLCHAIN_STAGED="$FABRIC_DIR/go1.26.4-toolchain.zip"
 
 PATCH_FILE="$SCRIPT_DIR/patches/fabric-2.5.16-pq-identities.patch"
+IMAGE_PROVENANCE_LABEL="org.pqc-energy-trading.fabric-pq"
 
 PEER_IMAGE="fabric-peer:2.5.16-pq"
 ORDERER_IMAGE="fabric-orderer:2.5.16-pq"
@@ -35,6 +36,8 @@ if [[ ! -f "$PATCH_FILE" ]]; then
     echo "ERROR: Patch file not found: $PATCH_FILE"
     exit 1
 fi
+
+PATCH_SHA256="$(sha256sum "$PATCH_FILE" | awk '{print $1}')"
 
 if [[ ! -d "$FABRIC_DIR/.git" ]]; then
     echo "ERROR: Fabric checkout not found: $FABRIC_DIR"
@@ -122,6 +125,9 @@ cp "$GO_TOOLCHAIN_CACHE" "$GO_TOOLCHAIN_STAGED"
 docker build \
     -f images/peer/Dockerfile \
     -t "$PEER_IMAGE" \
+    --label "$IMAGE_PROVENANCE_LABEL.fabric-commit=$FABRIC_COMMIT" \
+    --label "$IMAGE_PROVENANCE_LABEL.liboqs-commit=$LIBOQS_COMMIT" \
+    --label "$IMAGE_PROVENANCE_LABEL.patch-sha256=$PATCH_SHA256" \
     --build-arg UBUNTU_VER=22.04 \
     --build-arg TARGETOS=linux \
     --build-arg TARGETARCH=amd64 \
@@ -136,6 +142,9 @@ echo "[E1] Building patched orderer image..."
 docker build \
     -f images/orderer/Dockerfile \
     -t "$ORDERER_IMAGE" \
+    --label "$IMAGE_PROVENANCE_LABEL.fabric-commit=$FABRIC_COMMIT" \
+    --label "$IMAGE_PROVENANCE_LABEL.liboqs-commit=$LIBOQS_COMMIT" \
+    --label "$IMAGE_PROVENANCE_LABEL.patch-sha256=$PATCH_SHA256" \
     --build-arg UBUNTU_VER=22.04 \
     --build-arg TARGETOS=linux \
     --build-arg TARGETARCH=amd64 \
@@ -150,6 +159,21 @@ echo "[E1] Validating images..."
 docker run --rm "$PEER_IMAGE" peer version
 docker run --rm "$ORDERER_IMAGE" orderer version
 
+for image in "$PEER_IMAGE" "$ORDERER_IMAGE"; do
+    if [[ "$(docker image inspect "$image" --format "{{ index .Config.Labels \"$IMAGE_PROVENANCE_LABEL.fabric-commit\" }}")" != "$FABRIC_COMMIT" ]]; then
+        echo "ERROR: Fabric commit provenance label mismatch for $image"
+        exit 1
+    fi
+    if [[ "$(docker image inspect "$image" --format "{{ index .Config.Labels \"$IMAGE_PROVENANCE_LABEL.liboqs-commit\" }}")" != "$LIBOQS_COMMIT" ]]; then
+        echo "ERROR: liboqs commit provenance label mismatch for $image"
+        exit 1
+    fi
+    if [[ "$(docker image inspect "$image" --format "{{ index .Config.Labels \"$IMAGE_PROVENANCE_LABEL.patch-sha256\" }}")" != "$PATCH_SHA256" ]]; then
+        echo "ERROR: Fabric PQ patch provenance label mismatch for $image"
+        exit 1
+    fi
+done
+
 docker run --rm --entrypoint sh "$PEER_IMAGE" -c \
     'ldd /usr/local/bin/peer | grep -E "liboqs|libcrypto"'
 
@@ -159,3 +183,4 @@ docker run --rm --entrypoint sh "$ORDERER_IMAGE" -c \
 echo "[E1] Patched Fabric images built successfully."
 echo "[E1] Peer image:    $PEER_IMAGE"
 echo "[E1] Orderer image: $ORDERER_IMAGE"
+echo "[E1] PQ patch SHA-256: $PATCH_SHA256"

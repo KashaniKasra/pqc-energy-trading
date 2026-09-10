@@ -7,6 +7,11 @@ source "$SCRIPT_DIR/run_policy.sh"
 grep -Fq 'validate_e1_run_policy' "$SCRIPT_DIR/run_e1.sh"
 grep -Fq 'ensure_e1_namespace_available' "$SCRIPT_DIR/run_e1.sh"
 
+if FABRIC_PQ_VERIFY_TRACE=1 "$SCRIPT_DIR/run_e1.sh" ecdsa >/dev/null 2>&1; then
+    echo "ERROR: Caliper runner accepted FABRIC_PQ_VERIFY_TRACE=1"
+    exit 1
+fi
+
 (
     cd "$SCRIPT_DIR"
     node <<'NODE'

@@ -10,6 +10,7 @@ services:
     cpuset: "2-15"
     environment:
       - FABRIC_LOGGING_SPEC=INFO
+      - FABRIC_PQ_VERIFY_TRACE=${FABRIC_PQ_VERIFY_TRACE:-0}
       - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
       - ORDERER_GENERAL_LISTENPORT=7050
       - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
@@ -37,6 +38,7 @@ services:
     cpuset: "2-15"
     environment:
       - FABRIC_LOGGING_SPEC=INFO
+      - FABRIC_PQ_VERIFY_TRACE=${FABRIC_PQ_VERIFY_TRACE:-0}
       - CORE_PEER_ID=peer0.org1.example.com
       - CORE_PEER_ADDRESS=peer0.org1.example.com:7051
       - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
@@ -70,6 +72,7 @@ services:
     cpuset: "2-15"
     environment:
       - FABRIC_LOGGING_SPEC=INFO
+      - FABRIC_PQ_VERIFY_TRACE=${FABRIC_PQ_VERIFY_TRACE:-0}
       - CORE_PEER_ID=peer1.org1.example.com
       - CORE_PEER_ADDRESS=peer1.org1.example.com:8051
       - CORE_PEER_LISTENADDRESS=0.0.0.0:8051
@@ -103,6 +106,7 @@ services:
     cpuset: "2-15"
     environment:
       - FABRIC_LOGGING_SPEC=INFO
+      - FABRIC_PQ_VERIFY_TRACE=${FABRIC_PQ_VERIFY_TRACE:-0}
       - CORE_PEER_ID=peer0.org2.example.com
       - CORE_PEER_ADDRESS=peer0.org2.example.com:9051
       - CORE_PEER_LISTENADDRESS=0.0.0.0:9051
@@ -136,6 +140,7 @@ services:
     cpuset: "2-15"
     environment:
       - FABRIC_LOGGING_SPEC=INFO
+      - FABRIC_PQ_VERIFY_TRACE=${FABRIC_PQ_VERIFY_TRACE:-0}
       - CORE_PEER_ID=peer1.org2.example.com
       - CORE_PEER_ADDRESS=peer1.org2.example.com:10051
       - CORE_PEER_LISTENADDRESS=0.0.0.0:10051

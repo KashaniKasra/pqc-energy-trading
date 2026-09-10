@@ -83,7 +83,7 @@
     "raw_sources": "raw/e0/"
   },
   "e1_benchmark": {
-    "status": "functional for all four identity configurations; fixed-profile candidate data retained for ECDSA/ML-DSA-44/ML-DSA-65; SPHINCS+ fixed-profile saturation/failure retained; final E1 CSV incomplete",
+    "status": "functional for all four identity configurations; professor selected the 200-TPS population for final latency, but clean common-profile reruns are pending; historical ECDSA/ML-DSA timing remains supporting candidate evidence and SPHINCS+ saturation remains reportable; final E1 CSV incomplete",
     "platform": "server",
     "topology": {
       "ordering_service": "etcdraft",
@@ -169,7 +169,15 @@
       "client_identity": "ECDSA",
       "tls_identities": "ECDSA",
       "orderer_identity": "ECDSA",
-      "orderer_binary_note": "Patched to verify requests signed by PQ peer identities"
+      "orderer_binary_note": "Patched to verify requests signed by PQ peer identities",
+      "verification_dispatch": "An X.509 certificate carrying experimental extension 1.3.6.1.3.9999.1 is imported as *sw.pqPublicKey before its ECDSA SPKI is considered. BCCSP dispatches that concrete key type only to pqPublicKeyVerifier, which initializes oqs.Signature with the extension algorithm and calls oqs.Signature.Verify. Import, initialization, or verification failure returns an error/false; there is no ECDSA verification fallback for the PQ key type.",
+      "runtime_verification_audit": {
+        "status": "tooling prepared; rebuilt images and separate human-controlled functional audit still required before clean latency reruns",
+        "trace_control": "FABRIC_PQ_VERIFY_TRACE=1 enables one INFO trace per algorithm/result pair per process; Caliper run_e1.sh rejects this setting so trace logging cannot perturb performance runs",
+        "collector": "env/fabric/e1/collect_pq_verification_evidence.sh",
+        "regression_test": "bccsp/sw TestPQVerifierDispatchRejectsClassicalFallback covers ML-DSA-44, ML-DSA-65, and SPHINCS+-SHA2-128s-simple",
+        "current_patch_sha256": "5268f9f67656233d7e7b9ac7c449f20f05fc8a8257fb91eb0de63698a72d1293"
+      }
     },
     "caliper": {
       "version": "0.7.1",
@@ -895,12 +903,16 @@
         "population_rule": "50-TPS and 200-TPS populations are separate and are never merged",
         "valid_latency_candidate_rows": 6,
         "saturation_only_rows": 2,
-        "candidate_caveat": "ECDSA, ML-DSA-44, and ML-DSA-65 have zero failures and validated timing counts/source hashes, but their historical run logs predate full standardized CPU-preflight capture in-log.",
+        "candidate_caveat": "ECDSA, ML-DSA-44, and ML-DSA-65 have zero failures and validated timing counts/source hashes. Every height file begins at channel height 7, demonstrating a reset ledger baseline, but the historical logs do not retain the setup invocation, exact generated-artifact hashes, effective block-parameter decode, image IDs, project/worktree state, or full standardized CPU preflight.",
         "sphincs_handling": "Common-profile success/error outcomes and Gateway saturation are retained at 50 and 200 TPS; latency fields are intentionally empty and are not normal latency candidates.",
-        "final_latency_population_selection": "pending professor review"
+        "final_latency_population_selection": "Professor selected the 200-TPS population. Clean equivalent common-profile reruns are required for all four configurations before final latency fields are populated; the 50-TPS round remains supporting evidence. SPHINCS+ 200 TPS remains saturation-only, not a normal latency population.",
+        "clean_rerun_generator": "./src/e1/analyze_timings.py --clean-fixed-profile <run_namespace>",
+        "clean_rerun_acceptance": "Requires a fresh height-7 ledger, explicit teardown/regeneration markers, controlled CPU preflight, effective Fabric block parameters, pinned image/source/patch provenance, exact E2E count reconciliation, and separate 50-TPS/200-TPS timing populations. Failed or saturated populations retain outcomes but do not receive normal latency summaries."
       },
-      "endorsement_timing_boundary": "proposal.endorse()",
-      "commit_timing_boundary": "transaction.submit() through submittedTransaction.getStatus()",
+      "endorsement_timing_boundary": "Wall-clock interval immediately before proposal.endorse() until that promise resolves; it excludes proposal construction and the later submit/commit interval.",
+      "commit_timing_boundary": "Post-endorsement submit-to-commit-status wall-clock interval: starts immediately before transaction.submit(), after proposal.endorse() resolves; includes client transaction-envelope signing, Gateway Submit RPC and any wait until orderer acknowledgement, commit-status request signing/RPC, ordering/block-cut wait (including BatchTimeout when active), validation/ledger commit, and client/event-loop waiting within those awaited calls; ends when submittedTransaction.getStatus() resolves. It excludes endorsement and Caliper scheduling/queueing before this connector call.",
+      "commit_timing_scientific_name": "post_endorsement_submit_to_commit_status_ms (retained final-schema alias: commit_*_ms)",
+      "commit_timing_limitation": "The single wall-clock value does not decompose client-side async/RPC waiting, orderer acceptance, block-cut waiting, validation, ledger commit, and status delivery.",
       "end_to_end_timing_boundary": "immediately before proposal.endorse() through successful commit status or the caught failure",
       "timing_clock": "process.hrtime.bigint()",
       "timing_unit": "milliseconds",
@@ -1152,11 +1164,12 @@
       "peer": "sha256:6fe74f12e91ab73a07b13d4a7d2954df8a2ad5a6e00ea2665cfffed7f34f5448",
       "orderer": "sha256:b56ec95ae9168725b8c8e1dc4bc4126f30f2b661e3dc99dd72225dc87b1f3d1f",
       "fabric_pq_patch_sha256": "2eeee5582fabd90bb9e675e98bce3daf94a087d2d6848ccfa720f7216e23550f",
-      "validation": "Rebuilt after the pqPublicKey.Private() correction; Fabric PQ regression tests passed, both binaries report Fabric 2.5.16 commit f871cf9 built with Go 1.26.4 and link to liboqs/libcrypto, and local binary disassembly confirms pqPublicKey.Private() returns false."
+      "validation": "Rebuilt after the pqPublicKey.Private() correction; Fabric PQ regression tests passed, both binaries report Fabric 2.5.16 commit f871cf9 built with Go 1.26.4 and link to liboqs/libcrypto, and local binary disassembly confirms pqPublicKey.Private() returns false.",
+      "current_source_status": "These installed images correspond to patch 2eeee558... and predate the opt-in verifier trace/no-fallback audit additions in current patch 5268f9f6.... They must be rebuilt before runtime verification evidence or clean latency reruns."
     },
     "data_provenance": {
       "candidate_timing_summary": "data/e1_timing_candidates.csv",
-      "candidate_timing_status": "ECDSA/ML-DSA-44/ML-DSA-65 pass sample-count and zero-failure checks, but historical logs did not retain the full preflight now required.",
+      "candidate_timing_status": "ECDSA/ML-DSA-44/ML-DSA-65 pass sample-count and zero-failure checks, but are supporting historical candidates only. Their height files verify a common height-7 ledger baseline; exact setup/artifact/image/worktree and complete CPU-preflight equivalence are not retained, so professor-directed clean 200-TPS common-profile reruns are pending.",
       "sphincs_status": "The unchanged common-profile saturation is scientifically reportable and retained. Supplemental sweep/boundary evidence establishes 22 TPS as the highest tested sustainable integer rate and 23 TPS as the first nonsustainable integer rate; it does not replace the common result.",
       "sphincs_evidence": {
         "classification": "fixed_profile_saturation_failure_evidence",
@@ -1273,7 +1286,8 @@
     "license": null
   },
   "known_scientific_decisions_pending": {
-    "latency_field_population": "The E1 schema has one endorsement/commit value per configuration while the fixed profile has 50 TPS and 200 TPS rounds; both populations remain separate until professor review selects the final population."
+    "latency_field_population": "Resolved: professor selected the 200-TPS population. Final values remain unpopulated until clean equivalent common-profile reruns are completed; historical 50-TPS results remain supporting evidence and SPHINCS+ 200 TPS is saturation-only.",
+    "paused_sustainability_work": "After the professor-directed verification and clean-latency correction is complete, resume ML-DSA-44 sustainability from 200 TPS PASS; the next planned adaptive probe had been 250 TPS."
   },
   "notes": {
     "falcon_liboqs_caveat": "Falcon in liboqs 0.15.0 follows the round-3 submission rather than final FIPS 206.",

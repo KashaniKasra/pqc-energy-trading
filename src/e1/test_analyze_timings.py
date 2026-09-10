@@ -1,5 +1,6 @@
 import csv
 import importlib.util
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -396,6 +397,132 @@ class TransactionEvidenceTests(unittest.TestCase):
             rows = ANALYZER.validate_transaction_summary(root, str(summary))
             self.assertEqual(rows[0]["tx_bytes_mean"], "100.000000")
             self.assertEqual(rows[0]["endorsements_per_tx"], "2.000000")
+
+
+class CleanFixedProfileTests(unittest.TestCase):
+    def write_fixture(self, root: Path, config: str = "ecdsa", fail_200: int = 0) -> str:
+        raw = root / "raw" / "e1"
+        benchmark = root / "env" / "caliper" / "e1" / "benchmark.yaml"
+        raw.mkdir(parents=True)
+        benchmark.parent.mkdir(parents=True)
+        benchmark.write_text("test:\n  name: fixture\n", encoding="utf-8")
+        namespace = f"clean-v1_{config}"
+        meta = {
+            "software_pins": {
+                "hyperledger_fabric": {
+                    "commit": "f871cf92a026aba7b12e6f06d71ded3e6e659d71"
+                },
+                "liboqs": {
+                    "commit": "97f6b86b1b6d109cfd43cf276ae39c2e776aed80"
+                },
+            },
+            "e1_benchmark": {
+                "installed_images_at_metadata_update": {
+                    "peer": "sha256:peer",
+                    "orderer": "sha256:orderer",
+                    "fabric_pq_patch_sha256": "a" * 64,
+                },
+                "fabric_block_parameters": {
+                    "BatchTimeout": "2s",
+                    "MaxMessageCount": 500,
+                    "PreferredMaxBytes_effective_bytes": 2097152,
+                    "AbsoluteMaxBytes_effective_bytes": 10485760,
+                },
+            },
+        }
+        (root / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+        required = [
+            f"[E1] configuration={config}",
+            "[E1] run_type=fixed-profile",
+            f"[E1] run_namespace={namespace}",
+            "[E1] benchmark_config=env/caliper/e1/benchmark.yaml",
+            f"[E1] benchmark_config_sha256={ANALYZER.sha256_file(benchmark)}",
+            "[E1] project_tracked_state_before_log_creation=clean",
+            "[E1] project_git_commit=" + "0" * 40,
+            "[E1] started_at=2026-01-01T00:00:00+00:00",
+            "[E1] amd_pstate_mode=passive",
+            "[E1] boost_state=0",
+            "[E1] fabric_source_tag=v2.5.16",
+            "[E1] fabric_source_commit=f871cf92a026aba7b12e6f06d71ded3e6e659d71",
+            "[E1] fabric_source_state=clean",
+            "[E1] fabric_peer_image_id=sha256:peer",
+            "[E1] fabric_orderer_image_id=sha256:orderer",
+            "[E1] fabric_pq_patch_sha256=" + "a" * 64,
+            "[E1] fabric_image_label_fabric_commit=f871cf92a026aba7b12e6f06d71ded3e6e659d71",
+            "[E1] fabric_image_label_liboqs_commit=97f6b86b1b6d109cfd43cf276ae39c2e776aed80",
+            "[E1] fabric_image_label_patch_sha256=" + "a" * 64,
+            "[E1] pq_verify_trace=0",
+            "[E1] Removing previous E1 containers and generated artifacts...",
+            "[E1] Previous generated state removed.",
+            f"[E1] Fabric network ready for configuration: {config}",
+            "[E1] effective_BatchTimeout=2s",
+            "[E1] effective_MaxMessageCount=500",
+            "[E1] effective_PreferredMaxBytes=2097152",
+            "[E1] effective_AbsoluteMaxBytes=10485760",
+            "[E1] Benchmark finished.",
+            "[E1] finished_at=2026-01-01T00:05:00+00:00",
+        ]
+        required.extend(
+            f"[E1] cpu{cpu}_state=governor:performance,min_khz:3201000,max_khz:3201000"
+            for cpu in range(2, 16)
+        )
+        for label, success, fail in (
+            ("50-tps", 1000, 0),
+            ("200-tps", 1000 - fail_200, fail_200),
+        ):
+            required.append(
+                f"| {label} | {success} | {fail} | {label[:-4]}.0 | 1.0 | 0.1 | 0.5 | {label[:-4]}.0 |"
+            )
+            for sample_type in ("endorse", "commit"):
+                with (raw / f"{namespace}_{sample_type}_{label}_worker0_1.csv").open(
+                    "w", encoding="utf-8"
+                ) as destination:
+                    destination.write("latency_ms\n")
+                    destination.writelines("1.0\n" for _ in range(success))
+            with (raw / f"{namespace}_e2e_{label}_worker0_1.csv").open(
+                "w", encoding="utf-8"
+            ) as destination:
+                destination.write("start_offset_ms,latency_ms,status,tx_id\n")
+                for index in range(success):
+                    destination.write(f"{index},2.0,success,{label}-ok-{index}\n")
+                for index in range(fail):
+                    destination.write(f"{index},3.0,failure,{label}-fail-{index}\n")
+        (raw / f"{namespace}_caliper_run.log").write_text(
+            "\n".join(required) + "\n", encoding="utf-8"
+        )
+        (raw / f"{namespace}_block_heights.csv").write_text(
+            "marker,height\n"
+            "before_warmup,7\nafter_warmup,8\n"
+            "before_50-tps,8\nafter_50-tps,9\n"
+            "before_200-tps,9\nafter_200-tps,10\n",
+            encoding="utf-8",
+        )
+        return namespace
+
+    def test_clean_common_profile_keeps_rates_separate(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            namespace = self.write_fixture(root)
+            rows = ANALYZER.build_clean_fixed_profile_rows(root, namespace)
+            self.assertEqual([row["round_label"] for row in rows], ["50-tps", "200-tps"])
+            self.assertTrue(all(row["status"] == "clean_equivalent_latency_candidate" for row in rows))
+
+    def test_failed_common_population_is_not_promoted_to_latency(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            namespace = self.write_fixture(root, fail_200=1)
+            rows = ANALYZER.build_clean_fixed_profile_rows(root, namespace)
+            self.assertEqual(rows[1]["status"], "not_a_valid_normal_latency_candidate")
+            self.assertEqual(rows[1]["commit_median_ms"], "")
+
+    def test_clean_common_profile_requires_height_seven_baseline(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            namespace = self.write_fixture(root)
+            heights = root / "raw" / "e1" / f"{namespace}_block_heights.csv"
+            heights.write_text(heights.read_text().replace("before_warmup,7", "before_warmup,8"))
+            with self.assertRaisesRegex(ValueError, "ledger height 7"):
+                ANALYZER.build_clean_fixed_profile_rows(root, namespace)
 
 
 if __name__ == "__main__":

@@ -8,6 +8,9 @@ source "$SCRIPT_DIR/run_policy.sh"
 
 CPUSET="2-15"
 TARGET_FREQ_KHZ=3201000
+FABRIC_COMMIT="f871cf92a026aba7b12e6f06d71ded3e6e659d71"
+LIBOQS_COMMIT="97f6b86b1b6d109cfd43cf276ae39c2e776aed80"
+IMAGE_PROVENANCE_LABEL="org.pqc-energy-trading.fabric-pq"
 
 if [[ $# -ne 1 ]]; then
     echo "Usage: $0 {ecdsa|ml-dsa-44|ml-dsa-65|sphincs}"
@@ -15,6 +18,12 @@ if [[ $# -ne 1 ]]; then
 fi
 
 CONFIG="$1"
+
+if [[ "${FABRIC_PQ_VERIFY_TRACE:-0}" != "0" ]]; then
+    echo "ERROR: FABRIC_PQ_VERIFY_TRACE must be disabled for Caliper measurement runs."
+    echo "Use the separate functional PQ verification-evidence workflow instead."
+    exit 1
+fi
 
 case "$CONFIG" in
     ecdsa|ml-dsa-44|ml-dsa-65|sphincs)
@@ -209,20 +218,44 @@ else
     FABRIC_SOURCE_STATE="unavailable"
 fi
 
+if [[ "$FABRIC_SOURCE_COMMIT" != "$FABRIC_COMMIT" || "$FABRIC_SOURCE_TAG" != "v2.5.16" || "$FABRIC_SOURCE_STATE" != "clean" ]]; then
+    echo "ERROR: Fabric source must be clean at tag v2.5.16 commit $FABRIC_COMMIT."
+    echo "Observed: tag=$FABRIC_SOURCE_TAG commit=$FABRIC_SOURCE_COMMIT state=$FABRIC_SOURCE_STATE"
+    exit 1
+fi
+
 PEER_IMAGE_ID="$(docker image inspect fabric-peer:2.5.16-pq --format '{{.Id}}')"
 ORDERER_IMAGE_ID="$(docker image inspect fabric-orderer:2.5.16-pq --format '{{.Id}}')"
+FABRIC_PQ_PATCH_SHA256="$(sha256sum "$FABRIC_E1_DIR/patches/fabric-2.5.16-pq-identities.patch" | awk '{print $1}')"
+
+for image in fabric-peer:2.5.16-pq fabric-orderer:2.5.16-pq; do
+    IMAGE_FABRIC_COMMIT="$(docker image inspect "$image" --format "{{ index .Config.Labels \"$IMAGE_PROVENANCE_LABEL.fabric-commit\" }}")"
+    IMAGE_LIBOQS_COMMIT="$(docker image inspect "$image" --format "{{ index .Config.Labels \"$IMAGE_PROVENANCE_LABEL.liboqs-commit\" }}")"
+    IMAGE_PATCH_SHA256="$(docker image inspect "$image" --format "{{ index .Config.Labels \"$IMAGE_PROVENANCE_LABEL.patch-sha256\" }}")"
+    if [[ "$IMAGE_FABRIC_COMMIT" != "$FABRIC_COMMIT" ||
+          "$IMAGE_LIBOQS_COMMIT" != "$LIBOQS_COMMIT" ||
+          "$IMAGE_PATCH_SHA256" != "$FABRIC_PQ_PATCH_SHA256" ]]; then
+        echo "ERROR: $image does not match the current pinned Fabric/liboqs/PQ-patch provenance."
+        echo "Rebuild both images with: $FABRIC_E1_DIR/build_fabric_pq.sh"
+        exit 1
+    fi
+done
 
 echo "[E1] fabric_source_tag=$FABRIC_SOURCE_TAG"
 echo "[E1] fabric_source_commit=$FABRIC_SOURCE_COMMIT"
 echo "[E1] fabric_source_state=$FABRIC_SOURCE_STATE"
 echo "[E1] fabric_peer_image_id=$PEER_IMAGE_ID"
 echo "[E1] fabric_orderer_image_id=$ORDERER_IMAGE_ID"
+echo "[E1] fabric_image_label_fabric_commit=$FABRIC_COMMIT"
+echo "[E1] fabric_image_label_liboqs_commit=$LIBOQS_COMMIT"
+echo "[E1] fabric_image_label_patch_sha256=$FABRIC_PQ_PATCH_SHA256"
+echo "[E1] pq_verify_trace=0"
 echo "[E1] configtx_sha256=$(sha256sum "$FABRIC_E1_DIR/configtx.yaml" | awk '{print $1}')"
 echo "[E1] crypto_config_sha256=$(sha256sum "$FABRIC_E1_DIR/crypto-config.yaml" | awk '{print $1}')"
 echo "[E1] docker_compose_sha256=$(sha256sum "$FABRIC_E1_DIR/docker-compose.yaml" | awk '{print $1}')"
 echo "[E1] fabric_setup_sha256=$(sha256sum "$FABRIC_SETUP" | awk '{print $1}')"
 echo "[E1] fabric_build_sha256=$(sha256sum "$FABRIC_E1_DIR/build_fabric_pq.sh" | awk '{print $1}')"
-echo "[E1] fabric_pq_patch_sha256=$(sha256sum "$FABRIC_E1_DIR/patches/fabric-2.5.16-pq-identities.patch" | awk '{print $1}')"
+echo "[E1] fabric_pq_patch_sha256=$FABRIC_PQ_PATCH_SHA256"
 echo "[E1] chaincode_sha256=$(sha256sum "$PROJECT_ROOT/src/e1/chaincode/chaincode.go" | awk '{print $1}')"
 echo "[E1] pq_identity_generator_sha256=$(sha256sum "$PROJECT_ROOT/src/e1/pqidentity/generate.go" | awk '{print $1}')"
 echo "[E1] caliper_package_lock_sha256=$(sha256sum "$SCRIPT_DIR/package-lock.json" | awk '{print $1}')"

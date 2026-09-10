@@ -165,15 +165,49 @@ new file mode 100644
 index 0000000..6bd6ed7
 --- /dev/null
 +++ b/bccsp/sw/pq.go
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,105 @@
 +package sw
 +
 +import (
 +	"fmt"
++	"os"
++	"sync"
 +
 +	"github.com/hyperledger/fabric/bccsp"
 +	oqs "github.com/open-quantum-safe/liboqs-go/oqs"
 +)
++
++var (
++	pqVerifyTraceEnabled = os.Getenv("FABRIC_PQ_VERIFY_TRACE") == "1"
++	pqVerifyTraceSeen    sync.Map
++)
++
++// tracePQVerify emits at most one line for each algorithm/result pair in a
++// process. It is disabled unless explicitly requested for a separate
++// functional audit, so performance runs do not produce per-transaction logs.
++func tracePQVerify(algorithm string, valid bool, verifyErr error) {
++	if !pqVerifyTraceEnabled {
++		return
++	}
++
++	result := "invalid"
++	if verifyErr != nil {
++		result = "error"
++	} else if valid {
++		result = "success"
++	}
++
++	traceKey := algorithm + "\x00" + result
++	if _, loaded := pqVerifyTraceSeen.LoadOrStore(traceKey, struct{}{}); loaded {
++		return
++	}
++
++	logger.Infof(
++		"E1_PQ_VERIFY_TRACE implementation=liboqs function=oqs.Signature.Verify algorithm=%s result=%s",
++		algorithm,
++		result,
++	)
++}
 +
 +func signPQ(k *pqPrivateKey, digest []byte) ([]byte, error) {
 +	var signer oqs.Signature
@@ -197,11 +231,13 @@ index 0000000..6bd6ed7
 +	var verifier oqs.Signature
 +
 +	if err := verifier.Init(k.algorithm, nil); err != nil {
++		tracePQVerify(k.algorithm, false, err)
 +		return false, fmt.Errorf("failed to initialize PQ verifier %s: %w", k.algorithm, err)
 +	}
 +	defer verifier.Clean()
 +
 +	valid, err := verifier.Verify(digest, signature, k.publicKey)
++	tracePQVerify(k.algorithm, valid, err)
 +	if err != nil {
 +		return false, fmt.Errorf("failed to verify with %s: %w", k.algorithm, err)
 +	}
@@ -456,6 +492,88 @@ index 0000000..49ca2f2
 +	loadedPQPrivateKey, ok := loadedPrivateKey.(*pqPrivateKey)
 +	require.True(t, ok)
 +	require.Equal(t, privateKey.SKI(), loadedPQPrivateKey.SKI())
++}
+diff --git a/bccsp/sw/pq_no_fallback_test.go b/bccsp/sw/pq_no_fallback_test.go
+new file mode 100644
+index 0000000..2d8f7fb
+--- /dev/null
++++ b/bccsp/sw/pq_no_fallback_test.go
+@@ -0,0 +1,76 @@
++package sw
++
++import (
++	"crypto/ecdsa"
++	"crypto/elliptic"
++	"crypto/rand"
++	"reflect"
++	"testing"
++
++	oqs "github.com/open-quantum-safe/liboqs-go/oqs"
++	"github.com/stretchr/testify/require"
++)
++
++func TestPQVerifierDispatchRejectsClassicalFallback(t *testing.T) {
++	algorithms := []string{
++		"ML-DSA-44",
++		"ML-DSA-65",
++		"SPHINCS+-SHA2-128s-simple",
++	}
++
++	for _, algorithm := range algorithms {
++		t.Run(algorithm, func(t *testing.T) {
++			var oqsSigner oqs.Signature
++			require.NoError(t, oqsSigner.Init(algorithm, nil))
++			defer oqsSigner.Clean()
++
++			publicKey, err := oqsSigner.GenerateKeyPair()
++			require.NoError(t, err)
++
++			digest := []byte("fabric-pq-verification-audit")
++			pqSignature, err := oqsSigner.Sign(digest)
++			require.NoError(t, err)
++
++			pqKey := &pqPublicKey{
++				algorithm: algorithm,
++				publicKey: append([]byte(nil), publicKey...),
++			}
++
++			csp, err := NewWithParams(256, "SHA2", NewDummyKeyStore())
++			require.NoError(t, err)
++			cspImpl := csp.(*CSP)
++
++			registeredVerifier, ok := cspImpl.Verifiers[reflect.TypeOf(pqKey)]
++			require.True(t, ok)
++			require.IsType(t, &pqPublicKeyVerifier{}, registeredVerifier)
++			_, isECDSAVerifier := registeredVerifier.(*ecdsaPublicKeyKeyVerifier)
++			require.False(t, isECDSAVerifier)
++
++			validPQ, err := csp.Verify(pqKey, pqSignature, digest, nil)
++			require.NoError(t, err)
++			require.True(t, validPQ)
++
++			tamperedSignature := append([]byte(nil), pqSignature...)
++			tamperedSignature[len(tamperedSignature)-1] ^= 1
++			tamperedAccepted, _ := csp.Verify(pqKey, tamperedSignature, digest, nil)
++			require.False(t, tamperedAccepted)
++
++			ecdsaKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++			require.NoError(t, err)
++			classicalSignature, err := ecdsa.SignASN1(rand.Reader, ecdsaKey, digest)
++			require.NoError(t, err)
++			classicalAccepted, _ := csp.Verify(pqKey, classicalSignature, digest, nil)
++			require.False(t, classicalAccepted)
++
++			t.Logf(
++				"algorithm=%s key_type=%T verifier_type=%T pq_valid=%t tampered_accepted=%t classical_fallback_accepted=%t",
++				algorithm,
++				pqKey,
++				registeredVerifier,
++				validPQ,
++				tamperedAccepted,
++				classicalAccepted,
++			)
++		})
++	}
 +}
 diff --git a/bccsp/sw/pqkey.go b/bccsp/sw/pqkey.go
 new file mode 100644

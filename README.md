@@ -8,10 +8,10 @@ This repository is an empirical measurement package for a research testbed. Its 
 
 - E0 server primitive measurements are complete: 21 scheme/operation rows, 10,000 retained samples per row, and median/p95/p99 summaries. Meter/SBC measurements and the supplied sanity-gate implementation are still missing.
 - E1 is functionally implemented for ECDSA, ML-DSA-44, ML-DSA-65, and SPHINCS+-SHA2-128s-simple using one Fabric topology and one fixed Caliper profile.
-- Candidate fixed-profile data exist for ECDSA, ML-DSA-44, and ML-DSA-65. They pass sample-count and zero-failure checks, but their retained logs predate full preflight capture, so they are not silently promoted to final data.
+- Candidate fixed-profile data exist for ECDSA, ML-DSA-44, and ML-DSA-65. They pass sample-count and zero-failure checks, and all four historical height files begin at the same height-7 ledger baseline. However, their logs do not retain the setup invocation, generated-artifact/image hashes, effective block-parameter decode, worktree state, or full CPU preflight, so they remain supporting evidence.
 - The identical-profile SPHINCS+ run saturated and failed heavily. Its raw samples, 50-TPS success/error rates, and saturation status are reportable, but the run is excluded from normal latency. The supplemental sweep and integer boundary probes establish 22 TPS as the highest tested sustainable integer rate and 23 TPS as the first nonsustainable integer rate; they do not replace the common-profile result.
 - `identity_bytes` now means public-key bytes only. The four peer values are 91 bytes (ECDSA DER SubjectPublicKeyInfo), 1312 (ML-DSA-44), 1952 (ML-DSA-65), and 32 (SPHINCS+) within each configuration. Historical signcert-size evidence remains preserved but is supporting evidence, not `identity_bytes`.
-- The ECDSA block-filling probe provides the accepted boundary-inclusive block-utilisation value `0.930951670`. A separate same-ledger 50-TPS evidence run supports exact `tx_bytes_mean=3929.301450` and empirical `endorsements_per_tx=2.000000`; its timeout-driven rho is diagnostic-only. Final latency population remains unresolved, so `data/e1_fabric.csv` has not been created.
+- The ECDSA block-filling probe provides the accepted boundary-inclusive block-utilisation value `0.930951670`. A separate same-ledger 50-TPS evidence run supports exact `tx_bytes_mean=3929.301450` and empirical `endorsements_per_tx=2.000000`; its timeout-driven rho is diagnostic-only. The professor selected the 200-TPS population for final latency, but clean equivalent common-profile reruns are pending, so `data/e1_fabric.csv` has not been created.
 - E2 and later experiments are not implemented.
 
 No final figure should be produced from unresolved E1 data.
@@ -116,6 +116,8 @@ This is not full PQ PKI, standardized PQ X.509, or native Fabric PQ identity sup
 
 The E1 specification row `SLH-DSA` maps in this implementation to the exact liboqs string `SPHINCS+-SHA2-128s-simple`.
 
+For a PQ certificate, the X.509 importer checks experimental extension `1.3.6.1.3.9999.1` before considering the retained ECDSA SPKI. A present valid extension produces `*sw.pqPublicKey`; BCCSP dispatches that concrete type only to `pqPublicKeyVerifier`, which initializes `oqs.Signature` with the embedded exact algorithm string and calls `oqs.Signature.Verify`. A malformed extension, unsupported algorithm, or failed verification returns an error/false. It does not retry with the ECDSA key. Local peer signing similarly resolves the extension-derived PQ SKI to `*pqPrivateKey` and dispatches to `pqSigner`; the generated peer MSP has no classical private-key fallback material.
+
 ## Rebuild the patched Fabric images
 
 The build uses a clean `~/projects/fabric` checkout at the exact tag/commit above:
@@ -127,14 +129,14 @@ cd env/fabric/e1
 
 The script validates pins, applies the repository patch temporarily, runs the narrow Fabric tests, builds both images, checks versions/dynamic libraries, and reverses the patch on exit.
 
-The committed Fabric patch has SHA-256 `2eeee5582fabd90bb9e675e98bce3daf94a087d2d6848ccfa720f7216e23550f`. The currently verified rebuilt images are:
+The current repository Fabric patch has SHA-256 `5268f9f67656233d7e7b9ac7c449f20f05fc8a8257fb91eb0de63698a72d1293`. It adds an opt-in, one-shot PQ verification trace and a no-classical-fallback regression test without enabling tracing in performance runs. The previously verified rebuilt images are:
 
 ```text
 fabric-peer:2.5.16-pq    sha256:6fe74f12e91ab73a07b13d4a7d2954df8a2ad5a6e00ea2665cfffed7f34f5448
 fabric-orderer:2.5.16-pq sha256:b56ec95ae9168725b8c8e1dc4bc4126f30f2b661e3dc99dd72225dc87b1f3d1f
 ```
 
-Both report Fabric 2.5.16 commit `f871cf9`, were built with Go 1.26.4, and dynamically link to liboqs and libcrypto. These are observed image IDs for the present machine/checkpoint; future rebuilds must record their own IDs.
+Both report Fabric 2.5.16 commit `f871cf9`, were built with Go 1.26.4, and dynamically link to liboqs and libcrypto. They correspond to the earlier patch SHA-256 `2eeee5582fabd90bb9e675e98bce3daf94a087d2d6848ccfa720f7216e23550f`; they therefore predate the trace/test addition and must not be used for the clean reruns. The next rebuild records Fabric/liboqs/patch provenance as image labels and will produce new IDs.
 
 Current reproducibility caveat: the build expects this cached Go toolchain archive:
 
@@ -144,6 +146,8 @@ SHA-256 0221cfe82f9c88c717677cb5c1f59f598d177cd7eac18c11f90ae29432d356f9
 ```
 
 No untested acquisition URL is claimed. After any patch change, rebuild the images and use the new image IDs recorded by `run_e1.sh`; old IDs must not be attributed to a new run.
+
+`collect_pq_verification_evidence.sh` is a separate functional audit, not a benchmark. With a collision-safe label it provisions one fresh PQ configuration, enables `FABRIC_PQ_VERIFY_TRACE=1`, runs the existing setup smoke transaction, and retains one-shot container traces identifying `oqs.Signature.Verify`, its algorithm, and result. It requires a successful trace on peers from both organizations and records project/source/image/patch provenance. `run_e1.sh` rejects `FABRIC_PQ_VERIFY_TRACE=1`, preventing this audit logging from entering latency measurements. It also rejects peer/orderer images whose build labels do not match the pinned Fabric commit, liboqs commit, and current patch hash. The patch regression `TestPQVerifierDispatchRejectsClassicalFallback` verifies all three exact PQ algorithms, positive PQ verification, tampered-signature rejection, concrete PQ verifier dispatch, and rejection of an ECDSA signature presented for a PQ identity.
 
 ## Fabric setup
 
@@ -178,7 +182,9 @@ cd env/caliper/e1
 - 120 seconds at 200 TPS;
 - one worker and the same `workload/set.js` module.
 
-The connector records endorsement around `proposal.endorse()` and commit from submission through transaction status/commit completion. It also records each future request's monotonic start offset, end-to-end latency, outcome, and transaction ID. End-to-end timing begins immediately before endorsement and ends at successful commit status or the caught failure. `process.hrtime.bigint()` is used.
+The connector records endorsement from immediately before `proposal.endorse()` until that promise resolves. Its `commit` timer starts only after endorsement completes, immediately before `transaction.submit()`, and ends when `submittedTransaction.getStatus()` resolves. This is precisely **post-endorsement submit-to-commit-status wall-clock latency**: it includes client envelope/status-request signing, Gateway Submit and CommitStatus RPC waits, delivery/acknowledgement by the orderer, ordering and block-cut wait (including `BatchTimeout` when active), peer validation/ledger commit, status delivery, and client event-loop waiting inside those awaited calls. It excludes endorsement and Caliper scheduling/queueing before the connector invocation. The raw name `commit` and final `commit_*_ms` fields are retained for schema compatibility, but this narrower semantic definition must accompany them; the value cannot decompose its client, ordering, batching, validation, and status-delivery components. End-to-end timing begins immediately before endorsement and ends at successful commit status or the caught failure. All clocks use `process.hrtime.bigint()`.
+
+This interval explains why the historical 200-TPS commit medians can decrease as PQ transaction size grows even with identical block parameters: the height markers show about 60 ECDSA blocks, 180 ML-DSA-44 blocks, and 239 ML-DSA-65 blocks during their respective 120-second rounds. Small ECDSA envelopes commonly wait for the 2-second timeout; larger PQ envelopes cut blocks by size more frequently. This is an evidence-supported batching explanation, not proof that the historical runs are final-comparable.
 
 The chaincode definition does not pass a custom endorsement-policy flag, so Fabric applies `/Channel/Application/Endorsement`. In `configtx.yaml` this is `ImplicitMeta MAJORITY Endorsement`; with Org1 and Org2, whose subpolicies each require one peer, the configured minimum is two endorsements per transaction (one from each organization). A read-only decode of the generated channel block confirmed MAJORITY plus one-peer Org1 and Org2 subpolicies. Future block evidence also records the actual endorsement count in every serialized transaction.
 
@@ -379,7 +385,11 @@ Same-ledger evidence covers all 12,001 transactions in ordinary blocks 17–106,
 
 For allowlisted sustainability runs, `analyze_timings.py --sustainability <run_namespace>` applies the same mathematics used for SPHINCS+. Its output retains total/success/failure counts, success/error rates, successful throughput and offered-rate ratio, successful E2E median/p95/p99, beginning/ending window counts and p95 values, the stability ratio, each gate result, overall sustainability, and paths plus SHA-256 hashes for every validated source. Caliper displayed throughput remains provenance only and is never used for the throughput gate.
 
-The separate common-profile latency populations requested for professor review are retained in `data/e1_latency_professor_review.csv`. Regenerate it with `./src/e1/analyze_timings.py --latency-professor-review --output data/e1_latency_professor_review.csv --replace`. The table keeps 50-TPS and 200-TPS samples separate. Its ECDSA, ML-DSA-44, and ML-DSA-65 rows are validated zero-failure latency candidates, with the caveat that their historical logs predate full standardized CPU-preflight capture in-log. Its SPHINCS+-SHA2-128s-simple rows retain common-profile success/error and saturation evidence, but all latency fields are intentionally empty. The professor has not yet selected which rate supplies the single final latency fields.
+The separate common-profile latency populations requested for professor review are retained in `data/e1_latency_professor_review.csv`. Regenerate it with `./src/e1/analyze_timings.py --latency-professor-review --output data/e1_latency_professor_review.csv --replace`. The table keeps 50-TPS and 200-TPS samples separate. Its ECDSA, ML-DSA-44, and ML-DSA-65 rows are validated zero-failure historical candidates; its SPHINCS+-SHA2-128s-simple rows retain saturation evidence and intentionally leave normal-latency fields empty.
+
+The professor has now selected the 200-TPS population for final latency fields. Because the old logs do not prove full setup/image/block-parameter/worktree/CPU equivalence, all four configurations require a new common-profile run with a fresh network for each configuration. The current runner performs teardown, deletes generated network state, regenerates matching identities/channel artifacts, starts the matching network, and records the effective block parameters and complete preflight before Caliper. The unchanged 50-TPS round produced by the same profile remains supporting evidence. SPHINCS+ at 200 TPS remains saturation-only and must not be converted into a normal latency row.
+
+Each clean rerun must use a collision-safe label with `E1_RUN_TYPE=fixed-profile`; the canonical `benchmark.yaml` remains unchanged. Validate each retained namespace with `analyze_timings.py --clean-fixed-profile <run_namespace>`. This mode requires the height-7 fresh-ledger baseline, teardown/regeneration markers, controlled CPU state, effective block parameters, image/source/patch provenance, exact E2E outcome reconciliation, and separate 50/200-TPS timing files. It never merges the two rates and leaves latency statistics blank for saturated or otherwise non-admissible populations.
 
 The final E1 schema, once all decisions and measurements are valid, is:
 
@@ -397,9 +407,11 @@ An explicitly incomplete working-schema view can be regenerated with:
 
 It validates the historical signcert evidence without treating it as `identity_bytes`, validates the public-key-only sizes, verifies common-profile success/error outcomes and the configured endorsement policy, and verifies the ECDSA block and all four exact-envelope summaries against retained raw sources and `meta.json`. It emits the exact four-row schema to stdout. Supported public-key means, common-50-TPS success/error rates, the completed ECDSA and SPHINCS+ sustained rates, all four empirical transaction-size and endorsement results, and the accepted boundary-inclusive ECDSA block fields are populated. Unmeasured ML-DSA sustained/block fields and unresolved latency fields remain empty. It intentionally refuses `--output`, preventing the working view from being mistaken for the final deliverable.
 
-## Remaining E1 final-output decision
+## Remaining E1 latency correction
 
-The only intentionally unresolved E1 final-output methodology item is which fixed-profile round or combined 50-TPS/200-TPS sample population supplies the single endorsement/commit fields in `e1_fabric.csv`. Both round-specific results remain separate for professor review. The added `tx_success_rate`, `tx_error_rate`, `tx_bytes_mean`, and `endorsements_per_tx` columns are part of the final E1 schema.
+The latency-population decision is resolved: the final endorsement/commit fields use the new clean 200-TPS population. Final values remain unset until the four equivalent common-profile reruns and separate PQ verification-path audits are complete. Historical 50-TPS results remain supporting data. The added `tx_success_rate`, `tx_error_rate`, `tx_bytes_mean`, and `endorsements_per_tx` columns remain part of the final E1 schema.
+
+ML-DSA-44 sustainability work is deliberately paused for this professor-directed correction. Its 200-TPS probe passed; after the verification and latency reruns are complete, resume the adaptive plan at the previously proposed 250-TPS probe.
 
 Separately, the plausible bands/source for the `make_figures.py` E0 sanity checker referenced by the student specification are absent from the supplied repository; this is a later repository-level implementation gap, not an E1 output-methodology decision.
 
