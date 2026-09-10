@@ -1,0 +1,6 @@
+config,algorithm,container,implementation,function,result,trace_line_sha256
+sphincs,SPHINCS+-SHA2-128s-simple,orderer.example.com,liboqs,oqs.Signature.Verify,success,428fbb60b4af1e04ec46586bee81893c4129406f18718ba88d7f88c071a03ecf
+sphincs,SPHINCS+-SHA2-128s-simple,peer0.org1.example.com,liboqs,oqs.Signature.Verify,success,0c4eef7487bf57f2d4e0692a6225fb63ac7a5893f340e39d3cdeebc7e5c48ba2
+sphincs,SPHINCS+-SHA2-128s-simple,peer1.org1.example.com,liboqs,oqs.Signature.Verify,success,5242703bcc483c85aa305b6ca5a6e48a758d3bd42d7123210ba137d1503bf8a9
+sphincs,SPHINCS+-SHA2-128s-simple,peer0.org2.example.com,liboqs,oqs.Signature.Verify,success,f4f13e53936ec03da787bd65786a2c1ccfa64f1da6c73effff3cf0c1a8cad382
+sphincs,SPHINCS+-SHA2-128s-simple,peer1.org2.example.com,liboqs,oqs.Signature.Verify,success,329958d271e3efc12ccb821cc4cc93086bb5c597f41df600da869307b9e20a8f

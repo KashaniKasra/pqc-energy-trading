@@ -1,6 +1,7 @@
 import csv
 import importlib.util
 import json
+import hashlib
 from pathlib import Path
 import tempfile
 import unittest
@@ -523,6 +524,99 @@ class CleanFixedProfileTests(unittest.TestCase):
             heights.write_text(heights.read_text().replace("before_warmup,7", "before_warmup,8"))
             with self.assertRaisesRegex(ValueError, "ledger height 7"):
                 ANALYZER.build_clean_fixed_profile_rows(root, namespace)
+
+
+class PQVerificationAuditTests(unittest.TestCase):
+    def write_fixture(self, root: Path) -> None:
+        raw = root / "raw" / "e1"
+        raw.mkdir(parents=True)
+        fabric_commit = "f" * 40
+        liboqs_commit = "9" * 40
+        patch_hash = "a" * 64
+        peer_image = "sha256:" + "b" * 64
+        orderer_image = "sha256:" + "c" * 64
+        metadata = {
+            "software_pins": {
+                "hyperledger_fabric": {"commit": fabric_commit},
+                "liboqs": {"commit": liboqs_commit},
+            },
+            "e1_benchmark": {"installed_images_at_metadata_update": {
+                "peer": peer_image,
+                "orderer": orderer_image,
+                "fabric_pq_patch_sha256": patch_hash,
+            }},
+        }
+        (root / "meta.json").write_text(json.dumps(metadata), encoding="utf-8")
+        containers = [
+            "orderer.example.com",
+            "peer0.org1.example.com", "peer1.org1.example.com",
+            "peer0.org2.example.com", "peer1.org2.example.com",
+        ]
+        for config, spec in ANALYZER.PQ_VERIFICATION_AUDITS.items():
+            namespace = spec["run_namespace"]
+            evidence = raw / f"{namespace}_pq_verification_audit.csv"
+            traces = []
+            rows = []
+            for container in containers:
+                trace = (
+                    "timestamp E1_PQ_VERIFY_TRACE implementation=liboqs "
+                    f"function=oqs.Signature.Verify algorithm={spec['algorithm']} result=success"
+                )
+                traces.append(f"{container}\t{trace}")
+                rows.append({
+                    "config": config, "algorithm": spec["algorithm"],
+                    "container": container, "implementation": "liboqs",
+                    "function": "oqs.Signature.Verify", "result": "success",
+                    "trace_line_sha256": hashlib.sha256(trace.encode()).hexdigest(),
+                })
+            with evidence.open("w", newline="", encoding="utf-8") as destination:
+                writer = csv.DictWriter(destination, fieldnames=ANALYZER.PQ_VERIFICATION_FIELDS)
+                writer.writeheader()
+                writer.writerows(rows)
+            log_lines = [
+                f"[E1-PQ-VERIFY] run_namespace={namespace}",
+                f"[E1-PQ-VERIFY] configuration={config}",
+                f"[E1-PQ-VERIFY] algorithm={spec['algorithm']}",
+                "[E1-PQ-VERIFY] purpose=functional_verification_path_audit_not_performance_measurement",
+                "[E1-PQ-VERIFY] controlled_cpu_or_ac_required=false",
+                "[E1-PQ-VERIFY] project_git_commit=" + "d" * 40,
+                "[E1-PQ-VERIFY] project_tracked_state_before_log_creation=clean",
+                "[E1-PQ-VERIFY] project_tracked_status_sha256_before_log_creation=" + hashlib.sha256(b"").hexdigest(),
+                f"[E1-PQ-VERIFY] fabric_source_commit={fabric_commit}",
+                f"[E1-PQ-VERIFY] liboqs_commit={liboqs_commit}",
+                f"[E1-PQ-VERIFY] fabric_pq_patch_sha256={patch_hash}",
+                f"[E1-PQ-VERIFY] peer_image_id={peer_image}",
+                f"[E1-PQ-VERIFY] orderer_image_id={orderer_image}",
+                "[E1-PQ-VERIFY] negative_regression_test=TestPQVerifierDispatchRejectsClassicalFallback",
+                "[E1] Removing previous E1 containers and generated artifacts...",
+                "[E1] Previous generated state removed.",
+                "[E1] Chaincode smoke test passed.",
+                "[E1] Fabric E1 setup completed successfully.",
+                *traces,
+                f"[E1-PQ-VERIFY] evidence_csv_sha256={ANALYZER.sha256_file(evidence)}",
+            ]
+            (raw / f"{namespace}_pq_verification_audit.log").write_text(
+                "\n".join(log_lines) + "\n", encoding="utf-8"
+            )
+
+    def test_all_algorithms_and_organizations_validate(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_fixture(root)
+            rows = ANALYZER.validate_pq_verification_audits(root)
+            self.assertEqual(len(rows), 3)
+            self.assertTrue(all(row["trace_count"] == "5" for row in rows))
+            self.assertTrue(all(row["org1_peer_success_count"] == "2" for row in rows))
+            self.assertTrue(all(row["org2_peer_success_count"] == "2" for row in rows))
+
+    def test_trace_hash_mismatch_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_fixture(root)
+            path = root / "raw/e1/pq-verify-v1_ml-dsa-44_pq_verification_audit.csv"
+            path.write_text(path.read_text().replace("success,", "success,0", 1))
+            with self.assertRaisesRegex(ValueError, "invalid or unreconciled trace row"):
+                ANALYZER.validate_pq_verification_audits(root)
 
 
 if __name__ == "__main__":

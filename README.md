@@ -147,7 +147,16 @@ SHA-256 0221cfe82f9c88c717677cb5c1f59f598d177cd7eac18c11f90ae29432d356f9
 
 No untested acquisition URL is claimed. After any patch change, rebuild the images and use the new image IDs recorded by `run_e1.sh`; old IDs must not be attributed to a new run.
 
-`collect_pq_verification_evidence.sh` is a separate functional audit, not a benchmark. With a collision-safe label it provisions one fresh PQ configuration, enables `FABRIC_PQ_VERIFY_TRACE=1`, runs the existing setup smoke transaction, and retains one-shot container traces identifying `oqs.Signature.Verify`, its algorithm, and result. It requires a successful trace on peers from both organizations and records project/source/image/patch provenance. `run_e1.sh` rejects `FABRIC_PQ_VERIFY_TRACE=1`, preventing this audit logging from entering latency measurements. It also rejects peer/orderer images whose build labels do not match the pinned Fabric commit, liboqs commit, and current patch hash. The patch regression `TestPQVerifierDispatchRejectsClassicalFallback` verifies all three exact PQ algorithms, positive PQ verification, tampered-signature rejection, concrete PQ verifier dispatch, and rejection of an ECDSA signature presented for a PQ identity.
+`collect_pq_verification_evidence.sh` is a separate functional audit, not a benchmark. With a collision-safe label it provisions one fresh PQ configuration, enables `FABRIC_PQ_VERIFY_TRACE=1`, runs the existing setup smoke transaction, and retains one-shot container traces identifying `oqs.Signature.Verify`, its algorithm, and result. `run_e1.sh` rejects `FABRIC_PQ_VERIFY_TRACE=1`, preventing this audit logging from entering latency measurements. It also rejects peer/orderer images whose build labels do not match the pinned Fabric commit, liboqs commit, and current patch hash. The patch regression `TestPQVerifierDispatchRejectsClassicalFallback` verifies all three exact PQ algorithms, positive PQ verification, tampered-signature rejection, concrete PQ verifier dispatch, and rejection of an ECDSA signature presented for a PQ identity.
+
+The three functional audits are complete for `ML-DSA-44`, `ML-DSA-65`, and `SPHINCS+-SHA2-128s-simple`. Each retained audit contains successful `implementation=liboqs function=oqs.Signature.Verify` traces from the orderer and both peers in both organizations, plus clean tracked-state, image, Fabric, liboqs, and patch provenance. Deterministically validate the raw CSV/log pairs and regenerate their three-row summary with:
+
+```bash
+./src/e1/analyze_timings.py --pq-verification-audits \
+  --output data/e1_pq_verification_audits.csv --replace
+```
+
+The retained runtime traces and the no-fallback regression resolve the professor's verification-path concern: PQ-configured identities invoke the exact liboqs verifier, and failed or classical signatures presented to a PQ key are rejected without retrying ECDSA. This evidence is functional-path evidence only and is not a latency measurement.
 
 ## Fabric setup
 
@@ -409,7 +418,7 @@ It validates the historical signcert evidence without treating it as `identity_b
 
 ## Remaining E1 latency correction
 
-The latency-population decision is resolved: the final endorsement/commit fields use the new clean 200-TPS population. Final values remain unset until the four equivalent common-profile reruns and separate PQ verification-path audits are complete. Historical 50-TPS results remain supporting data. The added `tx_success_rate`, `tx_error_rate`, `tx_bytes_mean`, and `endorsements_per_tx` columns remain part of the final E1 schema.
+The latency-population decision is resolved: the final endorsement/commit fields use the new clean 200-TPS population. The separate PQ verification-path audits are complete; final latency values remain unset until the four equivalent common-profile reruns are complete. Historical 50-TPS results remain supporting data. The added `tx_success_rate`, `tx_error_rate`, `tx_bytes_mean`, and `endorsements_per_tx` columns remain part of the final E1 schema.
 
 ML-DSA-44 sustainability work is deliberately paused for this professor-directed correction. Its 200-TPS probe passed; after the verification and latency reruns are complete, resume the adaptive plan at the previously proposed 250-TPS probe.
 

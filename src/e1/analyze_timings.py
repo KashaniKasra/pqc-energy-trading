@@ -14,6 +14,10 @@ or unmeasured fields empty. It populates only values supported by retained
 evidence or the verified Fabric endorsement policy. This mode cannot write an
 output file, so it cannot be mistaken for the completed
 ``data/e1_fabric.csv`` deliverable.
+
+``--pq-verification-audits`` validates the three retained one-shot runtime
+trace audits, including trace-line hashes, process/organization coverage, and
+clean source/image/patch provenance.
 """
 
 from __future__ import annotations
@@ -187,6 +191,24 @@ TRANSACTION_EVIDENCE_FIELDS = [
     "channel_header_type", "tx_id", "envelope_bytes", "envelope_sha256",
     "validation_code", "validation_name", "endorsements",
     "block_classification", "accepted_for_tx_mean",
+]
+PQ_VERIFICATION_AUDITS = {
+    "ml-dsa-44": {
+        "algorithm": "ML-DSA-44",
+        "run_namespace": "pq-verify-v1_ml-dsa-44",
+    },
+    "ml-dsa-65": {
+        "algorithm": "ML-DSA-65",
+        "run_namespace": "pq-verify-v1_ml-dsa-65",
+    },
+    "sphincs": {
+        "algorithm": "SPHINCS+-SHA2-128s-simple",
+        "run_namespace": "pq-verify-v1_sphincs",
+    },
+}
+PQ_VERIFICATION_FIELDS = [
+    "config", "algorithm", "container", "implementation", "function",
+    "result", "trace_line_sha256",
 ]
 
 
@@ -362,6 +384,137 @@ def parse_uint(path: Path, field: str, value: str) -> int:
     if not value.isdigit():
         raise ValueError(f"{path}: {field} must be an unsigned integer")
     return int(value)
+
+
+def required_prefixed_value(log_path: Path, log_text: str, key: str) -> str:
+    match = re.search(
+        rf"^\[E1-PQ-VERIFY\] {re.escape(key)}=(.+)$", log_text, re.MULTILINE
+    )
+    if match is None:
+        raise ValueError(f"{log_path}: missing {key}")
+    return match.group(1)
+
+
+def validate_pq_verification_audits(project_root: Path) -> list[dict[str, str]]:
+    """Validate retained one-shot liboqs verification traces and provenance."""
+    metadata = json.loads((project_root / "meta.json").read_text(encoding="utf-8"))
+    software = metadata["software_pins"]
+    images = metadata["e1_benchmark"]["installed_images_at_metadata_update"]
+    expected_containers = {
+        "orderer.example.com",
+        "peer0.org1.example.com",
+        "peer1.org1.example.com",
+        "peer0.org2.example.com",
+        "peer1.org2.example.com",
+    }
+    rows_out = []
+    for config, spec in PQ_VERIFICATION_AUDITS.items():
+        namespace = spec["run_namespace"]
+        csv_path = project_root / "raw" / "e1" / f"{namespace}_pq_verification_audit.csv"
+        log_path = project_root / "raw" / "e1" / f"{namespace}_pq_verification_audit.log"
+        log_bytes = log_path.read_bytes()
+        log_text = log_bytes.decode("utf-8", errors="strict")
+        with csv_path.open(newline="", encoding="utf-8") as source:
+            reader = csv.DictReader(source)
+            if reader.fieldnames != PQ_VERIFICATION_FIELDS:
+                raise ValueError(f"{csv_path}: unexpected PQ verification schema")
+            trace_rows = list(reader)
+        if len(trace_rows) != len(expected_containers):
+            raise ValueError(f"{csv_path}: expected five retained traces")
+        containers = {row["container"] for row in trace_rows}
+        if containers != expected_containers:
+            raise ValueError(f"{csv_path}: missing or unexpected containers")
+
+        trace_lines: dict[str, bytes] = {}
+        for raw_line in log_bytes.splitlines():
+            if b"\t" not in raw_line or b"E1_PQ_VERIFY_TRACE" not in raw_line:
+                continue
+            container_bytes, trace_line = raw_line.split(b"\t", 1)
+            container = container_bytes.decode("utf-8", errors="strict")
+            if container in trace_lines:
+                raise ValueError(f"{log_path}: duplicate retained trace for {container}")
+            trace_lines[container] = trace_line
+        if set(trace_lines) != expected_containers:
+            raise ValueError(f"{log_path}: retained trace coverage does not match CSV")
+
+        for row in trace_rows:
+            trace_line = trace_lines[row["container"]]
+            expected_trace = (
+                "E1_PQ_VERIFY_TRACE implementation=liboqs "
+                f"function=oqs.Signature.Verify algorithm={spec['algorithm']} "
+                "result=success"
+            ).encode()
+            if (
+                row["config"] != config
+                or row["algorithm"] != spec["algorithm"]
+                or row["implementation"] != "liboqs"
+                or row["function"] != "oqs.Signature.Verify"
+                or row["result"] != "success"
+                or expected_trace not in trace_line
+                or row["trace_line_sha256"] != hashlib.sha256(trace_line).hexdigest()
+            ):
+                raise ValueError(f"{csv_path}: invalid or unreconciled trace row")
+
+        required_values = {
+            "run_namespace": namespace,
+            "configuration": config,
+            "algorithm": spec["algorithm"],
+            "purpose": "functional_verification_path_audit_not_performance_measurement",
+            "controlled_cpu_or_ac_required": "false",
+            "project_tracked_state_before_log_creation": "clean",
+            "project_tracked_status_sha256_before_log_creation": hashlib.sha256(b"").hexdigest(),
+            "fabric_source_commit": software["hyperledger_fabric"]["commit"],
+            "liboqs_commit": software["liboqs"]["commit"],
+            "fabric_pq_patch_sha256": images["fabric_pq_patch_sha256"],
+            "peer_image_id": images["peer"],
+            "orderer_image_id": images["orderer"],
+            "negative_regression_test": "TestPQVerifierDispatchRejectsClassicalFallback",
+            "evidence_csv_sha256": sha256_file(csv_path),
+        }
+        for key, expected in required_values.items():
+            observed = required_prefixed_value(log_path, log_text, key)
+            if observed != expected:
+                raise ValueError(
+                    f"{log_path}: {key}={observed!r}, expected {expected!r}"
+                )
+        project_commit = required_prefixed_value(log_path, log_text, "project_git_commit")
+        if re.fullmatch(r"[0-9a-f]{40}", project_commit) is None:
+            raise ValueError(f"{log_path}: invalid project commit")
+        for line in (
+            "[E1] Removing previous E1 containers and generated artifacts...",
+            "[E1] Previous generated state removed.",
+            "[E1] Chaincode smoke test passed.",
+            "[E1] Fabric E1 setup completed successfully.",
+        ):
+            if line not in log_text:
+                raise ValueError(f"{log_path}: missing fresh functional-audit marker: {line}")
+
+        rows_out.append({
+            "config": config,
+            "algorithm": spec["algorithm"],
+            "run_namespace": namespace,
+            "trace_count": str(len(trace_rows)),
+            "orderer_success_count": "1",
+            "org1_peer_success_count": "2",
+            "org2_peer_success_count": "2",
+            "implementation": "liboqs",
+            "function": "oqs.Signature.Verify",
+            "result": "success",
+            "classical_fallback_regression": "TestPQVerifierDispatchRejectsClassicalFallback",
+            "project_git_commit": project_commit,
+            "project_tracked_state": "clean",
+            "fabric_commit": software["hyperledger_fabric"]["commit"],
+            "liboqs_commit": software["liboqs"]["commit"],
+            "fabric_pq_patch_sha256": images["fabric_pq_patch_sha256"],
+            "peer_image_id": images["peer"],
+            "orderer_image_id": images["orderer"],
+            "raw_csv_source": relative(csv_path, project_root),
+            "raw_csv_sha256": sha256_file(csv_path),
+            "raw_log_source": relative(log_path, project_root),
+            "raw_log_sha256": hashlib.sha256(log_bytes).hexdigest(),
+            "status": "validated_functional_pq_verify_evidence",
+        })
+    return rows_out
 
 
 def validated_ecdsa_block_result(project_root: Path) -> tuple[str, str]:
@@ -1716,6 +1869,11 @@ def main() -> int:
         metavar="SUMMARY_CSV",
         help="validate exact serialized transaction sizes and endorsement counts",
     )
+    mode.add_argument(
+        "--pq-verification-audits",
+        action="store_true",
+        help="validate retained functional liboqs PQ verification traces",
+    )
     parser.add_argument(
         "--output",
         type=Path,
@@ -1756,6 +1914,8 @@ def main() -> int:
             rows = build_sustainability_rows(project_root, args.sustainability)
         elif args.block_transactions:
             rows = validate_transaction_summary(project_root, args.block_transactions)
+        elif args.pq_verification_audits:
+            rows = validate_pq_verification_audits(project_root)
         else:
             rows = build_rows(project_root)
     except (KeyError, OSError, ValueError, json.JSONDecodeError) as error:

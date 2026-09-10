@@ -172,11 +172,41 @@
       "orderer_binary_note": "Patched to verify requests signed by PQ peer identities",
       "verification_dispatch": "An X.509 certificate carrying experimental extension 1.3.6.1.3.9999.1 is imported as *sw.pqPublicKey before its ECDSA SPKI is considered. BCCSP dispatches that concrete key type only to pqPublicKeyVerifier, which initializes oqs.Signature with the extension algorithm and calls oqs.Signature.Verify. Import, initialization, or verification failure returns an error/false; there is no ECDSA verification fallback for the PQ key type.",
       "runtime_verification_audit": {
-        "status": "trace-enabled images rebuilt and provenance-validated; separate human-controlled functional audits remain required before clean latency reruns",
+        "status": "complete; retained one-shot runtime traces validate actual liboqs PQ verification on the orderer and peers in both organizations for all three PQ configurations",
         "trace_control": "FABRIC_PQ_VERIFY_TRACE=1 enables one INFO trace per algorithm/result pair per process; Caliper run_e1.sh rejects this setting so trace logging cannot perturb performance runs",
         "collector": "env/fabric/e1/collect_pq_verification_evidence.sh",
+        "deterministic_validator": "./src/e1/analyze_timings.py --pq-verification-audits",
         "regression_test": "bccsp/sw TestPQVerifierDispatchRejectsClassicalFallback covers ML-DSA-44, ML-DSA-65, and SPHINCS+-SHA2-128s-simple",
-        "current_patch_sha256": "5268f9f67656233d7e7b9ac7c449f20f05fc8a8257fb91eb0de63698a72d1293"
+        "regression_interpretation": "For every supported PQ algorithm, a valid PQ signature verifies, a tampered PQ signature is rejected, and an ECDSA signature presented to the PQ public key is rejected by the concrete PQ verifier without classical fallback.",
+        "current_patch_sha256": "5268f9f67656233d7e7b9ac7c449f20f05fc8a8257fb91eb0de63698a72d1293",
+        "derived_summary": "data/e1_pq_verification_audits.csv",
+        "derived_summary_sha256": "84410ae5660c74c9deaddcb66d27e0194b0af00395f7bb5bea7a63f34c8303c5",
+        "audits": {
+          "ML-DSA-44": {
+            "run_namespace": "pq-verify-v1_ml-dsa-44",
+            "evidence_csv": "raw/e1/pq-verify-v1_ml-dsa-44_pq_verification_audit.csv",
+            "evidence_csv_sha256": "e406ed20f01c299de7ae6b786ec316e4e6904f20e07ebd2f4e6191b3968c2245",
+            "log": "raw/e1/pq-verify-v1_ml-dsa-44_pq_verification_audit.log",
+            "log_sha256": "3983a6297e21b50be3b91214f42c0790e37d64838139311e66ca1d8813ba07bc",
+            "trace_coverage": "orderer plus two Org1 peers plus two Org2 peers; all five result=success"
+          },
+          "ML-DSA-65": {
+            "run_namespace": "pq-verify-v1_ml-dsa-65",
+            "evidence_csv": "raw/e1/pq-verify-v1_ml-dsa-65_pq_verification_audit.csv",
+            "evidence_csv_sha256": "9c0a2cd794cf63985d22c6609e0a73f7f9bd7d9b09d6916a42b96ac3f68361ea",
+            "log": "raw/e1/pq-verify-v1_ml-dsa-65_pq_verification_audit.log",
+            "log_sha256": "613ef168ffc98343a67ed8c633ad9a401b2b2875cf0061b978c773f200d84a90",
+            "trace_coverage": "orderer plus two Org1 peers plus two Org2 peers; all five result=success"
+          },
+          "SPHINCS+-SHA2-128s-simple": {
+            "run_namespace": "pq-verify-v1_sphincs",
+            "evidence_csv": "raw/e1/pq-verify-v1_sphincs_pq_verification_audit.csv",
+            "evidence_csv_sha256": "54944dc0736d375854bcf24b294b4d6d2b317b0cbc0d55d307e2ddd28cf71ca8",
+            "log": "raw/e1/pq-verify-v1_sphincs_pq_verification_audit.log",
+            "log_sha256": "00f0bd3ee5b0fd26afc3663a6b9911fe7f660cda1f24fd114c3b7ac922e73553",
+            "trace_coverage": "orderer plus two Org1 peers plus two Org2 peers; all five result=success"
+          }
+        }
       }
     },
     "caliper": {
@@ -1167,7 +1197,7 @@
       "fabric_commit_label": "f871cf92a026aba7b12e6f06d71ded3e6e659d71",
       "liboqs_commit_label": "97f6b86b1b6d109cfd43cf276ae39c2e776aed80",
       "validation": "Trace-enabled peer and orderer images report Fabric 2.5.16 commit f871cf9, Go 1.26.4, linux/amd64, dynamically link to liboqs.so.9/libcrypto, and carry matching Fabric/liboqs/patch provenance labels.",
-      "current_source_status": "Current installed images match repository patch 5268f9f6... and are eligible for the separate functional PQ verification audits and subsequent clean common-profile reruns."
+      "current_source_status": "Current installed images match repository patch 5268f9f6...; the separate functional PQ verification audits completed successfully and the images are eligible for the clean common-profile reruns."
     },
     "superseded_installed_images": [
       {

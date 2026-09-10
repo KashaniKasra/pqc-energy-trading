@@ -1,0 +1,172 @@
+[E1-PQ-VERIFY] started_at=2026-09-10T20:06:50+03:30
+[E1-PQ-VERIFY] run_namespace=pq-verify-v1_ml-dsa-44
+[E1-PQ-VERIFY] configuration=ml-dsa-44
+[E1-PQ-VERIFY] algorithm=ML-DSA-44
+[E1-PQ-VERIFY] purpose=functional_verification_path_audit_not_performance_measurement
+[E1-PQ-VERIFY] controlled_cpu_or_ac_required=false
+[E1-PQ-VERIFY] project_git_commit=a97e257ac9b85d44bd24fdedbe7d606cc5276386
+[E1-PQ-VERIFY] project_git_status_sha256_before_log_creation=5337e5d1f13cfa399a57991399dcb890e12b0430218e9675101be5ef6ed14dc2
+[E1-PQ-VERIFY] project_tracked_state_before_log_creation=clean
+[E1-PQ-VERIFY] project_tracked_status_sha256_before_log_creation=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+[E1-PQ-VERIFY] project_untracked_paths_sha256_before_log_creation=e8d848fbe936ece355a3de0880608353d1e4e30413606d7c0eb2f703bc9c281c
+[E1-PQ-VERIFY] fabric_source_commit=f871cf92a026aba7b12e6f06d71ded3e6e659d71
+[E1-PQ-VERIFY] liboqs_commit=97f6b86b1b6d109cfd43cf276ae39c2e776aed80
+[E1-PQ-VERIFY] fabric_pq_patch_sha256=5268f9f67656233d7e7b9ac7c449f20f05fc8a8257fb91eb0de63698a72d1293
+[E1-PQ-VERIFY] peer_image_id=sha256:3d71da5ac46b179c981527b69ac832cb7905bd3bc428ee6b2620bc580e3c944e
+[E1-PQ-VERIFY] orderer_image_id=sha256:4ec6f0287e3fda35a874357bfe9c9f2ef8b9fbb427a42457de3b6b1b98290058
+[E1-PQ-VERIFY] negative_regression_test=TestPQVerifierDispatchRejectsClassicalFallback
+[E1-PQ-VERIFY] Provisioning a fresh matching network for the functional smoke transaction...
+[E1] Fabric setup starting...
+[E1] Fabric binaries: /home/user/projects/fabric-samples/bin
+[E1] Channel: energychannel
+[E1] Chaincode: simplekv
+[E1] Configuration: ml-dsa-44
+[E1] Running preflight checks...
+[E1] Hyperledger Fabric version: 2.5.16
+[E1] Preflight checks passed.
+[E1] Removing previous E1 containers and generated artifacts...
+[E1] Previous generated state removed.
+[E1] Generating cryptographic material...
+org1.example.com
+org2.example.com
+[E1] Generating PQ peer identities using ML-DSA-44...
+peer0.org1.example.com: algorithm=ML-DSA-44 public_key_bytes=1312 certificate_bytes=2638
+peer1.org1.example.com: algorithm=ML-DSA-44 public_key_bytes=1312 certificate_bytes=2638
+peer0.org2.example.com: algorithm=ML-DSA-44 public_key_bytes=1312 certificate_bytes=2642
+peer1.org2.example.com: algorithm=ML-DSA-44 public_key_bytes=1312 certificate_bytes=2638
+PQ identities generated successfully using ML-DSA-44
+[E1] Generating orderer genesis block...
+[34m2026-09-10 20:06:51.510 +0330 0001 INFO[0m [common.tools.configtxgen] [34;1mmain[0m -> Loading configuration
+[34m2026-09-10 20:06:51.514 +0330 0002 INFO[0m [common.tools.configtxgen.localconfig] [34;1mcompleteInitialization[0m -> orderer type: etcdraft
+[34m2026-09-10 20:06:51.514 +0330 0003 INFO[0m [common.tools.configtxgen.localconfig] [34;1mcompleteInitialization[0m -> Orderer.EtcdRaft.Options unset, setting to tick_interval:"500ms" election_tick:10 heartbeat_tick:1 max_inflight_blocks:5 snapshot_interval_size:16777216 
+[34m2026-09-10 20:06:51.514 +0330 0004 INFO[0m [common.tools.configtxgen.localconfig] [34;1mLoad[0m -> Loaded configuration: /home/user/projects/pqc-energy-trading/env/fabric/e1/configtx.yaml
+[34m2026-09-10 20:06:51.516 +0330 0005 INFO[0m [common.tools.configtxgen] [34;1mdoOutputBlock[0m -> Generating genesis block
+[34m2026-09-10 20:06:51.516 +0330 0006 INFO[0m [common.tools.configtxgen] [34;1mdoOutputBlock[0m -> Creating system channel genesis block
+[34m2026-09-10 20:06:51.516 +0330 0007 INFO[0m [common.tools.configtxgen] [34;1mdoOutputBlock[0m -> Writing genesis block
+[E1] Generating channel creation transaction...
+[34m2026-09-10 20:06:51.544 +0330 0001 INFO[0m [common.tools.configtxgen] [34;1mmain[0m -> Loading configuration
+[34m2026-09-10 20:06:51.548 +0330 0002 INFO[0m [common.tools.configtxgen.localconfig] [34;1mLoad[0m -> Loaded configuration: /home/user/projects/pqc-energy-trading/env/fabric/e1/configtx.yaml
+[34m2026-09-10 20:06:51.548 +0330 0003 INFO[0m [common.tools.configtxgen] [34;1mdoOutputChannelCreateTx[0m -> Generating new channel configtx
+[34m2026-09-10 20:06:51.550 +0330 0004 INFO[0m [common.tools.configtxgen] [34;1mdoOutputChannelCreateTx[0m -> Writing new channel tx
+[E1] Generating anchor peer updates...
+[34m2026-09-10 20:06:51.576 +0330 0001 INFO[0m [common.tools.configtxgen] [34;1mmain[0m -> Loading configuration
+[34m2026-09-10 20:06:51.581 +0330 0002 INFO[0m [common.tools.configtxgen.localconfig] [34;1mLoad[0m -> Loaded configuration: /home/user/projects/pqc-energy-trading/env/fabric/e1/configtx.yaml
+[34m2026-09-10 20:06:51.581 +0330 0003 INFO[0m [common.tools.configtxgen] [34;1mdoOutputAnchorPeersUpdate[0m -> Generating anchor peer update
+[34m2026-09-10 20:06:51.583 +0330 0004 INFO[0m [common.tools.configtxgen] [34;1mdoOutputAnchorPeersUpdate[0m -> Writing anchor peer update
+[34m2026-09-10 20:06:51.611 +0330 0001 INFO[0m [common.tools.configtxgen] [34;1mmain[0m -> Loading configuration
+[34m2026-09-10 20:06:51.615 +0330 0002 INFO[0m [common.tools.configtxgen.localconfig] [34;1mLoad[0m -> Loaded configuration: /home/user/projects/pqc-energy-trading/env/fabric/e1/configtx.yaml
+[34m2026-09-10 20:06:51.615 +0330 0003 INFO[0m [common.tools.configtxgen] [34;1mdoOutputAnchorPeersUpdate[0m -> Generating anchor peer update
+[34m2026-09-10 20:06:51.616 +0330 0004 INFO[0m [common.tools.configtxgen] [34;1mdoOutputAnchorPeersUpdate[0m -> Writing anchor peer update
+[E1] Fabric cryptographic and channel artifacts generated.
+[E1] Starting Fabric network...
+ Network e1net  Creating
+ Network e1net  Created
+ Container orderer.example.com  Creating
+ Container peer0.org1.example.com  Creating
+ Container peer0.org2.example.com  Creating
+ Container peer1.org1.example.com  Creating
+ Container peer1.org2.example.com  Creating
+ Container orderer.example.com  Created
+ Container peer1.org1.example.com  Created
+ Container peer0.org1.example.com  Created
+ Container peer1.org2.example.com  Created
+ Container peer0.org2.example.com  Created
+ Container peer1.org2.example.com  Starting
+ Container peer0.org1.example.com  Starting
+ Container orderer.example.com  Starting
+ Container peer1.org1.example.com  Starting
+ Container peer0.org2.example.com  Starting
+ Container peer1.org2.example.com  Started
+ Container peer0.org1.example.com  Started
+ Container peer0.org2.example.com  Started
+ Container peer1.org1.example.com  Started
+ Container orderer.example.com  Started
+[E1] orderer.example.com is running.
+[E1] peer0.org1.example.com is running.
+[E1] peer1.org1.example.com is running.
+[E1] peer0.org2.example.com is running.
+[E1] peer1.org2.example.com is running.
+[E1] Fabric containers are running.
+[E1] Waiting for Raft leader...
+[E1] Raft leader is ready.
+[E1] Waiting for peers to become ready...
+[E1] peer0.org1.example.com:7051 is ready.
+[E1] peer1.org1.example.com:8051 is ready.
+[E1] peer0.org2.example.com:9051 is ready.
+[E1] peer1.org2.example.com:10051 is ready.
+[E1] All peers are ready.
+[E1] Creating channel energychannel...
+[34m2026-09-10 20:06:53.330 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-10 20:06:53.348 +0330 0002 INFO[0m [cli.common] [34;1mreadBlock[0m -> Expect block, but got status: &{SERVICE_UNAVAILABLE}
+[34m2026-09-10 20:06:53.351 +0330 0003 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-10 20:06:53.552 +0330 0004 INFO[0m [cli.common] [34;1mreadBlock[0m -> Expect block, but got status: &{SERVICE_UNAVAILABLE}
+[34m2026-09-10 20:06:53.554 +0330 0005 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-10 20:06:53.756 +0330 0006 INFO[0m [cli.common] [34;1mreadBlock[0m -> Expect block, but got status: &{SERVICE_UNAVAILABLE}
+[34m2026-09-10 20:06:53.758 +0330 0007 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-10 20:06:53.959 +0330 0008 INFO[0m [cli.common] [34;1mreadBlock[0m -> Expect block, but got status: &{SERVICE_UNAVAILABLE}
+[34m2026-09-10 20:06:53.962 +0330 0009 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-10 20:06:54.163 +0330 000a INFO[0m [cli.common] [34;1mreadBlock[0m -> Expect block, but got status: &{SERVICE_UNAVAILABLE}
+[34m2026-09-10 20:06:54.166 +0330 000b INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-10 20:06:54.369 +0330 000c INFO[0m [cli.common] [34;1mreadBlock[0m -> Received block: 0
+[E1] Joining peer0.org1...
+[34m2026-09-10 20:06:54.421 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-10 20:06:54.438 +0330 0002 INFO[0m [channelCmd] [34;1mexecuteJoin[0m -> Successfully submitted proposal to join channel
+[E1] Joining peer1.org1...
+[34m2026-09-10 20:06:54.491 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-10 20:06:54.510 +0330 0002 INFO[0m [channelCmd] [34;1mexecuteJoin[0m -> Successfully submitted proposal to join channel
+[E1] Joining peer0.org2...
+[34m2026-09-10 20:06:54.563 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-10 20:06:54.580 +0330 0002 INFO[0m [channelCmd] [34;1mexecuteJoin[0m -> Successfully submitted proposal to join channel
+[E1] Joining peer1.org2...
+[34m2026-09-10 20:06:54.632 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-10 20:06:54.650 +0330 0002 INFO[0m [channelCmd] [34;1mexecuteJoin[0m -> Successfully submitted proposal to join channel
+[E1] All four peers joined energychannel.
+[E1] Applying Org1 anchor peer update...
+[34m2026-09-10 20:06:54.700 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-10 20:06:54.711 +0330 0002 INFO[0m [channelCmd] [34;1mupdate[0m -> Successfully submitted channel update
+[E1] Applying Org2 anchor peer update...
+[34m2026-09-10 20:06:54.765 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-10 20:06:54.777 +0330 0002 INFO[0m [channelCmd] [34;1mupdate[0m -> Successfully submitted channel update
+[E1] Anchor peer updates applied.
+[E1] Packaging chaincode...
+[E1] Installing chaincode on all four peers...
+[34m2026-09-10 20:06:55.068 +0330 0001 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Installed remotely: response:<status:200 payload:"\nKsimplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b\022\nsimplekv_1" > 
+[34m2026-09-10 20:06:55.068 +0330 0002 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Chaincode code package identifier: simplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b
+[34m2026-09-10 20:06:55.119 +0330 0001 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Installed remotely: response:<status:200 payload:"\nKsimplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b\022\nsimplekv_1" > 
+[34m2026-09-10 20:06:55.119 +0330 0002 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Chaincode code package identifier: simplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b
+[34m2026-09-10 20:06:55.169 +0330 0001 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Installed remotely: response:<status:200 payload:"\nKsimplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b\022\nsimplekv_1" > 
+[34m2026-09-10 20:06:55.169 +0330 0002 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Chaincode code package identifier: simplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b
+[34m2026-09-10 20:06:55.217 +0330 0001 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Installed remotely: response:<status:200 payload:"\nKsimplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b\022\nsimplekv_1" > 
+[34m2026-09-10 20:06:55.217 +0330 0002 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Chaincode code package identifier: simplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b
+[E1] Chaincode package ID: simplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b
+[E1] Approving chaincode for Org1...
+[34m2026-09-10 20:06:57.322 +0330 0001 INFO[0m [chaincodeCmd] [34;1mClientWait[0m -> txid [c3e08d2a5235ae97eb84d5747d4553dcd20fcea6e783572f6c878f8b4ae53800] committed with status (VALID) at peer0.org1.example.com:7051
+[E1] Approving chaincode for Org2...
+[34m2026-09-10 20:06:59.400 +0330 0001 INFO[0m [chaincodeCmd] [34;1mClientWait[0m -> txid [09cd1ba7f4629205780364bbad7116a086ea9cf4a48014546850013e83186b79] committed with status (VALID) at peer0.org2.example.com:9051
+[E1] Checking chaincode commit readiness...
+{
+	"approvals": {
+		"Org1MSP": true,
+		"Org2MSP": true
+	}
+}
+[E1] Committing chaincode definition...
+[34m2026-09-10 20:07:01.534 +0330 0001 INFO[0m [chaincodeCmd] [34;1mClientWait[0m -> txid [895e3b608aa65cc9d1097fbb9d0f3ab0577c039e3d0287a2209834fe54f89315] committed with status (VALID) at peer0.org2.example.com:9051
+[34m2026-09-10 20:07:01.534 +0330 0002 INFO[0m [chaincodeCmd] [34;1mClientWait[0m -> txid [895e3b608aa65cc9d1097fbb9d0f3ab0577c039e3d0287a2209834fe54f89315] committed with status (VALID) at peer0.org1.example.com:7051
+[E1] Chaincode committed.
+[E1] Running chaincode smoke test...
+[34m2026-09-10 20:07:01.804 +0330 0001 INFO[0m [chaincodeCmd] [34;1mchaincodeInvokeOrQuery[0m -> Chaincode invoke successful. result: status:200 
+[E1] Chaincode smoke test passed.
+[E1] Verifying cross-organization discovery...
+[E1] Discovery check passed: all four peers visible.
+[E1] Fabric E1 setup completed successfully.
+[E1-PQ-VERIFY] Retained one-shot runtime traces:
+orderer.example.com	2026-09-10T16:36:54.442302876Z [34m2026-09-10 16:36:54.442 UTC 005c INFO[0m [bccsp_sw] [34;1mtracePQVerify[0m -> E1_PQ_VERIFY_TRACE implementation=liboqs function=oqs.Signature.Verify algorithm=ML-DSA-44 result=success
+peer0.org1.example.com	2026-09-10T16:36:52.050193951Z [34m2026-09-10 16:36:52.050 UTC 0025 INFO[0m [bccsp_sw] [34;1mtracePQVerify[0m -> E1_PQ_VERIFY_TRACE implementation=liboqs function=oqs.Signature.Verify algorithm=ML-DSA-44 result=success
+peer1.org1.example.com	2026-09-10T16:36:52.050218578Z [34m2026-09-10 16:36:52.050 UTC 0024 INFO[0m [bccsp_sw] [34;1mtracePQVerify[0m -> E1_PQ_VERIFY_TRACE implementation=liboqs function=oqs.Signature.Verify algorithm=ML-DSA-44 result=success
+peer0.org2.example.com	2026-09-10T16:36:52.033412161Z [34m2026-09-10 16:36:52.033 UTC 0024 INFO[0m [bccsp_sw] [34;1mtracePQVerify[0m -> E1_PQ_VERIFY_TRACE implementation=liboqs function=oqs.Signature.Verify algorithm=ML-DSA-44 result=success
+peer1.org2.example.com	2026-09-10T16:36:52.033307042Z [34m2026-09-10 16:36:52.033 UTC 0025 INFO[0m [bccsp_sw] [34;1mtracePQVerify[0m -> E1_PQ_VERIFY_TRACE implementation=liboqs function=oqs.Signature.Verify algorithm=ML-DSA-44 result=success
+[E1-PQ-VERIFY] evidence_csv=/home/user/projects/pqc-energy-trading/raw/e1/pq-verify-v1_ml-dsa-44_pq_verification_audit.csv
+[E1-PQ-VERIFY] evidence_csv_sha256=e406ed20f01c299de7ae6b786ec316e4e6904f20e07ebd2f4e6191b3968c2245
+[E1-PQ-VERIFY] completed_at=2026-09-10T20:07:04+03:30
+[E1-PQ-VERIFY] Network remains running so the evidence can be inspected before deliberate teardown.
