@@ -83,7 +83,7 @@
     "raw_sources": "raw/e0/"
   },
   "e1_benchmark": {
-    "status": "functional for all four identity configurations; professor selected the 200-TPS population for final latency, but clean common-profile reruns are pending; historical ECDSA/ML-DSA timing remains supporting candidate evidence and SPHINCS+ saturation remains reportable; final E1 CSV incomplete",
+    "status": "functional for all four identity configurations; clean common-profile reruns and PQ verification audits are complete; professor-selected 200-TPS latency is validated for ECDSA/ML-DSA-44/ML-DSA-65, SPHINCS+ saturation remains reportable, and final E1 CSV remains incomplete pending other E1 fields",
     "platform": "server",
     "topology": {
       "ordering_service": "etcdraft",
@@ -927,7 +927,7 @@
       },
       "latency_professor_review": {
         "artifact": "data/e1_latency_professor_review.csv",
-        "artifact_sha256": "e2819c7fd811b5bdcd2ff72cb40fee27d14df993b4f0fcab9926f1891221f929",
+        "artifact_sha256": "82cadfcca1ae919c922eb46e76d2c9cd952af0bc581bd072fb873724d91d3dd3",
         "generator": "./src/e1/analyze_timings.py --latency-professor-review",
         "row_count": 8,
         "population_rule": "50-TPS and 200-TPS populations are separate and are never merged",
@@ -935,9 +935,91 @@
         "saturation_only_rows": 2,
         "candidate_caveat": "ECDSA, ML-DSA-44, and ML-DSA-65 have zero failures and validated timing counts/source hashes. Every height file begins at channel height 7, demonstrating a reset ledger baseline, but the historical logs do not retain the setup invocation, exact generated-artifact hashes, effective block-parameter decode, image IDs, project/worktree state, or full standardized CPU preflight.",
         "sphincs_handling": "Common-profile success/error outcomes and Gateway saturation are retained at 50 and 200 TPS; latency fields are intentionally empty and are not normal latency candidates.",
-        "final_latency_population_selection": "Professor selected the 200-TPS population. Clean equivalent common-profile reruns are required for all four configurations before final latency fields are populated; the 50-TPS round remains supporting evidence. SPHINCS+ 200 TPS remains saturation-only, not a normal latency population.",
+        "final_latency_population_selection": "Professor selected the 200-TPS population. Clean equivalent common-profile reruns are complete for all four configurations; ECDSA, ML-DSA-44, and ML-DSA-65 are valid normal-latency populations, while SPHINCS+ remains saturation-only. The clean 50-TPS populations remain supporting evidence.",
         "clean_rerun_generator": "./src/e1/analyze_timings.py --clean-fixed-profile <run_namespace>",
-        "clean_rerun_acceptance": "Requires a fresh height-7 ledger, explicit teardown/regeneration markers, controlled CPU preflight, effective Fabric block parameters, pinned image/source/patch provenance, exact E2E count reconciliation, and separate 50-TPS/200-TPS timing populations. Failed or saturated populations retain outcomes but do not receive normal latency summaries."
+        "clean_rerun_acceptance": "Requires a fresh height-7 ledger, explicit teardown/regeneration markers, controlled CPU preflight, effective Fabric block parameters, pinned image/source/patch provenance, exact E2E count reconciliation, and separate 50-TPS/200-TPS timing populations. Failed or saturated populations retain outcomes but do not receive normal latency summaries.",
+        "clean_cross_configuration_review": {
+          "status": "complete_and_deterministically_validated",
+          "artifact": "data/e1_latency_clean_professor_review.csv",
+          "artifact_sha256": "48f9f06ddc35fc590bd6392f134badc0724d9ff8da54cb3b094e7b752cf5fe85",
+          "generator": "./src/e1/analyze_timings.py --clean-latency-professor-review",
+          "canonical_benchmark_sha256": "5ae8aa973467a7828237fbc097c8e3936d5a05196de3cfd2881f550b8afd6e1a",
+          "common_effective_block_parameters": {
+            "BatchTimeout": "2s",
+            "MaxMessageCount": 500,
+            "PreferredMaxBytes": 2097152,
+            "AbsoluteMaxBytes": 10485760
+          },
+          "common_provenance": {
+            "fresh_ledger_start_height": 7,
+            "tracked_state": "clean",
+            "cpu_set": "2-15",
+            "amd_pstate_mode": "passive",
+            "boost": 0,
+            "governor": "performance",
+            "fixed_frequency_khz": 3201000,
+            "peer_image": "sha256:3d71da5ac46b179c981527b69ac832cb7905bd3bc428ee6b2620bc580e3c944e",
+            "orderer_image": "sha256:4ec6f0287e3fda35a874357bfe9c9f2ef8b9fbb427a42457de3b6b1b98290058",
+            "fabric_commit": "f871cf92a026aba7b12e6f06d71ded3e6e659d71",
+            "liboqs_commit": "97f6b86b1b6d109cfd43cf276ae39c2e776aed80",
+            "patch_sha256": "5268f9f67656233d7e7b9ac7c449f20f05fc8a8257fb91eb0de63698a72d1293",
+            "pq_verify_trace": 0,
+            "configtx_sha256": "87022050421db9821be46266cfe68b9789c3fe125d089e31d368a01ffe27b384",
+            "setup_sha256": "b69af762feee33e800bc26ef5af9e0a45301ba0c2172f580de6fc90b25ac2831"
+          },
+          "runs": {
+            "ECDSA": {
+              "namespace": "latency-common-clean-v1_ecdsa",
+              "derived": "data/e1_latency_common_clean_v1_ecdsa.csv",
+              "derived_sha256": "d04e8e8ad5abf8756186482b8417ceb81aa803f5f6859fdade6a47b3035c0d27",
+              "log": "raw/e1/latency-common-clean-v1_ecdsa_caliper_run.log",
+              "log_sha256": "a8c90b17fed6b64815bf5012354fd0406ca6d9a2fd450c5d212dc7a9ace6959d",
+              "heights": "raw/e1/latency-common-clean-v1_ecdsa_block_heights.csv",
+              "heights_sha256": "c367f91bd9539e7e6f5327554da25ce27e0f8678401d831283efb8cedcaad2e9",
+              "blocks_at_200_tps_over_120_seconds": 60,
+              "latency_status": "valid_200_tps_normal_latency_population"
+            },
+            "ML-DSA-44": {
+              "namespace": "latency-common-clean-v1_ml-dsa-44",
+              "derived": "data/e1_latency_common_clean_v1_ml_dsa_44.csv",
+              "derived_sha256": "4867558b82953c2a4c90062ef3cfc454b840fa8640bce0d86eefaeea8f5c044d",
+              "log": "raw/e1/latency-common-clean-v1_ml-dsa-44_caliper_run.log",
+              "log_sha256": "0f414c578787baa0541d380764657558fb578b08e69f912860598dbc40a5d899",
+              "heights": "raw/e1/latency-common-clean-v1_ml-dsa-44_block_heights.csv",
+              "heights_sha256": "61f62fe62f587ec3e362403eb7ec9801b8c521eec8a2e5e9541f21d657618daf",
+              "blocks_at_200_tps_over_120_seconds": 180,
+              "latency_status": "valid_200_tps_normal_latency_population"
+            },
+            "ML-DSA-65": {
+              "namespace": "latency-common-clean-v1_ml-dsa-65",
+              "derived": "data/e1_latency_common_clean_v1_ml_dsa_65.csv",
+              "derived_sha256": "42e22bd6022be73129b136d2b2150503631885ee89c8cd3be8c7b1d0e79c448f",
+              "log": "raw/e1/latency-common-clean-v1_ml-dsa-65_caliper_run.log",
+              "log_sha256": "89b5bcd0e8140b2f351f580a59b20bc183c09b6bfcc245b905074cb9c251907e",
+              "heights": "raw/e1/latency-common-clean-v1_ml-dsa-65_block_heights.csv",
+              "heights_sha256": "5b13f539967ba9b180b6ef79c3cebafd98bcab9864be0c350d1a27270b27ad4b",
+              "blocks_at_200_tps_over_120_seconds": 238,
+              "latency_status": "valid_200_tps_normal_latency_population"
+            },
+            "SPHINCS+-SHA2-128s-simple": {
+              "namespace": "latency-common-clean-v1_sphincs",
+              "derived": "data/e1_latency_common_clean_v1_sphincs.csv",
+              "derived_sha256": "aba5bd6bde5cbc492d2aaf2aaf1f11f691dea5378dc8ac8e88ee0aab635b55a9",
+              "log": "raw/e1/latency-common-clean-v1_sphincs_caliper_run.log",
+              "log_sha256": "400eb7f7804ef52a1810b0b112559de5b14d864899a68032ebd81d38553b037c",
+              "heights": "raw/e1/latency-common-clean-v1_sphincs_block_heights.csv",
+              "heights_sha256": "1bb3084114f2ab3a3f6fadc4b28f926d7e0aa7b71e4d2d50645340b0b59dc4ce",
+              "blocks_at_200_tps_over_120_seconds": 47,
+              "latency_status": "saturation_only_not_a_valid_latency_population"
+            }
+          },
+          "historical_commit_median_reproducibility": {
+            "ECDSA": {"historical_ms": "1215.193256", "clean_ms": "1210.965735", "clean_minus_historical_ms": "-4.227521", "percent": "-0.347889"},
+            "ML-DSA-44": {"historical_ms": "471.744238", "clean_ms": "473.614710", "clean_minus_historical_ms": "1.870472", "percent": "0.396501"},
+            "ML-DSA-65": {"historical_ms": "445.381189", "clean_ms": "445.157309", "clean_minus_historical_ms": "-0.223880", "percent": "-0.050267"}
+          },
+          "cadence_interpretation": "The monotonic 200-TPS height deltas (60, 180, 238 blocks) are consistent with larger serialized transactions producing more size-driven cuts plus periodic residual cuts, while ECDSA's 60 blocks in 120 seconds are consistent with BatchTimeout=2s. Height deltas alone do not identify each block's cut trigger, so this is strongly supported rather than causal proof."
+        }
       },
       "endorsement_timing_boundary": "Wall-clock interval immediately before proposal.endorse() until that promise resolves; it excludes proposal construction and the later submit/commit interval.",
       "commit_timing_boundary": "Post-endorsement submit-to-commit-status wall-clock interval: starts immediately before transaction.submit(), after proposal.endorse() resolves; includes client transaction-envelope signing, Gateway Submit RPC and any wait until orderer acknowledgement, commit-status request signing/RPC, ordering/block-cut wait (including BatchTimeout when active), validation/ledger commit, and client/event-loop waiting within those awaited calls; ends when submittedTransaction.getStatus() resolves. It excludes endorsement and Caliper scheduling/queueing before this connector call.",
@@ -973,7 +1055,7 @@
       "configured_interpretation": "MAJORITY of two organization Endorsement subpolicies requires one peer endorsement from each organization.",
       "generated_channel_artifact_verification": "Read-only configtxlator decode of the current generated energychannel.block showed Application Endorsement = ImplicitMeta MAJORITY and each Org1MSP/Org2MSP Endorsement subpolicy = 1-of-1 peer.",
       "verification_command": "./src/e1/analyze_timings.py --endorsement-policy",
-      "actual_serialized_count_check": "Future block evidence records the endorsement count in every serialized endorser transaction and reports mean/min/max; current retained block CSV predates envelope extraction."
+      "actual_serialized_count_check": "Completed exact-envelope evidence reports mean/min/max=2/2/2 endorsements for every retained transaction: n=6001 for ECDSA, ML-DSA-44, and ML-DSA-65, and n=1201 for SPHINCS+-SHA2-128s-simple."
     },
     "cpu_control": {
       "fixed_cpu_set": "2-15",
@@ -1210,7 +1292,7 @@
     ],
     "data_provenance": {
       "candidate_timing_summary": "data/e1_timing_candidates.csv",
-      "candidate_timing_status": "ECDSA/ML-DSA-44/ML-DSA-65 pass sample-count and zero-failure checks, but are supporting historical candidates only. Their height files verify a common height-7 ledger baseline; exact setup/artifact/image/worktree and complete CPU-preflight equivalence are not retained, so professor-directed clean 200-TPS common-profile reruns are pending.",
+      "candidate_timing_status": "The older ECDSA/ML-DSA-44/ML-DSA-65 timing populations remain supporting historical evidence. Professor-directed clean common-profile reruns are complete and independently validated; their 200-TPS populations now supply final latency values.",
       "sphincs_status": "The unchanged common-profile saturation is scientifically reportable and retained. Supplemental sweep/boundary evidence establishes 22 TPS as the highest tested sustainable integer rate and 23 TPS as the first nonsustainable integer rate; it does not replace the common result.",
       "sphincs_evidence": {
         "classification": "fixed_profile_saturation_failure_evidence",
@@ -1327,7 +1409,7 @@
     "license": null
   },
   "known_scientific_decisions_pending": {
-    "latency_field_population": "Resolved: professor selected the 200-TPS population. Final values remain unpopulated until clean equivalent common-profile reruns are completed; historical 50-TPS results remain supporting evidence and SPHINCS+ 200 TPS is saturation-only.",
+    "latency_field_population": "Resolved and measured: professor selected the clean 200-TPS population. ECDSA, ML-DSA-44, and ML-DSA-65 values are validated; historical and clean 50-TPS results remain supporting evidence, and SPHINCS+ 200 TPS is saturation-only.",
     "paused_sustainability_work": "After the professor-directed verification and clean-latency correction is complete, resume ML-DSA-44 sustainability from 200 TPS PASS; the next planned adaptive probe had been 250 TPS."
   },
   "notes": {

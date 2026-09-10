@@ -1027,7 +1027,7 @@ def build_latency_professor_review_rows(project_root: Path) -> list[dict[str, st
                 "notes": (
                     "Zero failures and timing counts reconcile; retained historical log "
                     "predates full standardized CPU preflight capture in the run log; "
-                    "50-TPS and 200-TPS populations remain separate pending professor review."
+                    "these rows remain historical support after clean equivalent reruns."
                 ),
                 "endorse_source": candidate["endorse_source"],
                 "endorse_sha256": candidate["endorse_sha256"],
@@ -1212,6 +1212,116 @@ def build_clean_fixed_profile_rows(
     return rows
 
 
+def clean_round_block_count(heights_path: Path, round_label: str) -> int:
+    with heights_path.open(newline="", encoding="utf-8") as source:
+        rows = {row["marker"]: int(row["height"]) for row in csv.DictReader(source)}
+    before = rows[f"before_{round_label}"]
+    after = rows[f"after_{round_label}"]
+    if after <= before:
+        raise ValueError(f"{heights_path}: non-positive block-height delta")
+    return after - before
+
+
+def build_clean_latency_professor_review_rows(
+    project_root: Path,
+) -> list[dict[str, str]]:
+    """Combine validated clean latency, cadence, and transaction evidence."""
+    namespaces = (
+        "latency-common-clean-v1_ecdsa",
+        "latency-common-clean-v1_ml-dsa-44",
+        "latency-common-clean-v1_ml-dsa-65",
+        "latency-common-clean-v1_sphincs",
+    )
+    metadata = json.loads((project_root / "meta.json").read_text(encoding="utf-8"))
+    block_meta = metadata["e1_benchmark"]["block_utilisation"]
+    tx_summaries = {
+        "ECDSA": block_meta["ecdsa_transaction_evidence"]["raw_summary"],
+        "ML-DSA-44": block_meta["ml_dsa_44_transaction_evidence"]["raw_summary"],
+        "ML-DSA-65": block_meta["ml_dsa_65_transaction_evidence"]["raw_summary"],
+        "SPHINCS+-SHA2-128s-simple": metadata["e1_benchmark"]["caliper"]
+        ["sphincs_low_rate_sweep"]["transaction_evidence_20_tps"]["raw_summary"],
+    }
+    tx_evidence = {
+        config: validate_transaction_summary(project_root, summary)[0]
+        for config, summary in tx_summaries.items()
+    }
+    historical = {
+        (row["config"], row["offered_tps"]): row
+        for row in build_latency_professor_review_rows(project_root)
+    }
+    rows_out = []
+    for namespace in namespaces:
+        for row in build_clean_fixed_profile_rows(project_root, namespace):
+            config = row["config"]
+            tx = tx_evidence[config]
+            round_label = row["round_label"]
+            block_count = clean_round_block_count(
+                project_root / row["heights_source"], round_label
+            )
+            if config == "SPHINCS+-SHA2-128s-simple":
+                role = "saturation_only"
+            elif round_label == "200-tps":
+                role = "professor_selected_final_latency_population"
+            else:
+                role = "supporting_50_tps_population"
+            historical_commit = ""
+            delta_ms = ""
+            delta_percent = ""
+            if role == "professor_selected_final_latency_population":
+                historical_commit = historical[(config, row["offered_tps"])][
+                    "commit_median_ms"
+                ]
+                delta = float(row["commit_median_ms"]) - float(historical_commit)
+                delta_ms = f"{delta:.6f}"
+                delta_percent = f"{delta / float(historical_commit) * 100:.6f}"
+            rows_out.append({
+                "config": config,
+                "population_role": role,
+                "offered_tps": row["offered_tps"],
+                "duration_seconds": "120",
+                "total": row["total"],
+                "success": row["success"],
+                "fail": row["fail"],
+                "tx_success_rate": row["tx_success_rate"],
+                "tx_error_rate": row["tx_error_rate"],
+                "endorse_sample_count": row["endorse_sample_count"],
+                "endorse_median_ms": row["endorse_median_ms"],
+                "endorse_p95_ms": row["endorse_p95_ms"],
+                "endorse_p99_ms": row["endorse_p99_ms"],
+                "commit_sample_count": row["commit_sample_count"],
+                "commit_median_ms": row["commit_median_ms"],
+                "commit_p95_ms": row["commit_p95_ms"],
+                "commit_p99_ms": row["commit_p99_ms"],
+                "commit_timing_semantic": "post_endorsement_submit_to_commit_status_ms",
+                "block_count": str(block_count),
+                "mean_height_interval_seconds": f"{120 / block_count:.6f}",
+                "tx_bytes_mean": tx["tx_bytes_mean"],
+                "tx_bytes_sample_count": tx["ordinary_transaction_count"],
+                "endorsements_per_tx": tx["endorsements_per_tx"],
+                "historical_200_commit_median_ms": historical_commit,
+                "clean_minus_historical_commit_median_ms": delta_ms,
+                "clean_minus_historical_commit_median_percent": delta_percent,
+                "status": row["status"],
+                "endorse_source": row["endorse_source"],
+                "endorse_sha256": row["endorse_sha256"],
+                "commit_source": row["commit_source"],
+                "commit_sha256": row["commit_sha256"],
+                "e2e_source": row["e2e_source"],
+                "e2e_sha256": row["e2e_sha256"],
+                "heights_source": row["heights_source"],
+                "heights_sha256": row["heights_sha256"],
+                "transaction_source": tx["raw_transactions_file"],
+                "transaction_sha256": tx["raw_transactions_sha256"],
+                "benchmark_source": row["benchmark_source"],
+                "benchmark_sha256": row["benchmark_sha256"],
+                "log_source": row["log_source"],
+                "log_sha256": row["log_sha256"],
+            })
+    if len(rows_out) != 8:
+        raise ValueError("clean professor review must contain eight separate rows")
+    return rows_out
+
+
 def load_e2e_samples(path: Path) -> list[dict[str, float | str]]:
     with path.open(newline="", encoding="utf-8") as source:
         reader = csv.DictReader(source)
@@ -1284,6 +1394,7 @@ def validate_namespaced_run_provenance(
         f"[E1] benchmark_config={benchmark_relative}",
         f"[E1] benchmark_config_sha256={sha256_file(benchmark_path)}",
         "[E1] project_tracked_state_before_log_creation=clean",
+        "[E1] fixed_cpu_set=2-15",
         "[E1] amd_pstate_mode=passive",
         "[E1] boost_state=0",
         "[E1] fabric_source_tag=v2.5.16",
@@ -1318,9 +1429,28 @@ def validate_namespaced_run_provenance(
     )
     if commit_match is None:
         raise ValueError(f"{log_path}: missing full project commit")
+    recorded_commit = commit_match.group(1)
+    scientific_sources = {
+        "configtx_sha256": "env/fabric/e1/configtx.yaml",
+        "fabric_setup_sha256": "env/fabric/e1/setup_fabric_e1.sh",
+        "chaincode_sha256": "src/e1/chaincode/chaincode.go",
+        "caliper_workload_sha256": "env/caliper/e1/workload/set.js",
+        "caliper_timing_patch_sha256": (
+            "env/caliper/e1/patches/peer-gateway-e1-timing.patch"
+        ),
+    }
+    for log_key, source_relative in scientific_sources.items():
+        if (project_root / ".git").is_dir():
+            source_hash = sha256_git_file(
+                project_root, recorded_commit, source_relative
+            )
+        else:
+            source_hash = sha256_file(project_root / source_relative)
+        required_source_line = f"[E1] {log_key}={source_hash}"
+        if required_source_line not in log_text:
+            missing.append(required_source_line)
     if spec["run_type"] == "sustainability":
         policy_relative = "env/caliper/e1/run_policy.sh"
-        recorded_commit = commit_match.group(1)
         policy_sha256 = sha256_git_file(
             project_root, recorded_commit, policy_relative
         )
@@ -1850,6 +1980,14 @@ def main() -> int:
         ),
     )
     mode.add_argument(
+        "--clean-latency-professor-review",
+        action="store_true",
+        help=(
+            "validate and combine all four clean common-profile reruns with "
+            "block cadence and exact transaction evidence"
+        ),
+    )
+    mode.add_argument(
         "--identity-public-keys",
         action="store_true",
         help="validate and report public-key-only identity_bytes evidence",
@@ -1897,6 +2035,8 @@ def main() -> int:
     try:
         if args.working_e1:
             rows = build_working_e1_rows(project_root)
+        elif args.clean_latency_professor_review:
+            rows = build_clean_latency_professor_review_rows(project_root)
         elif args.clean_fixed_profile:
             rows = build_clean_fixed_profile_rows(
                 project_root, args.clean_fixed_profile

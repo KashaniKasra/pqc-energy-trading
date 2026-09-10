@@ -407,6 +407,18 @@ class CleanFixedProfileTests(unittest.TestCase):
         raw.mkdir(parents=True)
         benchmark.parent.mkdir(parents=True)
         benchmark.write_text("test:\n  name: fixture\n", encoding="utf-8")
+        scientific_sources = {
+            "configtx_sha256": root / "env/fabric/e1/configtx.yaml",
+            "fabric_setup_sha256": root / "env/fabric/e1/setup_fabric_e1.sh",
+            "chaincode_sha256": root / "src/e1/chaincode/chaincode.go",
+            "caliper_workload_sha256": root / "env/caliper/e1/workload/set.js",
+            "caliper_timing_patch_sha256": (
+                root / "env/caliper/e1/patches/peer-gateway-e1-timing.patch"
+            ),
+        }
+        for path in scientific_sources.values():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(f"fixture: {path.name}\n", encoding="utf-8")
         namespace = f"clean-v1_{config}"
         meta = {
             "software_pins": {
@@ -441,6 +453,7 @@ class CleanFixedProfileTests(unittest.TestCase):
             "[E1] project_tracked_state_before_log_creation=clean",
             "[E1] project_git_commit=" + "0" * 40,
             "[E1] started_at=2026-01-01T00:00:00+00:00",
+            "[E1] fixed_cpu_set=2-15",
             "[E1] amd_pstate_mode=passive",
             "[E1] boost_state=0",
             "[E1] fabric_source_tag=v2.5.16",
@@ -463,6 +476,10 @@ class CleanFixedProfileTests(unittest.TestCase):
             "[E1] Benchmark finished.",
             "[E1] finished_at=2026-01-01T00:05:00+00:00",
         ]
+        required.extend(
+            f"[E1] {key}={ANALYZER.sha256_file(path)}"
+            for key, path in scientific_sources.items()
+        )
         required.extend(
             f"[E1] cpu{cpu}_state=governor:performance,min_khz:3201000,max_khz:3201000"
             for cpu in range(2, 16)
@@ -523,6 +540,17 @@ class CleanFixedProfileTests(unittest.TestCase):
             heights = root / "raw" / "e1" / f"{namespace}_block_heights.csv"
             heights.write_text(heights.read_text().replace("before_warmup,7", "before_warmup,8"))
             with self.assertRaisesRegex(ValueError, "ledger height 7"):
+                ANALYZER.build_clean_fixed_profile_rows(root, namespace)
+
+    def test_clean_common_profile_reconciles_scientific_source_hashes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            namespace = self.write_fixture(root)
+            log = root / "raw" / "e1" / f"{namespace}_caliper_run.log"
+            text = log.read_text(encoding="utf-8")
+            text = text.replace("[E1] configtx_sha256=", "[E1] stale_configtx_sha256=")
+            log.write_text(text, encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "configtx_sha256"):
                 ANALYZER.build_clean_fixed_profile_rows(root, namespace)
 
 
