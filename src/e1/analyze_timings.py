@@ -184,6 +184,10 @@ SUSTAINABILITY_PROFILE_SPECS = {
         "path": "env/caliper/e1/benchmark_ml_dsa_sustained_300.yaml",
         "run_type": "sustainability",
     },
+    ("ml-dsa-44", ("sustained-350-tps",)): {
+        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_350.yaml",
+        "run_type": "sustainability",
+    },
     ("ml-dsa-65", ("sustained-200-tps",)): {
         "path": "env/caliper/e1/benchmark_ml_dsa_sustained_200.yaml",
         "run_type": "sustainability",
