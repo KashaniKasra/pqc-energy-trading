@@ -192,6 +192,26 @@ SUSTAINABILITY_PROFILE_SPECS = {
         "path": "env/caliper/e1/benchmark_ml_dsa_sustained_356.yaml",
         "run_type": "sustainability",
     },
+    ("ml-dsa-44", ("sustained-357-tps",)): {
+        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_357.yaml",
+        "run_type": "sustainability",
+    },
+    ("ml-dsa-44", ("sustained-358-tps",)): {
+        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_358.yaml",
+        "run_type": "sustainability",
+    },
+    ("ml-dsa-44", ("sustained-359-tps",)): {
+        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_359.yaml",
+        "run_type": "sustainability",
+    },
+    ("ml-dsa-44", ("sustained-360-tps",)): {
+        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_360.yaml",
+        "run_type": "sustainability",
+    },
+    ("ml-dsa-44", ("sustained-361-tps",)): {
+        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_361.yaml",
+        "run_type": "sustainability",
+    },
     ("ml-dsa-44", ("sustained-362-tps",)): {
         "path": "env/caliper/e1/benchmark_ml_dsa_sustained_362.yaml",
         "run_type": "sustainability",

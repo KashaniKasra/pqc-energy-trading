@@ -33,6 +33,11 @@ const expected = {
     'benchmark_ml_dsa_sustained_300.yaml': [['warmup', 20, 50], ['sustained-300-tps', 60, 300]],
     'benchmark_ml_dsa_sustained_350.yaml': [['warmup', 20, 50], ['sustained-350-tps', 60, 350]],
     'benchmark_ml_dsa_sustained_356.yaml': [['warmup', 20, 50], ['sustained-356-tps', 60, 356]],
+    'benchmark_ml_dsa_sustained_357.yaml': [['warmup', 20, 50], ['sustained-357-tps', 60, 357]],
+    'benchmark_ml_dsa_sustained_358.yaml': [['warmup', 20, 50], ['sustained-358-tps', 60, 358]],
+    'benchmark_ml_dsa_sustained_359.yaml': [['warmup', 20, 50], ['sustained-359-tps', 60, 359]],
+    'benchmark_ml_dsa_sustained_360.yaml': [['warmup', 20, 50], ['sustained-360-tps', 60, 360]],
+    'benchmark_ml_dsa_sustained_361.yaml': [['warmup', 20, 50], ['sustained-361-tps', 60, 361]],
     'benchmark_ml_dsa_sustained_362.yaml': [['warmup', 20, 50], ['sustained-362-tps', 60, 362]],
     'benchmark_ml_dsa_sustained_368.yaml': [['warmup', 20, 50], ['sustained-368-tps', 60, 368]],
     'benchmark_ml_dsa_sustained_375.yaml': [['warmup', 20, 50], ['sustained-375-tps', 60, 375]],
@@ -64,7 +69,7 @@ for (const [filename, wanted] of Object.entries(expected)) {
 }
 
 const midpointBase = yaml.load(fs.readFileSync('benchmark_ml_dsa_sustained_350.yaml', 'utf8'));
-for (const tps of [356, 362, 368, 375, 381, 387, 393]) {
+for (const tps of [356, 357, 358, 359, 360, 361, 362, 368, 375, 381, 387, 393]) {
     const wanted = structuredClone(midpointBase);
     wanted.test.name = `E1 ML-DSA Sustainable-Rate Probe at ${tps} TPS`;
     wanted.test.rounds[1].label = `sustained-${tps}-tps`;
@@ -110,6 +115,11 @@ validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_sustained_200.yaml sustainabil
 validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_300.yaml sustainability sustained-300-v1
 validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_350.yaml sustainability sustained-350-v1
 validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_356.yaml sustainability sustained-356-v1
+validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_357.yaml sustainability sustained-357-v1
+validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_358.yaml sustainability sustained-358-v1
+validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_359.yaml sustainability sustained-359-v1
+validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_360.yaml sustainability sustained-360-v1
+validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_361.yaml sustainability sustained-361-v1
 validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_362.yaml sustainability sustained-362-v1
 validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_368.yaml sustainability sustained-368-v1
 validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_375.yaml sustainability sustained-375-v1
@@ -147,6 +157,21 @@ expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_350.
 expect_rejected validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_sustained_356.yaml sustainability bad
 expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_356.yaml diagnostic bad
 expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_356.yaml sustainability ""
+expect_rejected validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_sustained_357.yaml sustainability bad
+expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_357.yaml diagnostic bad
+expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_357.yaml sustainability ""
+expect_rejected validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_sustained_358.yaml sustainability bad
+expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_358.yaml diagnostic bad
+expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_358.yaml sustainability ""
+expect_rejected validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_sustained_359.yaml sustainability bad
+expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_359.yaml diagnostic bad
+expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_359.yaml sustainability ""
+expect_rejected validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_sustained_360.yaml sustainability bad
+expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_360.yaml diagnostic bad
+expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_360.yaml sustainability ""
+expect_rejected validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_sustained_361.yaml sustainability bad
+expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_361.yaml diagnostic bad
+expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_361.yaml sustainability ""
 expect_rejected validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_sustained_362.yaml sustainability bad
 expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_362.yaml diagnostic bad
 expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_362.yaml sustainability ""

@@ -80,6 +80,41 @@ validate_e1_run_policy() {
                 return 1
             fi
             ;;
+        benchmark_ml_dsa_sustained_357.yaml)
+            require_e1_run_label "$run_label" || return 1
+            if [[ "$config" != "ml-dsa-44" || "$run_type" != "sustainability" ]]; then
+                echo "ERROR: The ML-DSA-44 357-TPS profile requires config=ml-dsa-44 and E1_RUN_TYPE=sustainability."
+                return 1
+            fi
+            ;;
+        benchmark_ml_dsa_sustained_358.yaml)
+            require_e1_run_label "$run_label" || return 1
+            if [[ "$config" != "ml-dsa-44" || "$run_type" != "sustainability" ]]; then
+                echo "ERROR: The ML-DSA-44 358-TPS profile requires config=ml-dsa-44 and E1_RUN_TYPE=sustainability."
+                return 1
+            fi
+            ;;
+        benchmark_ml_dsa_sustained_359.yaml)
+            require_e1_run_label "$run_label" || return 1
+            if [[ "$config" != "ml-dsa-44" || "$run_type" != "sustainability" ]]; then
+                echo "ERROR: The ML-DSA-44 359-TPS profile requires config=ml-dsa-44 and E1_RUN_TYPE=sustainability."
+                return 1
+            fi
+            ;;
+        benchmark_ml_dsa_sustained_360.yaml)
+            require_e1_run_label "$run_label" || return 1
+            if [[ "$config" != "ml-dsa-44" || "$run_type" != "sustainability" ]]; then
+                echo "ERROR: The ML-DSA-44 360-TPS profile requires config=ml-dsa-44 and E1_RUN_TYPE=sustainability."
+                return 1
+            fi
+            ;;
+        benchmark_ml_dsa_sustained_361.yaml)
+            require_e1_run_label "$run_label" || return 1
+            if [[ "$config" != "ml-dsa-44" || "$run_type" != "sustainability" ]]; then
+                echo "ERROR: The ML-DSA-44 361-TPS profile requires config=ml-dsa-44 and E1_RUN_TYPE=sustainability."
+                return 1
+            fi
+            ;;
         benchmark_ml_dsa_sustained_362.yaml)
             require_e1_run_label "$run_label" || return 1
             if [[ "$config" != "ml-dsa-44" || "$run_type" != "sustainability" ]]; then
