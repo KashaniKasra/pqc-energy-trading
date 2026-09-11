@@ -40,6 +40,7 @@ class SustainabilityTests(unittest.TestCase):
         run_namespace: str = "test_sphincs",
         round_label: str = "sphincs-1-tps",
         offered_rate: int = 1,
+        caliper_send_rate: float | None = None,
     ) -> None:
         raw = root / "raw" / "e1"
         raw.mkdir(parents=True)
@@ -47,8 +48,10 @@ class SustainabilityTests(unittest.TestCase):
             success = sum(row["status"] == "success" for row in rows)
         if fail is None:
             fail = sum(row["status"] == "failure" for row in rows)
+        if caliper_send_rate is None:
+            caliper_send_rate = float(offered_rate)
         (raw / f"{run_namespace}_caliper_run.log").write_text(
-            f"| {round_label} | {success} | {fail} | {offered_rate:.1f} | 10.0 | 1.0 | 10.0 | {offered_rate:.1f} |\n",
+            f"| {round_label} | {success} | {fail} | {caliper_send_rate:.1f} | 10.0 | 1.0 | 10.0 | {caliper_send_rate:.1f} |\n",
             encoding="utf-8",
         )
         timing_path = raw / f"{run_namespace}_e2e_{round_label}_worker0_1.csv"
@@ -106,6 +109,61 @@ class SustainabilityTests(unittest.TestCase):
             self.assertEqual(result["begin_window_ms"], "[0,12000)")
             self.assertEqual(result["end_window_ms"], "[48000,60000)")
             self.assertEqual(result["sustainable"], "true")
+
+    def test_configured_rate_not_rounded_caliper_send_rate_defines_offered_tps(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rows = self.successful_rows(17_995)
+            self.write_fixture(
+                root,
+                rows,
+                run_namespace="test_ml-dsa-44",
+                round_label="sustained-300-tps",
+                offered_rate=300,
+                caliper_send_rate=299.9,
+            )
+            result = self.analyze(root, "test_ml-dsa-44")
+            self.assertEqual(result["offered_tps"], "300")
+            self.assertEqual(result["success_count"], "17995")
+            self.assertEqual(result["successful_throughput_tps"], "299.916667")
+            self.assertEqual(result["successful_throughput_ratio"], "0.999722")
+            self.assertEqual(result["throughput_gate_pass"], "true")
+
+    def test_configured_benchmark_rate_must_match_round_label(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            benchmark = Path(directory) / "benchmark.yaml"
+            benchmark.write_text(
+                "test:\n"
+                "  rounds:\n"
+                "    - label: sustained-300-tps\n"
+                "      txDuration: 60\n"
+                "      rateControl:\n"
+                "        type: fixed-rate\n"
+                "        opts:\n"
+                "          tps: 299\n"
+                "      workload:\n"
+                "        arguments:\n"
+                "          roundLabel: sustained-300-tps\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "configured fixed-rate TPS"):
+                ANALYZER.configured_sustainability_rate(
+                    benchmark, "sustained-300-tps"
+                )
+
+            benchmark.write_text(
+                benchmark.read_text(encoding="utf-8")
+                .replace("tps: 299", "tps: 300")
+                .replace(
+                    "roundLabel: sustained-300-tps",
+                    "roundLabel: sustained-299-tps",
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "roundLabel"):
+                ANALYZER.configured_sustainability_rate(
+                    benchmark, "sustained-300-tps"
+                )
 
     def test_ecdsa_223_profile_is_registered_immutably(self) -> None:
         spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[

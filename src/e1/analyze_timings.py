@@ -360,6 +360,59 @@ def rate_from_round_label(round_label: str) -> int:
     return int(match.group(1))
 
 
+def configured_sustainability_rate(benchmark_path: Path, round_label: str) -> int:
+    """Return an immutable profile's configured fixed rate for one measured round."""
+    lines = benchmark_path.read_text(encoding="utf-8").splitlines()
+    headers = [
+        index for index, line in enumerate(lines)
+        if re.fullmatch(r"    - label: .+", line)
+    ]
+    matching = [
+        index for index in headers
+        if lines[index] == f"    - label: {round_label}"
+    ]
+    if len(matching) != 1:
+        raise ValueError(
+            f"{benchmark_path}: expected exactly one round labelled {round_label}"
+        )
+    start = matching[0]
+    later_headers = [index for index in headers if index > start]
+    end = later_headers[0] if later_headers else len(lines)
+    block = lines[start:end]
+    label_rate = rate_from_round_label(round_label)
+    durations = [
+        match.group(1)
+        for line in block
+        if (match := re.fullmatch(r"      txDuration: ([0-9]+)", line))
+    ]
+    controller_types = [
+        match.group(1)
+        for line in block
+        if (match := re.fullmatch(r"        type: ([a-z-]+)", line))
+    ]
+    configured_tps = [
+        match.group(1)
+        for line in block
+        if (match := re.fullmatch(r"          tps: ([0-9]+)", line))
+    ]
+    workload_round_labels = [
+        match.group(1)
+        for line in block
+        if (match := re.fullmatch(r"          roundLabel: (.+)", line))
+    ]
+    if (
+        durations != [str(SWEEP_DURATION_SECONDS)]
+        or controller_types != ["fixed-rate"]
+        or configured_tps != [str(label_rate)]
+        or workload_round_labels != [round_label]
+    ):
+        raise ValueError(
+            f"{benchmark_path}: configured fixed-rate TPS, duration, or roundLabel "
+            f"does not match {round_label}"
+        )
+    return label_rate
+
+
 def validated_adjacent_integer_boundary(
     passing: dict[str, str], failing: dict[str, str]
 ) -> str:
@@ -1550,15 +1603,22 @@ def build_sustainability_rows(
                 raise ValueError(f"{raw_dir}: warm-up {sample_type} samples must not be retained")
         if list(raw_dir.glob(f"{run_namespace}_e2e_warmup_worker0_*.csv")):
             raise ValueError(f"{raw_dir}: warm-up end-to-end samples must not be retained")
+        configured_rates = {
+            round_label: configured_sustainability_rate(
+                benchmark_path, round_label
+            )
+            for round_label in round_labels
+        }
+    else:
+        configured_rates = {
+            round_label: rate_from_round_label(round_label)
+            for round_label in round_labels
+        }
     rows = []
     validated_paths = {log_path, heights_path, *by_round.values()}
     for round_label in round_labels:
-        offered_rate = rate_from_round_label(round_label)
+        offered_rate = configured_rates[round_label]
         result = caliper_results[round_label]
-        if float(result["send_rate_tps"]) != offered_rate:
-            raise ValueError(
-                f"{log_path}: offered rate for {round_label} does not match its label"
-            )
         success = int(result["caliper_success"])
         fail = int(result["caliper_fail"])
         samples = load_e2e_samples(by_round[round_label])
