@@ -244,6 +244,26 @@ SUSTAINABILITY_PROFILE_SPECS = {
         "path": "env/caliper/e1/benchmark_ml_dsa_sustained_200.yaml",
         "run_type": "sustainability",
     },
+    ("ml-dsa-65", ("sustained-250-tps",)): {
+        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_250.yaml",
+        "run_type": "sustainability",
+    },
+    ("ml-dsa-65", ("sustained-300-tps",)): {
+        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_300.yaml",
+        "run_type": "sustainability",
+    },
+    ("ml-dsa-65", ("sustained-350-tps",)): {
+        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_350.yaml",
+        "run_type": "sustainability",
+    },
+    ("ml-dsa-65", ("sustained-400-tps",)): {
+        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_400.yaml",
+        "run_type": "sustainability",
+    },
+    ("ml-dsa-65", ("sustained-450-tps",)): {
+        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_450.yaml",
+        "run_type": "sustainability",
+    },
 }
 CLEAN_FIXED_PROFILE_SPEC = {
     "path": "env/caliper/e1/benchmark.yaml",
@@ -484,6 +504,34 @@ def validated_adjacent_integer_boundary(
     if passing["highest_tested_sustainable_tps"] != str(passing_rate):
         raise ValueError("passing boundary row does not identify its sustainable rate")
     return str(passing_rate)
+
+
+def validated_sustainability_probe_metadata(
+    project_root: Path, probes: list[dict[str, object]]
+) -> dict[str, dict[str, str]]:
+    """Validate recorded derived rows and every raw source they reference."""
+    rows_by_namespace = {}
+    for probe in probes:
+        run_namespace = str(probe["run_namespace"])
+        if run_namespace in rows_by_namespace:
+            raise ValueError(f"duplicate sustainability namespace: {run_namespace}")
+        result_path = project_root / str(probe["result_summary"])
+        fieldnames, recorded = one_csv_row(result_path)
+        if sha256_file(result_path) != probe["result_summary_sha256"]:
+            raise ValueError(f"{result_path}: derived sustainability hash mismatch")
+        regenerated = build_sustainability_rows(project_root, run_namespace)[0]
+        if fieldnames != list(regenerated) or recorded != regenerated:
+            raise ValueError(
+                f"{result_path}: derived sustainability row does not regenerate exactly"
+            )
+        if (
+            recorded["config"] != "ML-DSA-44"
+            or recorded["offered_tps"] != str(probe["offered_tps"])
+            or (recorded["sustainable"] == "true") != probe["sustainable"]
+        ):
+            raise ValueError(f"{result_path}: sustainability metadata does not match row")
+        rows_by_namespace[run_namespace] = recorded
+    return rows_by_namespace
 
 
 def one_csv_row(path: Path) -> tuple[list[str], dict[str, str]]:
@@ -988,6 +1036,34 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
     ):
         raise ValueError("ECDSA integer sustained-TPS boundary metadata is inconsistent")
     rows[0]["tps_sustained"] = ecdsa_sustained
+    ml_dsa_44_boundary = metadata["e1_benchmark"]["caliper"][
+        "prepared_remaining_profiles"
+    ]["ml_dsa_44_integer_boundary"]
+    ml_dsa_44_probes = validated_sustainability_probe_metadata(
+        project_root, ml_dsa_44_boundary["validated_probes"]
+    )
+    ml_dsa_44_passing = ml_dsa_44_probes[
+        ml_dsa_44_boundary["highest_sustainable_run_namespace"]
+    ]
+    ml_dsa_44_failing = ml_dsa_44_probes[
+        ml_dsa_44_boundary["first_failing_run_namespace"]
+    ]
+    ml_dsa_44_sustained = validated_adjacent_integer_boundary(
+        ml_dsa_44_passing, ml_dsa_44_failing
+    )
+    if (
+        ml_dsa_44_boundary["status"] != "complete"
+        or str(ml_dsa_44_boundary["highest_sustainable_integer_tps"])
+        != ml_dsa_44_sustained
+        or str(ml_dsa_44_boundary["first_failing_integer_tps"])
+        != ml_dsa_44_failing["offered_tps"]
+        or str(ml_dsa_44_boundary["final_tps_sustained"])
+        != ml_dsa_44_sustained
+    ):
+        raise ValueError(
+            "ML-DSA-44 integer sustained-TPS boundary metadata is inconsistent"
+        )
+    rows[1]["tps_sustained"] = ml_dsa_44_sustained
     boundary = metadata["e1_benchmark"]["caliper"]["sphincs_low_rate_sweep"]
     if boundary["integer_boundary_search"]["status"] != "complete":
         raise ValueError("SPHINCS+ integer sustained-TPS boundary is not complete")

@@ -231,6 +231,24 @@ class SustainabilityTests(unittest.TestCase):
         self.assertEqual(
             ANALYZER.validated_adjacent_integer_boundary(passing, failing), "228"
         )
+        ml_dsa_44_passing = {
+            "config": "ML-DSA-44",
+            "offered_tps": "356",
+            "sustainable": "true",
+            "highest_tested_sustainable_tps": "356",
+        }
+        ml_dsa_44_failing = {
+            "config": "ML-DSA-44",
+            "offered_tps": "357",
+            "sustainable": "false",
+            "highest_tested_sustainable_tps": "",
+        }
+        self.assertEqual(
+            ANALYZER.validated_adjacent_integer_boundary(
+                ml_dsa_44_passing, ml_dsa_44_failing
+            ),
+            "356",
+        )
         with self.assertRaisesRegex(ValueError, "not adjacent"):
             ANALYZER.validated_adjacent_integer_boundary(
                 passing, {**failing, "offered_tps": "230"}
@@ -331,6 +349,18 @@ class SustainabilityTests(unittest.TestCase):
             "env/caliper/e1/benchmark_ml_dsa_sustained_400.yaml",
         )
         self.assertEqual(spec["run_type"], "sustainability")
+
+    def test_ml_dsa_65_coarse_profiles_are_registered_immutably(self) -> None:
+        for tps in (250, 300, 350, 400, 450):
+            with self.subTest(tps=tps):
+                spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
+                    ("ml-dsa-65", (f"sustained-{tps}-tps",))
+                ]
+                self.assertEqual(
+                    spec["path"],
+                    f"env/caliper/e1/benchmark_ml_dsa_65_sustained_{tps}.yaml",
+                )
+                self.assertEqual(spec["run_type"], "sustainability")
 
     def test_success_rate_threshold(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
