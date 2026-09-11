@@ -50,6 +50,13 @@ const expected = {
     'benchmark_ml_dsa_65_sustained_350.yaml': [['warmup', 20, 50], ['sustained-350-tps', 60, 350]],
     'benchmark_ml_dsa_65_sustained_400.yaml': [['warmup', 20, 50], ['sustained-400-tps', 60, 400]],
     'benchmark_ml_dsa_65_sustained_450.yaml': [['warmup', 20, 50], ['sustained-450-tps', 60, 450]],
+    'benchmark_ml_dsa_65_sustained_306.yaml': [['warmup', 20, 50], ['sustained-306-tps', 60, 306]],
+    'benchmark_ml_dsa_65_sustained_312.yaml': [['warmup', 20, 50], ['sustained-312-tps', 60, 312]],
+    'benchmark_ml_dsa_65_sustained_318.yaml': [['warmup', 20, 50], ['sustained-318-tps', 60, 318]],
+    'benchmark_ml_dsa_65_sustained_325.yaml': [['warmup', 20, 50], ['sustained-325-tps', 60, 325]],
+    'benchmark_ml_dsa_65_sustained_331.yaml': [['warmup', 20, 50], ['sustained-331-tps', 60, 331]],
+    'benchmark_ml_dsa_65_sustained_337.yaml': [['warmup', 20, 50], ['sustained-337-tps', 60, 337]],
+    'benchmark_ml_dsa_65_sustained_343.yaml': [['warmup', 20, 50], ['sustained-343-tps', 60, 343]],
     'benchmark_sphincs_blockutil_54.yaml': [['warmup', 20, 1], ['blockutil-54-tps', 60, 54]],
 };
 
@@ -93,6 +100,23 @@ for (const tps of [356, 357, 358, 359, 360, 361, 362, 368, 375, 381, 387, 393]) 
 
 const mlDsa65Base = yaml.load(fs.readFileSync('benchmark_ml_dsa_sustained_200.yaml', 'utf8'));
 for (const tps of [250, 300, 350, 400, 450]) {
+    const wanted = structuredClone(mlDsa65Base);
+    wanted.test.name = `E1 ML-DSA-65 Sustainable-Rate Probe at ${tps} TPS`;
+    wanted.test.rounds[1].label = `sustained-${tps}-tps`;
+    wanted.test.rounds[1].description = `Offer ${tps} TPS for 60 seconds`;
+    wanted.test.rounds[1].rateControl.opts.tps = tps;
+    wanted.test.rounds[1].workload.arguments.roundLabel = `sustained-${tps}-tps`;
+    const observed = yaml.load(
+        fs.readFileSync(`benchmark_ml_dsa_65_sustained_${tps}.yaml`, 'utf8')
+    );
+    assert.deepStrictEqual(
+        observed,
+        wanted,
+        `benchmark_ml_dsa_65_sustained_${tps}.yaml changed beyond the five authorized fields`
+    );
+}
+
+for (const tps of [306, 312, 318, 325, 331, 337, 343]) {
     const wanted = structuredClone(mlDsa65Base);
     wanted.test.name = `E1 ML-DSA-65 Sustainable-Rate Probe at ${tps} TPS`;
     wanted.test.rounds[1].label = `sustained-${tps}-tps`;
@@ -155,6 +179,13 @@ validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_300.yaml sustaina
 validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_350.yaml sustainability sustained-350-v1
 validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_400.yaml sustainability sustained-400-v1
 validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_450.yaml sustainability sustained-450-v1
+validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_306.yaml sustainability sustained-306-v1
+validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_312.yaml sustainability sustained-312-v1
+validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_318.yaml sustainability sustained-318-v1
+validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_325.yaml sustainability sustained-325-v1
+validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_331.yaml sustainability sustained-331-v1
+validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_337.yaml sustainability sustained-337-v1
+validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_343.yaml sustainability sustained-343-v1
 validate_e1_run_policy sphincs benchmark_sphincs_blockutil_54.yaml diagnostic blockutil-54-v1
 
 expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ecdsa_sustained_222.yaml sustainability bad
@@ -222,6 +253,12 @@ expect_rejected validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_sustained_400.
 expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_400.yaml diagnostic bad
 expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_400.yaml sustainability ""
 for tps in 250 300 350 400 450; do
+    profile="benchmark_ml_dsa_65_sustained_${tps}.yaml"
+    expect_rejected validate_e1_run_policy ml-dsa-44 "$profile" sustainability bad
+    expect_rejected validate_e1_run_policy ml-dsa-65 "$profile" diagnostic bad
+    expect_rejected validate_e1_run_policy ml-dsa-65 "$profile" sustainability ""
+done
+for tps in 306 312 318 325 331 337 343; do
     profile="benchmark_ml_dsa_65_sustained_${tps}.yaml"
     expect_rejected validate_e1_run_policy ml-dsa-44 "$profile" sustainability bad
     expect_rejected validate_e1_run_policy ml-dsa-65 "$profile" diagnostic bad

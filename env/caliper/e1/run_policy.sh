@@ -94,6 +94,55 @@ validate_e1_run_policy() {
                 return 1
             fi
             ;;
+        benchmark_ml_dsa_65_sustained_306.yaml)
+            require_e1_run_label "$run_label" || return 1
+            if [[ "$config" != "ml-dsa-65" || "$run_type" != "sustainability" ]]; then
+                echo "ERROR: The ML-DSA-65 306-TPS profile requires config=ml-dsa-65 and E1_RUN_TYPE=sustainability."
+                return 1
+            fi
+            ;;
+        benchmark_ml_dsa_65_sustained_312.yaml)
+            require_e1_run_label "$run_label" || return 1
+            if [[ "$config" != "ml-dsa-65" || "$run_type" != "sustainability" ]]; then
+                echo "ERROR: The ML-DSA-65 312-TPS profile requires config=ml-dsa-65 and E1_RUN_TYPE=sustainability."
+                return 1
+            fi
+            ;;
+        benchmark_ml_dsa_65_sustained_318.yaml)
+            require_e1_run_label "$run_label" || return 1
+            if [[ "$config" != "ml-dsa-65" || "$run_type" != "sustainability" ]]; then
+                echo "ERROR: The ML-DSA-65 318-TPS profile requires config=ml-dsa-65 and E1_RUN_TYPE=sustainability."
+                return 1
+            fi
+            ;;
+        benchmark_ml_dsa_65_sustained_325.yaml)
+            require_e1_run_label "$run_label" || return 1
+            if [[ "$config" != "ml-dsa-65" || "$run_type" != "sustainability" ]]; then
+                echo "ERROR: The ML-DSA-65 325-TPS profile requires config=ml-dsa-65 and E1_RUN_TYPE=sustainability."
+                return 1
+            fi
+            ;;
+        benchmark_ml_dsa_65_sustained_331.yaml)
+            require_e1_run_label "$run_label" || return 1
+            if [[ "$config" != "ml-dsa-65" || "$run_type" != "sustainability" ]]; then
+                echo "ERROR: The ML-DSA-65 331-TPS profile requires config=ml-dsa-65 and E1_RUN_TYPE=sustainability."
+                return 1
+            fi
+            ;;
+        benchmark_ml_dsa_65_sustained_337.yaml)
+            require_e1_run_label "$run_label" || return 1
+            if [[ "$config" != "ml-dsa-65" || "$run_type" != "sustainability" ]]; then
+                echo "ERROR: The ML-DSA-65 337-TPS profile requires config=ml-dsa-65 and E1_RUN_TYPE=sustainability."
+                return 1
+            fi
+            ;;
+        benchmark_ml_dsa_65_sustained_343.yaml)
+            require_e1_run_label "$run_label" || return 1
+            if [[ "$config" != "ml-dsa-65" || "$run_type" != "sustainability" ]]; then
+                echo "ERROR: The ML-DSA-65 343-TPS profile requires config=ml-dsa-65 and E1_RUN_TYPE=sustainability."
+                return 1
+            fi
+            ;;
         benchmark_ml_dsa_sustained_300.yaml)
             require_e1_run_label "$run_label" || return 1
             if [[ "$config" != "ml-dsa-44" || "$run_type" != "sustainability" ]]; then

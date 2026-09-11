@@ -362,6 +362,18 @@ class SustainabilityTests(unittest.TestCase):
                 )
                 self.assertEqual(spec["run_type"], "sustainability")
 
+    def test_ml_dsa_65_midpoint_profiles_are_registered_immutably(self) -> None:
+        for tps in (306, 312, 318, 325, 331, 337, 343):
+            with self.subTest(tps=tps):
+                spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
+                    ("ml-dsa-65", (f"sustained-{tps}-tps",))
+                ]
+                self.assertEqual(
+                    spec["path"],
+                    f"env/caliper/e1/benchmark_ml_dsa_65_sustained_{tps}.yaml",
+                )
+                self.assertEqual(spec["run_type"], "sustainability")
+
     def test_success_rate_threshold(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
