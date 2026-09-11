@@ -598,6 +598,105 @@
           "final_tps_sustained": 228,
           "method": "Adjacent integer boundary under the preregistered 60-second sustainability gates."
         },
+        "ml_dsa_44_integer_boundary": {
+          "status": "complete",
+          "validated_probes": [
+            {
+              "offered_tps": 200,
+              "run_namespace": "sustained-200-v1_ml-dsa-44",
+              "sustainable": true,
+              "result_summary": "data/e1_ml_dsa_44_sustainability_200.csv",
+              "result_summary_sha256": "b2460d661ddf1d9905735c046bd7fe76b1722e6f7c3042c3d45b94e12e74bbcc"
+            },
+            {
+              "offered_tps": 250,
+              "run_namespace": "sustained-250-v2_ml-dsa-44",
+              "sustainable": true,
+              "result_summary": "data/e1_sustained_250_ml_dsa_44.csv",
+              "result_summary_sha256": "0b187c0ae1460fb4e8a64f1ae72d64ed291bc0aee6a37d4d5f16979c0af49f08"
+            },
+            {
+              "offered_tps": 300,
+              "run_namespace": "sustained-300-v1_ml-dsa-44",
+              "sustainable": true,
+              "result_summary": "data/e1_sustained_300_ml_dsa_44.csv",
+              "result_summary_sha256": "56046a24c39ea799749513597f17dfdcf54e44fb4d9c374e129881d438a20265"
+            },
+            {
+              "offered_tps": 350,
+              "run_namespace": "sustained-350-v2_ml-dsa-44",
+              "sustainable": true,
+              "result_summary": "data/e1_sustained_350_ml_dsa_44.csv",
+              "result_summary_sha256": "7e657cb47b43aef2737b8b154aa74b3121d566af94bc87450b711b8965f61392"
+            },
+            {
+              "offered_tps": 356,
+              "run_namespace": "sustained-356-v1_ml-dsa-44",
+              "sustainable": true,
+              "result_summary": "data/e1_sustained_356_ml_dsa_44.csv",
+              "result_summary_sha256": "642488119c20fd22cd0a2f827dc6cacb749c5496b23f4326ea585ffe0fda4e1a"
+            },
+            {
+              "offered_tps": 357,
+              "run_namespace": "sustained-357-v1_ml-dsa-44",
+              "sustainable": false,
+              "result_summary": "data/e1_sustained_357_ml_dsa_44.csv",
+              "result_summary_sha256": "72eee40342c94a70683428e2490e765a2b5ebbc4bd6572aaa2cac1b8809d812e"
+            },
+            {
+              "offered_tps": 359,
+              "run_namespace": "sustained-359-v1_ml-dsa-44",
+              "sustainable": false,
+              "result_summary": "data/e1_sustained_359_ml_dsa_44.csv",
+              "result_summary_sha256": "fbccdab7ae491a5a541da0f19ec83daf5a132e511ac5fdd2faeba20c91108a69"
+            },
+            {
+              "offered_tps": 362,
+              "run_namespace": "sustained-362-v1_ml-dsa-44",
+              "sustainable": false,
+              "result_summary": "data/e1_sustained_362_ml_dsa_44.csv",
+              "result_summary_sha256": "0e1142890b1af26f6bcac0c7bff810148be2d7a442e6aaf38f7f7384fc8ee1e1"
+            },
+            {
+              "offered_tps": 375,
+              "run_namespace": "sustained-375-v1_ml-dsa-44",
+              "sustainable": false,
+              "result_summary": "data/e1_sustained_375_ml_dsa_44.csv",
+              "result_summary_sha256": "7129be59aa20caeb631e4248d1dec008c417a0c26356ac5e55c7531445cef00f"
+            },
+            {
+              "offered_tps": 400,
+              "run_namespace": "sustained-400-v1_ml-dsa-44",
+              "sustainable": false,
+              "result_summary": "data/e1_sustained_400_ml_dsa_44.csv",
+              "result_summary_sha256": "537356f971bb3d2bbddd52ae8f8afb6d2c3f4716d00867f8257d56a1c7bbe649"
+            }
+          ],
+          "retained_nonselected_attempts": [
+            {
+              "run_namespace": "sustained-250-v1_ml-dsa-44",
+              "classification": "pre_standardized_nonselected",
+              "selected_for_boundary": false,
+              "reason": "The workload completed, but the retained log predates the current required clean-tracked-state and runner-policy-hash provenance lines; sustained-250-v2_ml-dsa-44 is the selected validated replacement.",
+              "run_log": "raw/e1/sustained-250-v1_ml-dsa-44_caliper_run.log",
+              "run_log_sha256": "d21a7def2445a79f20269b3a4093d3a714aa0f77249d9603bbf12b5ef4fb54e2"
+            },
+            {
+              "run_namespace": "sustained-350-v1_ml-dsa-44",
+              "classification": "preflight_rejection_no_workload",
+              "selected_for_boundary": false,
+              "reason": "The runner stopped before Fabric or Caliper workload execution because CPU 11 was in powersave governor state; sustained-350-v2_ml-dsa-44 is the selected validated measurement.",
+              "run_log": "raw/e1/sustained-350-v1_ml-dsa-44_caliper_run.log",
+              "run_log_sha256": "68438d89a8ba9758398c76933816aa9a14befd8609a8785eaa19b0dcc4208e94"
+            }
+          ],
+          "highest_sustainable_integer_tps": 356,
+          "highest_sustainable_run_namespace": "sustained-356-v1_ml-dsa-44",
+          "first_failing_integer_tps": 357,
+          "first_failing_run_namespace": "sustained-357-v1_ml-dsa-44",
+          "final_tps_sustained": 356,
+          "method": "Adjacent integer boundary under the preregistered 60-second sustainability gates."
+        },
         "ml_dsa_200": {
           "profile_file": "env/caliper/e1/benchmark_ml_dsa_sustained_200.yaml",
           "profile_sha256": "0f03fb1546102f602509061334d9ad21aae66b71f9b4b52ee5e28d09be607290",
@@ -1410,7 +1509,7 @@
   },
   "known_scientific_decisions_pending": {
     "latency_field_population": "Resolved and measured: professor selected the clean 200-TPS population. ECDSA, ML-DSA-44, and ML-DSA-65 values are validated; historical and clean 50-TPS results remain supporting evidence, and SPHINCS+ 200 TPS is saturation-only.",
-    "paused_sustainability_work": "After the professor-directed verification and clean-latency correction is complete, resume ML-DSA-44 sustainability from 200 TPS PASS; the next planned adaptive probe had been 250 TPS."
+    "ml_dsa_44_sustainability": "Resolved: 356 TPS is the highest sustainable integer rate and 357 TPS is the first failing integer rate under the preregistered 60-second gates."
   },
   "notes": {
     "falcon_liboqs_caveat": "Falcon in liboqs 0.15.0 follows the round-3 submission rather than final FIPS 206.",
