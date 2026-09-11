@@ -300,6 +300,28 @@ class SustainabilityTests(unittest.TestCase):
         )
         self.assertEqual(spec["run_type"], "sustainability")
 
+    def test_ml_dsa_44_prepared_midpoint_profiles_are_registered_immutably(self) -> None:
+        for tps in (356, 362, 368, 381, 387, 393):
+            with self.subTest(tps=tps):
+                spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
+                    ("ml-dsa-44", (f"sustained-{tps}-tps",))
+                ]
+                self.assertEqual(
+                    spec["path"],
+                    f"env/caliper/e1/benchmark_ml_dsa_sustained_{tps}.yaml",
+                )
+                self.assertEqual(spec["run_type"], "sustainability")
+
+    def test_ml_dsa_44_375_profile_is_registered_immutably(self) -> None:
+        spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
+            ("ml-dsa-44", ("sustained-375-tps",))
+        ]
+        self.assertEqual(
+            spec["path"],
+            "env/caliper/e1/benchmark_ml_dsa_sustained_375.yaml",
+        )
+        self.assertEqual(spec["run_type"], "sustainability")
+
     def test_ml_dsa_44_400_profile_is_registered_immutably(self) -> None:
         spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
             ("ml-dsa-44", ("sustained-400-tps",))
