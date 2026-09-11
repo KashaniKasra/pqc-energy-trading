@@ -300,6 +300,16 @@ class SustainabilityTests(unittest.TestCase):
         )
         self.assertEqual(spec["run_type"], "sustainability")
 
+    def test_ml_dsa_44_400_profile_is_registered_immutably(self) -> None:
+        spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
+            ("ml-dsa-44", ("sustained-400-tps",))
+        ]
+        self.assertEqual(
+            spec["path"],
+            "env/caliper/e1/benchmark_ml_dsa_sustained_400.yaml",
+        )
+        self.assertEqual(spec["run_type"], "sustainability")
+
     def test_success_rate_threshold(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

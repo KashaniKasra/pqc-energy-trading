@@ -73,6 +73,13 @@ validate_e1_run_policy() {
                 return 1
             fi
             ;;
+        benchmark_ml_dsa_sustained_400.yaml)
+            require_e1_run_label "$run_label" || return 1
+            if [[ "$config" != "ml-dsa-44" || "$run_type" != "sustainability" ]]; then
+                echo "ERROR: The ML-DSA-44 400-TPS profile requires config=ml-dsa-44 and E1_RUN_TYPE=sustainability."
+                return 1
+            fi
+            ;;
         benchmark_sphincs_blockutil_54.yaml)
             require_e1_run_label "$run_label" || return 1
             if [[ "$config" != "sphincs" || "$run_type" != "diagnostic" ]]; then

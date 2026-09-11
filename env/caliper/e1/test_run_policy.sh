@@ -31,6 +31,7 @@ const expected = {
     'benchmark_ml_dsa_sustained_200.yaml': [['warmup', 20, 50], ['sustained-200-tps', 60, 200]],
     'benchmark_ml_dsa_sustained_300.yaml': [['warmup', 20, 50], ['sustained-300-tps', 60, 300]],
     'benchmark_ml_dsa_sustained_350.yaml': [['warmup', 20, 50], ['sustained-350-tps', 60, 350]],
+    'benchmark_ml_dsa_sustained_400.yaml': [['warmup', 20, 50], ['sustained-400-tps', 60, 400]],
     'benchmark_sphincs_blockutil_54.yaml': [['warmup', 20, 1], ['blockutil-54-tps', 60, 54]],
 };
 
@@ -82,6 +83,7 @@ validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_200.yaml sustainabil
 validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_sustained_200.yaml sustainability sustained-200-v1
 validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_300.yaml sustainability sustained-300-v1
 validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_350.yaml sustainability sustained-350-v1
+validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_400.yaml sustainability sustained-400-v1
 validate_e1_run_policy sphincs benchmark_sphincs_blockutil_54.yaml diagnostic blockutil-54-v1
 
 expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ecdsa_sustained_222.yaml sustainability bad
@@ -109,6 +111,9 @@ expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_300.
 expect_rejected validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_sustained_350.yaml sustainability bad
 expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_350.yaml diagnostic bad
 expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_350.yaml sustainability ""
+expect_rejected validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_sustained_400.yaml sustainability bad
+expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_400.yaml diagnostic bad
+expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_400.yaml sustainability ""
 expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_sphincs_blockutil_54.yaml diagnostic bad
 expect_rejected validate_e1_run_policy sphincs benchmark_sphincs_blockutil_54.yaml sustainability bad
 expect_rejected validate_e1_run_policy ecdsa benchmark_ecdsa_sustained_222.yaml sustainability ""
