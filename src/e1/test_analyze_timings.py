@@ -695,5 +695,46 @@ class PQVerificationAuditTests(unittest.TestCase):
                 ANALYZER.validate_pq_verification_audits(root)
 
 
+class MetadataCleanlinessTests(unittest.TestCase):
+    def test_integer_boundary_metadata_has_final_scientific_names(self) -> None:
+        project_root = MODULE_PATH.parents[2]
+        metadata = json.loads(
+            (project_root / "meta.json").read_text(encoding="utf-8")
+        )
+        caliper = metadata["e1_benchmark"]["caliper"]
+
+        boundaries = caliper["integer_sustainability_boundaries"]
+        self.assertEqual(
+            boundaries["ecdsa_integer_boundary"]["final_tps_sustained"], 228
+        )
+        self.assertEqual(
+            boundaries["ml_dsa_44_integer_boundary"]["final_tps_sustained"], 356
+        )
+        self.assertEqual(
+            boundaries["ml_dsa_65_integer_boundary"]["final_tps_sustained"], 344
+        )
+
+        sweep = caliper["sphincs_low_rate_sweep"]
+        self.assertEqual(sweep["rates_tps"], [1, 2, 5, 10, 20])
+        self.assertNotIn("highest_tested_sustainable_tps", sweep)
+        self.assertEqual(
+            sweep["integer_boundary_search"]["highest_tested_sustainable_tps"],
+            22,
+        )
+        self.assertEqual(
+            set(caliper["clean_common_profile"]),
+            {
+                "status",
+                "fresh_ledger_start_height",
+                "pq_verify_trace",
+                "derived_summary",
+                "derived_summary_sha256",
+                "runs",
+                "results_200_tps",
+                "sphincs_50_tps_saturation",
+            },
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

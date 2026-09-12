@@ -2,37 +2,16 @@
   "project": {
     "name": "Layer-Aware Post-Quantum Cryptography for Blockchain-Based Energy Trading",
     "implementation_authority": "docs/student_spec(1).pdf",
-    "authority_rule": "Later direct professor clarification overrides the student specification only for the clarified point; the proposal is background and lower authority.",
     "measurement_principle": "Measure and retain what the system actually does; do not tune results to an expected model."
   },
-  "canonical_e0_server_environment": {
-    "provenance_note": "Historical environment for the retained canonical E0 server run; current host versions must not overwrite it without an E0 rerun.",
+  "server_hardware": {
     "architecture": "x86_64",
     "cpu_model": "AMD Ryzen 7 7735HS with Radeon Graphics",
     "physical_cores": 8,
     "logical_cpus": 16,
     "ram_gib": 16,
     "ram_type": "DDR5",
-    "ram_speed_mt_s": 4800,
-    "os": "Ubuntu 24.04.3 LTS",
-    "kernel": "6.14.0-37-generic",
-    "docker": "28.2.2",
-    "openssl_package": "3.0.13-0ubuntu3.12",
-    "go": "1.22.2"
-  },
-  "current_host_observation": {
-    "observed_at": "2026-09-04",
-    "provenance_note": "Inventory only; these values are not retroactively attributed to retained measurements.",
-    "architecture": "x86_64",
-    "os": "Ubuntu 24.04.3 LTS",
-    "kernel": "7.0.0-30-generic",
-    "docker": "29.1.3",
-    "docker_compose": "2.40.3+ds1-0ubuntu1~24.04.1",
-    "openssl_runtime": "3.0.13",
-    "openssl_package": "3.0.13-0ubuntu3.15",
-    "go_system": "1.22.2",
-    "node": "22.23.2",
-    "npm": "12.0.2"
+    "ram_speed_mt_s": 4800
   },
   "software_pins": {
     "hyperledger_fabric": {
@@ -60,15 +39,6 @@
     },
     "mininet": "2.3.0"
   },
-  "crypto_backend": {
-    "liboqs_api": "direct library API",
-    "oqs_provider_used": false,
-    "liboqs_openssl_enabled": true,
-    "liboqs_sha2_backend": "OpenSSL",
-    "ecdsa_backend": "OpenSSL libcrypto",
-    "ecdsa_hash": "SHA-256",
-    "ecdsa_hashing_inside_timed_region": false
-  },
   "cryptographic_parameter_sets": {
     "ML-KEM-768": "ML-KEM-768",
     "ML-DSA-44": "ML-DSA-44",
@@ -79,47 +49,52 @@
     "ECDSA-P-256": "prime256v1"
   },
   "e0_benchmark": {
-    "status": "canonical server data retained; meter/SBC data missing",
-    "platform": "server",
-    "warmup_iterations": 100,
-    "measured_iterations": 10000,
-    "gomaxprocs": 1,
-    "cpu_affinity": [
-      2,
-      3
-    ],
-    "cpu_smt_siblings": [
-      2,
-      3
-    ],
-    "cpu_scaling_driver": "amd-pstate",
-    "amd_pstate_mode": "passive",
-    "cpu_governor": "performance",
-    "cpu_frequency_khz": 3200000,
-    "cpu_boost_enabled": false,
-    "power_source": "AC",
-    "timing_unit": "milliseconds",
-    "percentile_method": "linear interpolation using rank p*(n-1)",
-    "stddev_method": "sample standard deviation (n-1)",
-    "timing_boundary": "cryptographic primitive API call",
-    "raw_samples_compressed": true,
-    "summary": "data/e0_primitives.csv",
-    "raw_sources": "raw/e0/"
-  },
-  "e0_message": {
-    "length_bytes": 32,
-    "seed": "pqc-energy-trading-e0-message-v1",
-    "generation": "SHA-256 of UTF-8 seed",
-    "applies_to": "signature schemes only",
-    "kem_message": null
-  },
-  "dataset": {
-    "status": "required for E7; not yet selected",
-    "name": null,
-    "license": null
+    "status": "server_measurement_complete_sanity_checker_unavailable_meter_pending",
+    "server_environment": {
+      "os": "Ubuntu 24.04.3 LTS",
+      "kernel": "6.14.0-37-generic",
+      "docker": "28.2.2",
+      "openssl_package": "3.0.13-0ubuntu3.12",
+      "go": "1.22.2"
+    },
+    "methodology": {
+      "platform": "server",
+      "liboqs_api": "direct library API",
+      "oqs_provider_used": false,
+      "ecdsa_backend": "OpenSSL libcrypto",
+      "ecdsa_hash": "SHA-256",
+      "ecdsa_hashing_inside_timed_region": false,
+      "signature_message": "SHA-256 of UTF-8 string pqc-energy-trading-e0-message-v1",
+      "signature_message_bytes": 32,
+      "kem_message": null,
+      "warmup_iterations": 100,
+      "measured_iterations": 10000,
+      "gomaxprocs": 1,
+      "cpu_affinity": [
+        2,
+        3
+      ],
+      "cpu_smt_siblings": true,
+      "amd_pstate_mode": "passive",
+      "cpu_governor": "performance",
+      "cpu_frequency_khz": 3200000,
+      "cpu_boost_enabled": false,
+      "power_source": "AC",
+      "timing_unit": "milliseconds",
+      "percentile_method": "linear interpolation using rank p*(n-1)",
+      "timing_boundary": "cryptographic primitive API call"
+    },
+    "evidence": {
+      "summary": "data/e0_primitives.csv",
+      "summary_sha256": "b8656403f78a0845eceaf15df9803b4aea7282ed7960137a920773a9733b4936",
+      "raw_samples": "raw/e0/",
+      "raw_samples_compressed": true,
+      "run_log": "raw/e0/e0_server_run.log",
+      "run_log_sha256": "5a67af85eac9fdb4c0d7c53528790051a8bf875b8cd7ffca0cccfcf8014c09dd"
+    }
   },
   "meter": {
-    "status": "not yet measured",
+    "status": "pending",
     "hardware": null,
     "soc": null,
     "clock": null,
@@ -127,9 +102,23 @@
     "os": null,
     "power_instrument": null
   },
+  "dataset": {
+    "status": "pending_for_e7",
+    "name": null,
+    "license": null
+  },
   "e1_benchmark": {
-    "status": "E1 implementation and all non-block metrics are validated; ECDSA block utilisation is final; ML-DSA-44, ML-DSA-65, and SPHINCS+ block methodology remains pending; data/e1_fabric.csv is intentionally absent.",
+    "status": "complete_except_ml_dsa_44_ml_dsa_65_sphincs_block_utilisation",
     "platform": "server",
+    "server_environment": {
+      "os": "Ubuntu 24.04.3 LTS",
+      "kernel": "7.0.0-30-generic",
+      "docker": "29.1.3",
+      "docker_compose": "2.40.3+ds1-0ubuntu1~24.04.1",
+      "openssl": "3.0.13",
+      "node": "22.23.2",
+      "npm": "12.0.2"
+    },
     "topology": {
       "ordering_service": "etcdraft",
       "orderer_count": 1,
@@ -137,33 +126,35 @@
       "peers_per_organization": 2,
       "channel": "energychannel",
       "chaincode": "simplekv",
-      "chaincode_operation": "Set(key,value)"
-    },
-    "identity_configurations": {
-      "ECDSA": "ECDSA P-256",
-      "ML-DSA-44": "ML-DSA-44",
-      "ML-DSA-65": "ML-DSA-65",
-      "SLH-DSA": "SPHINCS+-SHA2-128s-simple"
+      "operation": "Set(key,value)"
     },
     "installed_images_at_metadata_update": {
-      "observed_at": "2026-09-10",
       "peer": "sha256:3d71da5ac46b179c981527b69ac832cb7905bd3bc428ee6b2620bc580e3c944e",
       "orderer": "sha256:4ec6f0287e3fda35a874357bfe9c9f2ef8b9fbb427a42457de3b6b1b98290058",
       "fabric_pq_patch_sha256": "5268f9f67656233d7e7b9ac7c449f20f05fc8a8257fb91eb0de63698a72d1293",
       "fabric_commit_label": "f871cf92a026aba7b12e6f06d71ded3e6e659d71",
-      "liboqs_commit_label": "97f6b86b1b6d109cfd43cf276ae39c2e776aed80",
-      "validation": "Trace-enabled peer and orderer images report Fabric 2.5.16 commit f871cf9, Go 1.26.4, linux/amd64, dynamically link to liboqs.so.9/libcrypto, and carry matching Fabric/liboqs/patch provenance labels.",
-      "current_source_status": "Current installed images match repository patch 5268f9f6...; the separate functional PQ verification audits and professor-directed clean common-profile reruns completed successfully. PQ verification tracing was disabled for the performance reruns."
+      "liboqs_commit_label": "97f6b86b1b6d109cfd43cf276ae39c2e776aed80"
     },
     "superseded_installed_images": [
       {
-        "observed_at": "2026-09-04",
         "peer": "sha256:6fe74f12e91ab73a07b13d4a7d2954df8a2ad5a6e00ea2665cfffed7f34f5448",
         "orderer": "sha256:b56ec95ae9168725b8c8e1dc4bc4126f30f2b661e3dc99dd72225dc87b1f3d1f",
         "fabric_pq_patch_sha256": "2eeee5582fabd90bb9e675e98bce3daf94a087d2d6848ccfa720f7216e23550f",
-        "status": "Superseded by the trace-enabled images. Retained only to validate measurements whose own run logs explicitly record these image IDs and patch hash; not attributed to older common-profile runs whose image IDs were not retained."
+        "status": "retained only to validate canonical evidence whose run logs record this image set"
       }
     ],
+    "cpu_control": {
+      "fixed_cpu_set": "2-15",
+      "caliper_affinity": "taskset -c 2-15",
+      "fabric_and_chaincode_cpuset": "2-15",
+      "amd_pstate_mode": "passive",
+      "cpu_governor": "performance",
+      "cpu_boost_enabled": false,
+      "cpu_frequency_khz": 3201000,
+      "power_source": "AC",
+      "background_load": "low",
+      "unrelated_docker_containers": 0
+    },
     "fabric_block_parameters": {
       "BatchTimeout": "2s",
       "MaxMessageCount": 500,
@@ -171,81 +162,64 @@
       "PreferredMaxBytes_effective_bytes": 2097152,
       "AbsoluteMaxBytes": "10 MB",
       "AbsoluteMaxBytes_effective_bytes": 10485760,
-      "effective_value_source": "Decoded generated/current Fabric common.Block config with configtxlator; configtx.yaml is the declarative source."
+      "effective_value_source": "decoded generated Fabric channel configuration"
     },
     "endorsement_policy": {
-      "chaincode_definition_policy": "/Channel/Application/Endorsement (Fabric lifecycle default because setup_fabric_e1.sh supplies neither --signature-policy nor --channel-config-policy)",
-      "channel_policy": "ImplicitMeta MAJORITY Endorsement",
+      "chaincode_policy": "/Channel/Application/Endorsement",
+      "policy_type": "ImplicitMeta",
+      "rule": "MAJORITY Endorsement",
       "organization_subpolicies": {
         "Org1MSP": "OR('Org1MSP.peer')",
         "Org2MSP": "OR('Org2MSP.peer')"
       },
-      "organization_count": 2,
       "configured_minimum_endorsements_per_tx": 2,
-      "configured_interpretation": "MAJORITY of two organization Endorsement subpolicies requires one peer endorsement from each organization.",
-      "generated_channel_artifact_verification": "Read-only configtxlator decode of the current generated energychannel.block showed Application Endorsement = ImplicitMeta MAJORITY and each Org1MSP/Org2MSP Endorsement subpolicy = 1-of-1 peer.",
-      "verification_command": "./src/e1/analyze_timings.py --endorsement-policy",
-      "actual_serialized_count_check": "Completed exact-envelope evidence reports mean/min/max=2/2/2 endorsements for every retained transaction: n=6001 for ECDSA, ML-DSA-44, and ML-DSA-65, and n=1201 for SPHINCS+-SHA2-128s-simple."
-    },
-    "cpu_control": {
-      "fixed_cpu_set": "2-15",
-      "cpu_scaling_driver": "amd-pstate",
-      "amd_pstate_mode": "passive",
-      "cpu_governor": "performance",
-      "cpu_boost_enabled": false,
-      "cpu_frequency_khz": 3201000,
-      "note": "Required future-run state; each retained run log records the observed per-CPU values."
+      "empirical_endorsements_per_tx": 2,
+      "configtx_source": "env/fabric/e1/configtx.yaml",
+      "configtx_sha256": "87022050421db9821be46266cfe68b9789c3fe125d089e31d368a01ffe27b384",
+      "setup_source": "env/fabric/e1/setup_fabric_e1.sh",
+      "setup_sha256": "b69af762feee33e800bc26ef5af9e0a45301ba0c2172f580de6fc90b25ac2831"
     },
     "hybrid_pq_identity": {
-      "description": "Experimental hybrid Fabric identity mechanism: ECDSA X.509 membership and CA chain, a noncritical extension carrying the PQ algorithm and public key, and real liboqs-based peer transaction/endorsement signing and verification.",
+      "scope": "ECDSA X.509 membership with experimental embedded PQ public keys and liboqs peer transaction/endorsement signing and verification",
+      "experimental_oid": "1.3.6.1.3.9999.1",
+      "pq_ski": "SHA-256(raw PQ public key)",
+      "client_identity": "ECDSA",
+      "tls_identities": "ECDSA",
+      "orderer_identity": "ECDSA",
       "not_claimed": [
         "full post-quantum PKI",
         "standardized post-quantum X.509",
         "native Fabric PQ identity support"
       ],
-      "experimental_oid": "1.3.6.1.3.9999.1",
-      "oid_status": "experimental testbed identifier only",
-      "pq_ski": "SHA-256(raw PQ public key)",
-      "peer_transaction_endorsement_signing": "PQ for PQ configurations",
-      "client_identity": "ECDSA",
-      "tls_identities": "ECDSA",
-      "orderer_identity": "ECDSA",
-      "orderer_binary_note": "Patched to verify requests signed by PQ peer identities",
-      "verification_dispatch": "An X.509 certificate carrying experimental extension 1.3.6.1.3.9999.1 is imported as *sw.pqPublicKey before its ECDSA SPKI is considered. BCCSP dispatches that concrete key type only to pqPublicKeyVerifier, which initializes oqs.Signature with the extension algorithm and calls oqs.Signature.Verify. Import, initialization, or verification failure returns an error/false; there is no ECDSA verification fallback for the PQ key type.",
-      "runtime_verification_audit": {
-        "status": "complete; retained one-shot runtime traces validate actual liboqs PQ verification on the orderer and peers in both organizations for all three PQ configurations",
-        "trace_control": "FABRIC_PQ_VERIFY_TRACE=1 enables one INFO trace per algorithm/result pair per process; Caliper run_e1.sh rejects this setting so trace logging cannot perturb performance runs",
-        "collector": "env/fabric/e1/collect_pq_verification_evidence.sh",
-        "deterministic_validator": "./src/e1/analyze_timings.py --pq-verification-audits",
-        "regression_test": "bccsp/sw TestPQVerifierDispatchRejectsClassicalFallback covers ML-DSA-44, ML-DSA-65, and SPHINCS+-SHA2-128s-simple",
-        "regression_interpretation": "For every supported PQ algorithm, a valid PQ signature verifies, a tampered PQ signature is rejected, and an ECDSA signature presented to the PQ public key is rejected by the concrete PQ verifier without classical fallback.",
-        "current_patch_sha256": "5268f9f67656233d7e7b9ac7c449f20f05fc8a8257fb91eb0de63698a72d1293",
+      "verification_dispatch": "PQ-extension certificates import as pqPublicKey and dispatch to pqPublicKeyVerifier, which calls oqs.Signature.Verify; errors do not fall back to ECDSA.",
+      "no_fallback_regression_test": "TestPQVerifierDispatchRejectsClassicalFallback",
+      "runtime_verification": {
+        "status": "validated_functional_evidence_not_performance_measurement",
+        "trace": "one successful oqs.Signature.Verify trace from the orderer and all four peers per PQ configuration",
+        "performance_trace_state": "disabled",
         "derived_summary": "data/e1_pq_verification_audits.csv",
         "derived_summary_sha256": "84410ae5660c74c9deaddcb66d27e0194b0af00395f7bb5bea7a63f34c8303c5",
         "audits": {
           "ML-DSA-44": {
-            "run_namespace": "pq-verify-v1_ml-dsa-44",
-            "evidence_csv": "raw/e1/pq-verify-v1_ml-dsa-44_pq_verification_audit.csv",
-            "evidence_csv_sha256": "e406ed20f01c299de7ae6b786ec316e4e6904f20e07ebd2f4e6191b3968c2245",
-            "log": "raw/e1/pq-verify-v1_ml-dsa-44_pq_verification_audit.log",
-            "log_sha256": "3983a6297e21b50be3b91214f42c0790e37d64838139311e66ca1d8813ba07bc",
-            "trace_coverage": "orderer plus two Org1 peers plus two Org2 peers; all five result=success"
+            "namespace": "pq-verify-v1_ml-dsa-44",
+            "raw_csv": "raw/e1/pq-verify-v1_ml-dsa-44_pq_verification_audit.csv",
+            "raw_csv_sha256": "e406ed20f01c299de7ae6b786ec316e4e6904f20e07ebd2f4e6191b3968c2245",
+            "raw_log": "raw/e1/pq-verify-v1_ml-dsa-44_pq_verification_audit.log",
+            "raw_log_sha256": "3983a6297e21b50be3b91214f42c0790e37d64838139311e66ca1d8813ba07bc"
           },
           "ML-DSA-65": {
-            "run_namespace": "pq-verify-v1_ml-dsa-65",
-            "evidence_csv": "raw/e1/pq-verify-v1_ml-dsa-65_pq_verification_audit.csv",
-            "evidence_csv_sha256": "9c0a2cd794cf63985d22c6609e0a73f7f9bd7d9b09d6916a42b96ac3f68361ea",
-            "log": "raw/e1/pq-verify-v1_ml-dsa-65_pq_verification_audit.log",
-            "log_sha256": "613ef168ffc98343a67ed8c633ad9a401b2b2875cf0061b978c773f200d84a90",
-            "trace_coverage": "orderer plus two Org1 peers plus two Org2 peers; all five result=success"
+            "namespace": "pq-verify-v1_ml-dsa-65",
+            "raw_csv": "raw/e1/pq-verify-v1_ml-dsa-65_pq_verification_audit.csv",
+            "raw_csv_sha256": "9c0a2cd794cf63985d22c6609e0a73f7f9bd7d9b09d6916a42b96ac3f68361ea",
+            "raw_log": "raw/e1/pq-verify-v1_ml-dsa-65_pq_verification_audit.log",
+            "raw_log_sha256": "613ef168ffc98343a67ed8c633ad9a401b2b2875cf0061b978c773f200d84a90"
           },
           "SPHINCS+-SHA2-128s-simple": {
-            "run_namespace": "pq-verify-v1_sphincs",
-            "evidence_csv": "raw/e1/pq-verify-v1_sphincs_pq_verification_audit.csv",
-            "evidence_csv_sha256": "54944dc0736d375854bcf24b294b4d6d2b317b0cbc0d55d307e2ddd28cf71ca8",
-            "log": "raw/e1/pq-verify-v1_sphincs_pq_verification_audit.log",
-            "log_sha256": "00f0bd3ee5b0fd26afc3663a6b9911fe7f660cda1f24fd114c3b7ac922e73553",
-            "trace_coverage": "orderer plus two Org1 peers plus two Org2 peers; all five result=success"
+            "namespace": "pq-verify-v1_sphincs",
+            "raw_csv": "raw/e1/pq-verify-v1_sphincs_pq_verification_audit.csv",
+            "raw_csv_sha256": "54944dc0736d375854bcf24b294b4d6d2b317b0cbc0d55d307e2ddd28cf71ca8",
+            "raw_log": "raw/e1/pq-verify-v1_sphincs_pq_verification_audit.log",
+            "raw_log_sha256": "00f0bd3ee5b0fd26afc3663a6b9911fe7f660cda1f24fd114c3b7ac922e73553"
           }
         }
       }
@@ -257,73 +231,49 @@
         "certificate signature bytes",
         "transaction signature bytes"
       ],
-      "aggregation": "arithmetic mean of the four peer public-key byte counts; min and max are retained",
-      "dispersion_review_rule": "Flag (but do not exclude) a configuration when 100*(max-min)/mean exceeds 3.0 percent.",
-      "measurement_tool": "env/fabric/e1/measure_identity_bytes.sh",
+      "aggregation": "arithmetic mean of four peer public-key byte counts",
+      "dispersion_review_threshold_percent": 3.0,
       "measurements": {
         "ECDSA": {
-          "implementation": "ECDSA P-256",
-          "representation": "DER-encoded X.509 SubjectPublicKeyInfo returned by Fabric ecdsaPublicKey.Bytes() via x509.MarshalPKIXPublicKey",
-          "per_peer_bytes": [
-            91,
-            91,
-            91,
-            91
-          ],
-          "mean_bytes": "91.000000",
-          "min_bytes": 91,
-          "max_bytes": 91,
-          "dispersion_percent": "0.000000",
-          "provenance": "Read-only extraction from the four ECDSA certificates whose SHA-256 values match raw/e1/blockutil-300_ecdsa_identity_bytes.csv; cross-checked against Fabric v2.5.16 bccsp/sw/ecdsakey.go."
+          "representation": "DER-encoded X.509 SubjectPublicKeyInfo returned by Fabric ecdsaPublicKey.Bytes()",
+          "per_peer_bytes": [91, 91, 91, 91],
+        "mean_bytes": "91.000000",
+        "min_bytes": 91,
+        "max_bytes": 91,
+        "dispersion_percent": "0.000000",
+        "provenance": "The 91-byte value is derived and cross-checked from the DER-encoded P-256 SubjectPublicKeyInfo returned by Fabric v2.5.16 ecdsaPublicKey.Bytes() in bccsp/sw/ecdsakey.go. Four ECDSA peer certificates and their hashes are retained in raw/e1/blockutil-300_ecdsa_identity_bytes.csv as supporting certificate evidence only; that file is not a public-key-byte measurement CSV.",
+        "dedicated_per_peer_public_key_extraction_csv": null
         },
         "ML-DSA-44": {
-          "implementation": "ML-DSA-44",
-          "representation": "raw liboqs public key returned by patched Fabric pqPublicKey.Bytes() and carried in experimental X.509 extension 1.3.6.1.3.9999.1",
-          "per_peer_bytes": [
-            1312,
-            1312,
-            1312,
-            1312
-          ],
+          "representation": "raw liboqs public key returned by pqPublicKey.Bytes()",
+          "per_peer_bytes": [1312, 1312, 1312, 1312],
           "mean_bytes": "1312.000000",
           "min_bytes": 1312,
           "max_bytes": 1312,
           "dispersion_percent": "0.000000",
-          "provenance": "Four peer generator records in raw/e1/identity-only-v1_ml-dsa-44_identity_generation.log.",
+          "provenance": "Four peer records in the retained identity-generation log.",
           "generation_log": "raw/e1/identity-only-v1_ml-dsa-44_identity_generation.log",
           "generation_log_sha256": "66ce1a4e4cac4be2b39050a3f133faed0d46955e9dd2c695dc85659d83c157ca"
         },
         "ML-DSA-65": {
-          "implementation": "ML-DSA-65",
-          "representation": "raw liboqs public key returned by patched Fabric pqPublicKey.Bytes() and carried in experimental X.509 extension 1.3.6.1.3.9999.1",
-          "per_peer_bytes": [
-            1952,
-            1952,
-            1952,
-            1952
-          ],
+          "representation": "raw liboqs public key returned by pqPublicKey.Bytes()",
+          "per_peer_bytes": [1952, 1952, 1952, 1952],
           "mean_bytes": "1952.000000",
           "min_bytes": 1952,
           "max_bytes": 1952,
           "dispersion_percent": "0.000000",
-          "provenance": "Four peer generator records in raw/e1/identity-only-v1_ml-dsa-65_identity_generation.log.",
+          "provenance": "Four peer records in the retained identity-generation log.",
           "generation_log": "raw/e1/identity-only-v1_ml-dsa-65_identity_generation.log",
           "generation_log_sha256": "b291d91883851a4f257611f5e1e277d979f9d2e9952b09d43a9b9cca1083e347"
         },
         "SLH-DSA": {
-          "implementation": "SPHINCS+-SHA2-128s-simple",
-          "representation": "raw liboqs public key returned by patched Fabric pqPublicKey.Bytes() and carried in experimental X.509 extension 1.3.6.1.3.9999.1",
-          "per_peer_bytes": [
-            32,
-            32,
-            32,
-            32
-          ],
+          "representation": "raw liboqs SPHINCS+-SHA2-128s-simple public key returned by pqPublicKey.Bytes()",
+          "per_peer_bytes": [32, 32, 32, 32],
           "mean_bytes": "32.000000",
           "min_bytes": 32,
           "max_bytes": 32,
           "dispersion_percent": "0.000000",
-          "provenance": "Four peer generator records in raw/e1/identity-only-v1_sphincs_identity_generation.log.",
+          "provenance": "Four peer records in the retained identity-generation log.",
           "generation_log": "raw/e1/identity-only-v1_sphincs_identity_generation.log",
           "generation_log_sha256": "ebe8a11a5e8406adeae0b042c2ed28397fc8107507fd5494226fddc2bcda5366"
         }
@@ -332,260 +282,176 @@
     "caliper": {
       "version": "0.7.1",
       "profile_file": "env/caliper/e1/benchmark.yaml",
+      "profile_sha256": "5ae8aa973467a7828237fbc097c8e3936d5a05196de3cfd2881f550b8afd6e1a",
       "fixed_profile": [
         {
           "label": "warmup",
           "rate_tps": 50,
           "duration_seconds": 20,
-          "included_in_raw_timing_statistics": false
+          "included_in_statistics": false
         },
         {
           "label": "50-tps",
           "rate_tps": 50,
-          "duration_seconds": 120
+          "duration_seconds": 120,
+          "role": "supporting"
         },
         {
           "label": "200-tps",
           "rate_tps": 200,
-          "duration_seconds": 120
+          "duration_seconds": 120,
+          "role": "professor_selected_final_latency"
         }
       ],
-      "fixed_profile_status": "unchanged common-profile comparison for all four configurations",
-      "rate_controller": "fixed-rate",
       "workers": 1,
+      "rate_controller": "fixed-rate",
       "timing_clock": "process.hrtime.bigint()",
       "timing_unit": "milliseconds",
-      "endorsement_timing_boundary": "Wall-clock interval immediately before proposal.endorse() until that promise resolves; it excludes proposal construction and the later submit/commit interval.",
-      "commit_timing_boundary": "Post-endorsement submit-to-commit-status wall-clock interval: starts immediately before transaction.submit(), after proposal.endorse() resolves; includes client transaction-envelope signing, Gateway Submit RPC and any wait until orderer acknowledgement, commit-status request signing/RPC, ordering/block-cut wait (including BatchTimeout when active), validation/ledger commit, and client/event-loop waiting within those awaited calls; ends when submittedTransaction.getStatus() resolves. It excludes endorsement and Caliper scheduling/queueing before this connector call.",
-      "commit_timing_scientific_name": "post_endorsement_submit_to_commit_status_ms (retained final-schema alias: commit_*_ms)",
-      "commit_timing_limitation": "The single wall-clock value does not decompose client-side async/RPC waiting, orderer acceptance, block-cut waiting, validation, ledger commit, and status delivery.",
-      "end_to_end_timing_boundary": "immediately before proposal.endorse() through successful commit status or the caught failure",
+      "endorsement_timing_boundary": "immediately before proposal.endorse() until its promise resolves",
+      "commit_timing_scientific_name": "post_endorsement_submit_to_commit_status_ms",
+      "commit_timing_boundary": "immediately before transaction.submit(), after endorsement, until submittedTransaction.getStatus() resolves",
+      "commit_timing_includes": "client signing and RPC waiting, orderer submission/acknowledgement, block-cut or BatchTimeout wait, validation, ledger commit, and status delivery",
+      "commit_timing_excludes": "proposal construction, endorsement, and Caliper scheduling before connector invocation",
       "instrumentation": "env/caliper/e1/patches/peer-gateway-e1-timing.patch",
+      "clean_common_profile": {
+        "status": "complete",
+        "fresh_ledger_start_height": 7,
+        "pq_verify_trace": 0,
+        "derived_summary": "data/e1_latency_clean_professor_review.csv",
+        "derived_summary_sha256": "6148b1df5e53ad3c9e018029e463f514244f32dde45c07af318fdce14d9ba9c1",
+        "runs": {
+          "ECDSA": {
+            "namespace": "latency-common-clean-v1_ecdsa",
+            "log": "raw/e1/latency-common-clean-v1_ecdsa_caliper_run.log",
+            "log_sha256": "a8c90b17fed6b64815bf5012354fd0406ca6d9a2fd450c5d212dc7a9ace6959d",
+            "heights": "raw/e1/latency-common-clean-v1_ecdsa_block_heights.csv",
+            "heights_sha256": "c367f91bd9539e7e6f5327554da25ce27e0f8678401d831283efb8cedcaad2e9"
+          },
+          "ML-DSA-44": {
+            "namespace": "latency-common-clean-v1_ml-dsa-44",
+            "log": "raw/e1/latency-common-clean-v1_ml-dsa-44_caliper_run.log",
+            "log_sha256": "0f414c578787baa0541d380764657558fb578b08e69f912860598dbc40a5d899",
+            "heights": "raw/e1/latency-common-clean-v1_ml-dsa-44_block_heights.csv",
+            "heights_sha256": "61f62fe62f587ec3e362403eb7ec9801b8c521eec8a2e5e9541f21d657618daf"
+          },
+          "ML-DSA-65": {
+            "namespace": "latency-common-clean-v1_ml-dsa-65",
+            "log": "raw/e1/latency-common-clean-v1_ml-dsa-65_caliper_run.log",
+            "log_sha256": "89b5bcd0e8140b2f351f580a59b20bc183c09b6bfcc245b905074cb9c251907e",
+            "heights": "raw/e1/latency-common-clean-v1_ml-dsa-65_block_heights.csv",
+            "heights_sha256": "5b13f539967ba9b180b6ef79c3cebafd98bcab9864be0c350d1a27270b27ad4b"
+          },
+          "SPHINCS+-SHA2-128s-simple": {
+            "namespace": "latency-common-clean-v1_sphincs",
+            "log": "raw/e1/latency-common-clean-v1_sphincs_caliper_run.log",
+            "log_sha256": "400eb7f7804ef52a1810b0b112559de5b14d864899a68032ebd81d38553b037c",
+            "heights": "raw/e1/latency-common-clean-v1_sphincs_block_heights.csv",
+            "heights_sha256": "1bb3084114f2ab3a3f6fadc4b28f926d7e0aa7b71e4d2d50645340b0b59dc4ce"
+          }
+        },
+        "results_200_tps": {
+          "ECDSA": {
+            "total": 24001,
+            "success": 24001,
+            "fail": 0,
+            "tx_success_rate": "1.000000000",
+            "endorse_median_ms": "3.631845",
+            "endorse_p95_ms": "29.692575",
+            "endorse_p99_ms": "51.665168",
+            "commit_median_ms": "1210.965735",
+            "commit_p95_ms": "2062.837374",
+            "commit_p99_ms": "2174.454991"
+          },
+          "ML-DSA-44": {
+            "total": 24000,
+            "success": 24000,
+            "fail": 0,
+            "tx_success_rate": "1.000000000",
+            "endorse_median_ms": "4.034757",
+            "endorse_p95_ms": "21.290463",
+            "endorse_p99_ms": "33.333694",
+            "commit_median_ms": "473.614710",
+            "commit_p95_ms": "905.356157",
+            "commit_p99_ms": "955.036991"
+          },
+          "ML-DSA-65": {
+            "total": 24001,
+            "success": 24001,
+            "fail": 0,
+            "tx_success_rate": "1.000000000",
+            "endorse_median_ms": "4.047892",
+            "endorse_p95_ms": "23.881626",
+            "endorse_p99_ms": "36.930557",
+            "commit_median_ms": "445.157309",
+            "commit_p95_ms": "725.150242",
+            "commit_p99_ms": "769.665123"
+          },
+          "SPHINCS+-SHA2-128s-simple": {
+            "total": 24001,
+            "success": 532,
+            "fail": 23469,
+            "tx_success_rate": "0.022165743",
+            "status": "saturation_only_not_a_valid_latency_population"
+          }
+        },
+        "sphincs_50_tps_saturation": {
+          "total": 6001,
+          "success": 462,
+          "fail": 5539,
+          "tx_success_rate": "0.076987169",
+          "status": "saturation_only_not_a_valid_latency_population"
+        }
+      },
       "sustainability": {
+        "duration_seconds": 60,
         "success_rate_minimum": 0.99,
+        "successful_throughput_definition": "success_count / 60",
         "successful_throughput_fraction_of_offered_minimum": 0.95,
-        "successful_throughput_definition": "Caliper success count divided by the configured 60-second round duration; Caliper displayed throughput is retained but is not used because it can include failed completions.",
-        "latency_population": "successful end-to-end transaction samples ordered by monotonic request-start offset",
-        "beginning_window": "start offsets in [0,12000) ms, the first 20 percent of a 60-second round",
-        "ending_window": "start offsets in [48000,60000) ms, the last 20 percent of a 60-second round",
+        "latency_population": "successful end-to-end samples grouped by monotonic request-start offset",
+        "beginning_window_ms": "[0,12000)",
+        "ending_window_ms": "[48000,60000)",
         "minimum_successful_samples_per_window": 5,
-        "latency_stability_rule": "ending-window p95 <= 2.0 * beginning-window p95",
+        "latency_stability_rule": "ending-window p95 <= 2 * beginning-window p95",
         "percentile_method": "linear interpolation using rank p*(n-1)",
-        "final_sphincs_rule": "highest tested low-rate sweep point passing all three criteria",
-        "evaluator": "./src/e1/analyze_timings.py --sustainability <run_namespace>"
+        "evaluator": "src/e1/analyze_timings.py --sustainability <run_namespace>"
       },
       "sphincs_low_rate_sweep": {
-        "reason": "Supplemental sustainable-rate characterization after scientifically reportable saturation under the unchanged common 50 TPS workload.",
         "profile_file": "env/caliper/e1/benchmark_sphincs_sweep.yaml",
         "profile_sha256": "726401c382e08051cbaf6dd5820de28f1ebaa1e6c56eb1d8ce99889e1053d1be",
-        "rates_tps": [
-          1,
-          2,
-          5,
-          10,
-          20
-        ],
+        "rates_tps": [1, 2, 5, 10, 20],
         "duration_seconds_per_rate": 60,
-        "sample_count_note": "At low rates, 60-second rounds intentionally yield fewer than 1000 requests. The later professor-specified duration is the topic-specific authority for this sweep and must be disclosed.",
-        "status": "completed_all_tested_rates_sustainable",
+        "status": "complete",
         "run_namespace": "sphincs-lowrate-v1_sphincs",
-        "project_commit_at_run": "bfc2edb9851c1a980d29f9fc3afd3c52c0235a9e",
-        "run_log": "raw/e1/sphincs-lowrate-v1_sphincs_caliper_run.log",
-        "run_log_sha256": "affc7bf4f8d71bcad4d9aa0a66375592792c3c4f68f4521417303b13d2aec342",
-        "block_heights": "raw/e1/sphincs-lowrate-v1_sphincs_block_heights.csv",
-        "block_heights_sha256": "71b1c3c92f247116efd3e7592e07b7cec28490899535ddf1ac143e3c389a1edf",
         "result_summary": "data/e1_sphincs_sustainability.csv",
         "result_summary_sha256": "3ecb1492db69d2cbc2b866a2b495de7d59809c1a489b0c10ae6c47901a92ea02",
-        "highest_tested_sustainable_tps": 22,
-        "final_boundary_status": "integer boundary search complete: 22 TPS is the highest tested sustainable integer rate and 23 TPS is the first tested nonsustainable integer rate",
+        "run_log": "raw/e1/sphincs-lowrate-v1_sphincs_caliper_run.log",
+        "run_log_sha256": "affc7bf4f8d71bcad4d9aa0a66375592792c3c4f68f4521417303b13d2aec342",
         "transaction_evidence_20_tps": {
-          "status": "transaction-size and endorsement evidence accepted; block utilisation diagnostic-only because closure was BatchTimeout-driven",
-          "block_interval": "121-150",
-          "ordinary_block_count": 30,
-          "excluded_block_count": 0,
-          "ordinary_transaction_count": 1201,
-          "block_transaction_count_distribution": {
-            "6": 1,
-            "35": 1,
-            "36": 1,
-            "38": 2,
-            "39": 3,
-            "40": 4,
-            "41": 5,
-            "42": 3,
-            "43": 4,
-            "44": 3,
-            "45": 2,
-            "46": 1
-          },
-          "transactions_per_block_mean_all": "40.033333",
-          "transactions_per_block_mean_excluding_terminal": "41.206897",
-          "closure_interpretation": "BatchTimeout-driven: 30 blocks over about 60 seconds matches the 2-second BatchTimeout, 29 nonterminal blocks contain 35-46 transactions around the 40 expected at 20 TPS, and no block approaches MaxMessageCount=500 or PreferredMaxBytes.",
-          "block_bytes_mean": "790308.966667",
-          "block_utilisation": "0.376848682",
-          "block_utilisation_eligible_for_final": false,
-          "tx_bytes_mean": "19711.570358",
-          "tx_bytes_mean_eligible_for_final": true,
-          "endorsements_per_tx": "2.000000",
-          "endorsements_min": 2,
-          "endorsements_max": 2,
-          "endorsements_eligible_for_final": true,
-          "validation_metadata": "Unavailable for all 1201 envelopes because peer channel fetch obtained the orderer's block copy, which does not carry peer-added TRANSACTIONS_FILTER metadata. The legacy raw summary grouped unavailable with invalid; the analyzer reports valid=0, invalid=0, unavailable=1201 without modifying raw evidence.",
-          "raw_blocks": "raw/e1/sphincs-lowrate-v1_sphincs_blocks_sphincs-20-tps.csv",
-          "raw_blocks_sha256": "3252286d4d6a5c0a1f8651e9333ddc9118667e2493fb2faac2c54f421e7a449d",
-          "raw_transactions": "raw/e1/sphincs-lowrate-v1_sphincs_transactions_sphincs-20-tps.csv",
-          "raw_transactions_sha256": "871ccade5c2aef4aefd86220856acb1579491cfa4fb9027ae4d509ad5dd1f524",
+          "status": "transaction evidence valid; block utilisation timeout-driven and diagnostic only",
           "raw_summary": "raw/e1/sphincs-lowrate-v1_sphincs_blocks_sphincs-20-tps_summary.csv",
           "raw_summary_sha256": "8fc34c40fd11f03a7fefc20c83863a9f17225cf58666d0f5a25496f023727e5d",
-          "corrected_derived_summary": "data/e1_sphincs_transaction_evidence.csv",
-          "corrected_derived_summary_sha256": "2c6292a07e9dcd9480b391729c102251011b6b10f3e350519a44509570ffe87a"
+          "derived_summary": "data/e1_sphincs_transaction_evidence.csv",
+          "derived_summary_sha256": "2c6292a07e9dcd9480b391729c102251011b6b10f3e350519a44509570ffe87a"
         },
         "boundary_22_tps_result": {
-          "profile_file": "env/caliper/e1/benchmark_sphincs_boundary_22.yaml",
-          "profile_sha256": "9207e1eaab94f30ecf794cfc5bedaccba969f15c004d0de1cc147dd4e956569d",
-          "rate_tps": 22,
-          "duration_seconds": 60,
-          "run_namespace": "sphincs-boundary-22-v1_sphincs",
-          "project_commit_at_run": "4a3a30077aef9dc3ca5990a98bc344110a527e5b",
-          "total": 1321,
-          "success": 1321,
-          "fail": 0,
-          "tx_success_rate": "1.000000000",
-          "tx_error_rate": "0.000000000",
-          "successful_throughput_tps": "22.016667",
-          "achieved_offered_ratio": "1.000758",
-          "overall_successful_e2e_median_ms": "3444.793506",
-          "overall_successful_e2e_p95_ms": "5941.405725",
-          "overall_successful_e2e_p99_ms": "6501.009460",
-          "beginning_p95_e2e_ms": "3384.136972",
-          "ending_p95_e2e_ms": "6352.005121",
-          "ending_to_beginning_p95_ratio": "1.876994",
-          "success_rate_pass": true,
-          "throughput_pass": true,
-          "latency_stability_pass": true,
-          "sustainable": true,
-          "endorsement_timing_count": 1321,
-          "commit_timing_count": 1321,
+          "namespace": "sphincs-boundary-22-v1_sphincs",
           "result_summary": "data/e1_sphincs_boundary_22.csv",
           "result_summary_sha256": "45179bfd4b08685f3f2ab401a90ade982e110729480e61ec64bff1290ab90f5d",
-          "run_log": "raw/e1/sphincs-boundary-22-v1_sphincs_caliper_run.log",
-          "run_log_sha256": "a37d9392f74b71136e2f0ca4be0adb06618b9ee67f75de7d3dfbd33b5d900231",
-          "block_heights": "raw/e1/sphincs-boundary-22-v1_sphincs_block_heights.csv",
-          "block_heights_sha256": "e3765b163a043c4d5da29ecc63af81c46d26129c89fbe86039d4132b1718401c"
+          "sustainable": true
         },
         "boundary_23_tps_result": {
-          "profile_file": "env/caliper/e1/benchmark_sphincs_boundary_23.yaml",
-          "profile_sha256": "61fbc47facc60720bb919796e8fad8f42b1be7f4e00f584d4005aedbf8bb4c68",
-          "rate_tps": 23,
-          "duration_seconds": 60,
-          "run_namespace": "sphincs-boundary-23-v1_sphincs",
-          "project_commit_at_run": "34ce366943d8a5184ffbf2fc77ea735fe4540fce",
-          "total": 1381,
-          "success": 1381,
-          "fail": 0,
-          "tx_success_rate": "1.000000000",
-          "tx_error_rate": "0.000000000",
-          "successful_throughput_tps": "23.016667",
-          "achieved_offered_ratio": "1.000725",
-          "overall_successful_e2e_median_ms": "5252.631986",
-          "overall_successful_e2e_p95_ms": "9124.870637",
-          "overall_successful_e2e_p99_ms": "10627.962666",
-          "beginning_p95_e2e_ms": "4487.086282",
-          "ending_p95_e2e_ms": "10627.962666",
-          "ending_to_beginning_p95_ratio": "2.368567",
-          "success_rate_pass": true,
-          "throughput_pass": true,
-          "latency_stability_pass": false,
-          "sustainable": false,
-          "endorsement_timing_count": 1381,
-          "commit_timing_count": 1381,
+          "namespace": "sphincs-boundary-23-v1_sphincs",
           "result_summary": "data/e1_sphincs_boundary_23.csv",
           "result_summary_sha256": "43af9b9e8345450877b63c520c3749afa7ffd8f9a194099e4ebc9105b54c1a76",
-          "run_log": "raw/e1/sphincs-boundary-23-v1_sphincs_caliper_run.log",
-          "run_log_sha256": "fcf955f7487fcd8d65c2da647038060ec64e5abfa697119b0ad614a4c947f971",
-          "block_heights": "raw/e1/sphincs-boundary-23-v1_sphincs_block_heights.csv",
-          "block_heights_sha256": "09b2ce32bc891cdbae2c78ae45dfe88cc7e1c97c6afc24b59b62e1d22a316f8f"
+          "sustainable": false
         },
         "integer_boundary_search": {
           "status": "complete",
           "highest_tested_sustainable_tps": 22,
-          "first_tested_nonsustainable_integer_tps": 23,
-          "additional_integer_probe_required": false
+          "first_tested_nonsustainable_integer_tps": 23
         }
       },
-      "latency_professor_review": {
-        "final_latency_population": "Clean 200-TPS common-profile rows for ECDSA, ML-DSA-44, and ML-DSA-65; clean 50-TPS rows are supporting; SPHINCS+ rows are saturation-only.",
-        "clean_cross_configuration_review": {
-          "status": "complete_and_deterministically_validated",
-          "artifact": "data/e1_latency_clean_professor_review.csv",
-          "artifact_sha256": "6148b1df5e53ad3c9e018029e463f514244f32dde45c07af318fdce14d9ba9c1",
-          "generator": "./src/e1/analyze_timings.py --clean-latency-professor-review",
-          "canonical_benchmark_sha256": "5ae8aa973467a7828237fbc097c8e3936d5a05196de3cfd2881f550b8afd6e1a",
-          "common_effective_block_parameters": {
-            "BatchTimeout": "2s",
-            "MaxMessageCount": 500,
-            "PreferredMaxBytes": 2097152,
-            "AbsoluteMaxBytes": 10485760
-          },
-          "common_provenance": {
-            "fresh_ledger_start_height": 7,
-            "tracked_state": "clean",
-            "cpu_set": "2-15",
-            "amd_pstate_mode": "passive",
-            "boost": 0,
-            "governor": "performance",
-            "fixed_frequency_khz": 3201000,
-            "peer_image": "sha256:3d71da5ac46b179c981527b69ac832cb7905bd3bc428ee6b2620bc580e3c944e",
-            "orderer_image": "sha256:4ec6f0287e3fda35a874357bfe9c9f2ef8b9fbb427a42457de3b6b1b98290058",
-            "fabric_commit": "f871cf92a026aba7b12e6f06d71ded3e6e659d71",
-            "liboqs_commit": "97f6b86b1b6d109cfd43cf276ae39c2e776aed80",
-            "patch_sha256": "5268f9f67656233d7e7b9ac7c449f20f05fc8a8257fb91eb0de63698a72d1293",
-            "pq_verify_trace": 0,
-            "configtx_sha256": "87022050421db9821be46266cfe68b9789c3fe125d089e31d368a01ffe27b384",
-            "setup_sha256": "b69af762feee33e800bc26ef5af9e0a45301ba0c2172f580de6fc90b25ac2831"
-          },
-          "runs": {
-            "ECDSA": {
-              "namespace": "latency-common-clean-v1_ecdsa",
-              "log": "raw/e1/latency-common-clean-v1_ecdsa_caliper_run.log",
-              "log_sha256": "a8c90b17fed6b64815bf5012354fd0406ca6d9a2fd450c5d212dc7a9ace6959d",
-              "heights": "raw/e1/latency-common-clean-v1_ecdsa_block_heights.csv",
-              "heights_sha256": "c367f91bd9539e7e6f5327554da25ce27e0f8678401d831283efb8cedcaad2e9",
-              "blocks_at_200_tps_over_120_seconds": 60,
-              "latency_status": "valid_200_tps_normal_latency_population"
-            },
-            "ML-DSA-44": {
-              "namespace": "latency-common-clean-v1_ml-dsa-44",
-              "log": "raw/e1/latency-common-clean-v1_ml-dsa-44_caliper_run.log",
-              "log_sha256": "0f414c578787baa0541d380764657558fb578b08e69f912860598dbc40a5d899",
-              "heights": "raw/e1/latency-common-clean-v1_ml-dsa-44_block_heights.csv",
-              "heights_sha256": "61f62fe62f587ec3e362403eb7ec9801b8c521eec8a2e5e9541f21d657618daf",
-              "blocks_at_200_tps_over_120_seconds": 180,
-              "latency_status": "valid_200_tps_normal_latency_population"
-            },
-            "ML-DSA-65": {
-              "namespace": "latency-common-clean-v1_ml-dsa-65",
-              "log": "raw/e1/latency-common-clean-v1_ml-dsa-65_caliper_run.log",
-              "log_sha256": "89b5bcd0e8140b2f351f580a59b20bc183c09b6bfcc245b905074cb9c251907e",
-              "heights": "raw/e1/latency-common-clean-v1_ml-dsa-65_block_heights.csv",
-              "heights_sha256": "5b13f539967ba9b180b6ef79c3cebafd98bcab9864be0c350d1a27270b27ad4b",
-              "blocks_at_200_tps_over_120_seconds": 238,
-              "latency_status": "valid_200_tps_normal_latency_population"
-            },
-            "SPHINCS+-SHA2-128s-simple": {
-              "namespace": "latency-common-clean-v1_sphincs",
-              "log": "raw/e1/latency-common-clean-v1_sphincs_caliper_run.log",
-              "log_sha256": "400eb7f7804ef52a1810b0b112559de5b14d864899a68032ebd81d38553b037c",
-              "heights": "raw/e1/latency-common-clean-v1_sphincs_block_heights.csv",
-              "heights_sha256": "1bb3084114f2ab3a3f6fadc4b28f926d7e0aa7b71e4d2d50645340b0b59dc4ce",
-              "blocks_at_200_tps_over_120_seconds": 47,
-              "latency_status": "saturation_only_not_a_valid_latency_population"
-            }
-          },
-          "cadence_interpretation": "The monotonic 200-TPS height deltas (60, 180, 238 blocks) are consistent with larger serialized transactions producing more size-driven cuts plus periodic residual cuts, while ECDSA's 60 blocks in 120 seconds are consistent with BatchTimeout=2s. Height deltas alone do not identify each block's cut trigger, so this is strongly supported rather than causal proof."
-        }
-      },
-      "prepared_remaining_profiles": {
+      "integer_sustainability_boundaries": {
         "ecdsa_integer_boundary": {
           "status": "complete",
           "validated_probes": [
@@ -608,8 +474,7 @@
           "highest_sustainable_run_namespace": "sustained-228-v1_ecdsa",
           "first_failing_integer_tps": 229,
           "first_failing_run_namespace": "sustained-229-v1_ecdsa",
-          "final_tps_sustained": 228,
-          "method": "Adjacent integer boundary under the preregistered 60-second sustainability gates."
+          "final_tps_sustained": 228
         },
         "ml_dsa_44_integer_boundary": {
           "status": "complete",
@@ -633,8 +498,7 @@
           "highest_sustainable_run_namespace": "sustained-356-v1_ml-dsa-44",
           "first_failing_integer_tps": 357,
           "first_failing_run_namespace": "sustained-357-v1_ml-dsa-44",
-          "final_tps_sustained": 356,
-          "method": "Adjacent integer boundary under the preregistered 60-second sustainability gates."
+          "final_tps_sustained": 356
         },
         "ml_dsa_65_integer_boundary": {
           "status": "complete",
@@ -658,245 +522,86 @@
           "highest_sustainable_run_namespace": "sustained-344-v2_ml-dsa-65",
           "first_failing_integer_tps": 345,
           "first_failing_run_namespace": "sustained-345-v1_ml-dsa-65",
-          "final_tps_sustained": 344,
-          "method": "Adjacent integer boundary under the preregistered 60-second sustainability gates."
+          "final_tps_sustained": 344
         }
       }
     },
     "block_utilisation": {
       "definition": "mean(actual ordinary-transaction block bytes) / effective PreferredMaxBytes",
-      "denominator_source": "e1_benchmark.fabric_block_parameters.PreferredMaxBytes_effective_bytes",
-      "excluded_blocks": [
-        "genesis",
-        "config",
-        "other/non-ordinary"
-      ],
-      "scientific_condition": "Exclude genesis/config/other blocks; retain terminal ordinary partial blocks. The observed steady-state population must not be BatchTimeout-driven.",
-      "diagnostic_profile": "env/caliper/e1/benchmark_blockutil.yaml",
-      "diagnostic_rate_status": "300 TPS was a block-filling probe only. Its block evidence is accepted for block utilisation; Gateway concurrency-limit failures make the run invalid for final latency or tps_sustained.",
-      "observed_closure": "Documented empirical observation: blocks 17-47 each contain MaxMessageCount=500 ordinary transactions, demonstrating steady-state count-limit closure rather than BatchTimeout closure. Block 48 is a terminal 386-transaction ordinary block retained in the accepted population.",
+      "population_rule": "exclude genesis, config, and other nonordinary blocks; retain terminal ordinary blocks",
+      "traffic_volume_requirement": "blocks should fill by traffic volume rather than close prematurely because of BatchTimeout",
+      "mixed_population_treatment": "pending professor clarification for populations containing both volume-filled and periodic BatchTimeout residual blocks",
+      "transaction_size_method": "decode each fetched block's Block.Data.Data[i] as the exact serialized common.Envelope; retain its length and embedded endorsement count",
+      "transaction_evidence_tool": "env/fabric/e1/measure_block_bytes.sh using src/e1/evidence/cmd/blockinspect",
       "working_result": {
         "config": "ECDSA",
-        "status": "accepted_boundary_inclusive_methodology_pending_final_csv",
-        "run_label": "blockutil-300",
-        "benchmark_label": "blockutil-300-tps",
+        "status": "final",
+        "namespace": "blockutil-300_ecdsa",
         "block_interval": "17-48",
         "ordinary_block_count": 32,
         "excluded_block_count": 0,
         "terminal_partial_included": true,
-        "population_rule": "Exclude genesis/config/other blocks and retain every ordinary transaction block in the measured interval, including the terminal partial block.",
+        "closure": "blocks 17-47 reached MaxMessageCount=500; terminal block 48 contained 386 transactions",
         "block_bytes_mean": "1952347.156250",
         "effective_preferred_max_bytes": 2097152,
         "block_utilisation": "0.930951670",
-        "caliper_success": 15787,
-        "caliper_fail": 2214,
-        "benchmark_source": "env/caliper/e1/benchmark_blockutil.yaml",
-        "benchmark_sha256": "f6f57a7ee0b267d7c9629e78ed632728674341f7477780939a581e6d557f3945",
-        "run_log_source": "raw/e1/blockutil-300_ecdsa_caliper_run.log",
-        "run_log_sha256": "3506dd7da9a71eae087e247f18f65ffa478242cf42fea85dfd7fc66071dd10da",
-        "heights_source": "raw/e1/blockutil-300_ecdsa_block_heights.csv",
-        "heights_sha256": "85b0000e23a89c0c9308cdd7da5307bd2d8d547c0aeece97e50b151f93f695e5",
         "summary_source": "raw/e1/blockutil-300_ecdsa_blocks_blockutil-300-tps_summary.csv",
         "summary_sha256": "34be17bc531a4a4530fc3817c301da674c1c00064e88ea8a72d274e6146d6367",
         "raw_blocks_source": "raw/e1/blockutil-300_ecdsa_blocks_blockutil-300-tps.csv",
-        "raw_blocks_sha256": "ca48b8c5ed503157e7ac1c863e7692584bd7c757beb006323d2557f9e37f22b6",
-        "full_500_transaction_block_diagnostic_comparison": {
-          "status": "diagnostic comparison only; does not replace the accepted boundary-inclusive result",
-          "block_count": 31,
-          "block_bytes_mean": "1966319.451613",
-          "block_utilisation": "0.937614179",
-          "difference_from_boundary_inclusive_percentage_points": "0.666250900"
-        }
+        "raw_blocks_sha256": "ca48b8c5ed503157e7ac1c863e7692584bd7c757beb006323d2557f9e37f22b6"
       },
-      "transaction_size_method": "For each fetched serialized common.Block, decode protobuf Block.Data.Data[i] as the exact common.Envelope bytes. Record len(Data[i]), SHA-256, transaction ID, validation code, and endorsement count per transaction. tx_bytes_mean is the arithmetic mean of these exact envelope lengths for endorser transactions in accepted ordinary blocks; it is never estimated as block bytes divided by transaction count.",
-      "transaction_evidence_tool": "env/fabric/e1/measure_block_bytes.sh using src/e1/evidence/cmd/blockinspect",
-      "tx_bytes_status": "ECDSA, ML-DSA-44, ML-DSA-65, and SPHINCS+ all have accepted exact-envelope and empirical endorsement evidence. The timeout-driven 50-TPS block populations remain diagnostic-only; the older ECDSA block-filling CSV remains the separate accepted block-utilisation source.",
       "ecdsa_transaction_evidence": {
-        "status": "validated_transaction_size_and_endorsement_evidence; block utilisation diagnostic-only because closure was BatchTimeout-driven",
-        "profile_file": "env/caliper/e1/benchmark_tx_evidence_50.yaml",
-        "profile_sha256": "784b043d83307d6b36b0f6fa4cac69e2fef8ca33809d3a3d42d3b825c186ec99",
-        "run_label": "tx-evidence-50-v1",
-        "run_namespace": "tx-evidence-50-v1_ecdsa",
-        "benchmark_label": "50-tps",
-        "project_commit_at_run": "5def4b6225f6a6190fea8829bcf2898e6776eeab",
-        "population": "unchanged common-profile warm-up followed by the unchanged 120-second 50-TPS round; the 200-TPS round is omitted",
-      "reason": "The ECDSA block-utilisation evidence contains no serialized envelopes. The 50-TPS evidence profile yields about 6001 transactions and preserves the common workload payload sequence without serving as a latency population.",
-        "latency_use": "evidence-only; does not replace the clean common-profile latency population",
-        "same_ledger_collection": "env/fabric/e1/measure_block_bytes.sh ecdsa tx-evidence-50-v1 50-tps",
-        "caliper_success": 6001,
-        "caliper_fail": 0,
-        "run_log": "raw/e1/tx-evidence-50-v1_ecdsa_caliper_run.log",
-        "run_log_sha256": "eb699e9a5a2840352ebdb5b0b8db55498912b51031d6816aee324753259bdde4",
-        "block_heights": "raw/e1/tx-evidence-50-v1_ecdsa_block_heights.csv",
-        "block_heights_sha256": "8f8e004df64362950582ef699100164aa737efa2839e89d05827351dd702937c",
-        "block_interval": "17-76",
-        "ordinary_block_count": 60,
-        "excluded_block_count": 0,
-        "block_transaction_count_distribution": {
-          "36": 1,
-          "100": 4,
-          "101": 45,
-          "102": 10
-        },
-        "closure_interpretation": "BatchTimeout-driven: 60 ordinary blocks over the 120-second round matches BatchTimeout=2s; 59 nonterminal blocks contain 100-102 transactions and the terminal residual contains 36, with no block approaching MaxMessageCount=500.",
-        "block_bytes_mean": "394327.216667",
-        "block_utilisation": "0.188029869",
-        "block_utilisation_eligible_for_final": false,
+        "raw_summary": "raw/e1/tx-evidence-50-v1_ecdsa_blocks_50-tps_summary.csv",
+        "derived_summary": "data/e1_ecdsa_transaction_evidence.csv",
+        "derived_summary_sha256": "445d02b9b83234288013f1b610e38eddd268429ec1324b10e8f17303d9999b3a",
         "ordinary_transaction_count": 6001,
         "tx_bytes_mean": "3929.301450",
-        "tx_bytes_mean_eligible_for_final": true,
-        "endorsements_per_tx": "2.000000",
-        "endorsements_min": 2,
-        "endorsements_max": 2,
-        "endorsement_count_distribution": {
-          "2": 6001
-        },
-        "endorsements_eligible_for_final": true,
-        "validation_evidence": "valid=0, invalid=0, unavailable=6001 because the orderer-sourced block copy has no peer-added TRANSACTIONS_FILTER metadata; unavailable is not invalid and does not affect envelope lengths or embedded endorsement counts.",
-        "raw_blocks": "raw/e1/tx-evidence-50-v1_ecdsa_blocks_50-tps.csv",
-        "raw_blocks_sha256": "5f91558ea23a630d3f8c6af9cafa5b00ef3ce7379da43b5125a5b227a69a194b",
-        "raw_transactions": "raw/e1/tx-evidence-50-v1_ecdsa_transactions_50-tps.csv",
-        "raw_transactions_sha256": "06d4d202e614c541aef73717838577d6f541210edaa0e79fd0f48fd390e78d3e",
-        "raw_summary": "raw/e1/tx-evidence-50-v1_ecdsa_blocks_50-tps_summary.csv",
-        "raw_summary_sha256": "f815f04ba148e234cf868e9ebe1beb42184028347eb10579003584ad1fbfec28",
-        "derived_summary": "data/e1_ecdsa_transaction_evidence.csv",
-        "derived_summary_sha256": "445d02b9b83234288013f1b610e38eddd268429ec1324b10e8f17303d9999b3a"
+        "endorsements_per_tx": "2.000000"
       },
       "ml_dsa_44_transaction_evidence": {
-        "status": "validated_transaction_size_and_endorsement_evidence; block utilisation diagnostic-only because closure was BatchTimeout-driven",
-        "profile_file": "env/caliper/e1/benchmark_tx_evidence_50.yaml",
-        "profile_sha256": "784b043d83307d6b36b0f6fa4cac69e2fef8ca33809d3a3d42d3b825c186ec99",
-        "run_label": "tx-evidence-50-v1",
-        "run_namespace": "tx-evidence-50-v1_ml-dsa-44",
-        "benchmark_label": "50-tps",
-        "project_commit_at_run": "82dde3ae429d608900d2d746d2808a5582c2e130",
-        "population": "unchanged common-profile warm-up followed by the unchanged 120-second 50-TPS round; the 200-TPS round is omitted",
-        "latency_use": "evidence-only; does not replace the clean common-profile latency population",
-        "caliper_success": 6001,
-        "caliper_fail": 0,
-        "run_log": "raw/e1/tx-evidence-50-v1_ml-dsa-44_caliper_run.log",
-        "run_log_sha256": "8b54e62f93fdc9c9b592e0093082c5e3396dd571ceee6cba5e686622ad33ca19",
-        "block_heights": "raw/e1/tx-evidence-50-v1_ml-dsa-44_block_heights.csv",
-        "block_heights_sha256": "8f8e004df64362950582ef699100164aa737efa2839e89d05827351dd702937c",
-        "block_interval": "17-76",
-        "ordinary_block_count": 60,
-        "excluded_block_count": 0,
-        "block_transaction_count_distribution": {
-          "34": 1,
-          "101": 51,
-          "102": 8
-        },
-        "closure_interpretation": "BatchTimeout-driven: 60 ordinary blocks over the 120-second round matches BatchTimeout=2s; 59 nonterminal blocks contain 101-102 transactions and the terminal residual contains 34, with no block approaching MaxMessageCount=500.",
-        "block_bytes_mean": "1230394.033333",
-        "block_utilisation": "0.586697594",
-        "block_utilisation_eligible_for_final": false,
+        "raw_summary": "raw/e1/tx-evidence-50-v1_ml-dsa-44_blocks_50-tps_summary.csv",
+        "derived_summary": "data/e1_ml_dsa_44_transaction_evidence.csv",
+        "derived_summary_sha256": "6e6b307d21c8bfe41e755f06eba28c079f89c9993d38a2f2f21420867cd1cb71",
         "ordinary_transaction_count": 6001,
         "tx_bytes_mean": "12288.617897",
-        "tx_bytes_mean_eligible_for_final": true,
-        "endorsements_per_tx": "2.000000",
-        "endorsements_min": 2,
-        "endorsements_max": 2,
-        "endorsement_count_distribution": {
-          "2": 6001
-        },
-        "endorsements_eligible_for_final": true,
-        "validation_evidence": "valid=0, invalid=0, unavailable=6001 because the orderer-sourced block copy has no peer-added TRANSACTIONS_FILTER metadata; unavailable is not invalid and does not affect envelope lengths or embedded endorsement counts.",
-        "raw_blocks": "raw/e1/tx-evidence-50-v1_ml-dsa-44_blocks_50-tps.csv",
-        "raw_blocks_sha256": "6dd1928c7017d6280bd076722e1bc46742071c580e4ae3e2de7e04f9b0bddaba",
-        "raw_transactions": "raw/e1/tx-evidence-50-v1_ml-dsa-44_transactions_50-tps.csv",
-        "raw_transactions_sha256": "5c69bbdb9a0d728d9d867d5e21656222a40fced44637a6c6d0d26f486ed5efbd",
-        "raw_summary": "raw/e1/tx-evidence-50-v1_ml-dsa-44_blocks_50-tps_summary.csv",
-        "raw_summary_sha256": "9c82de9ad6a22b0b067a75f26af669668aea0cb1150ca6622c32108aecae45ec",
-        "derived_summary": "data/e1_ml_dsa_44_transaction_evidence.csv",
-        "derived_summary_sha256": "6e6b307d21c8bfe41e755f06eba28c079f89c9993d38a2f2f21420867cd1cb71"
+        "endorsements_per_tx": "2.000000"
       },
       "ml_dsa_65_transaction_evidence": {
-        "status": "validated_transaction_size_and_endorsement_evidence; block utilisation diagnostic-only because closure was BatchTimeout-driven",
-        "profile_file": "env/caliper/e1/benchmark_tx_evidence_50.yaml",
-        "profile_sha256": "784b043d83307d6b36b0f6fa4cac69e2fef8ca33809d3a3d42d3b825c186ec99",
-        "run_label": "tx-evidence-50-v1",
-        "run_namespace": "tx-evidence-50-v1_ml-dsa-65",
-        "benchmark_label": "50-tps",
-        "project_commit_at_run": "82dde3ae429d608900d2d746d2808a5582c2e130",
-        "project_tracked_state_at_run": "dirty",
-        "project_tracked_status_sha256_at_run": "00981c6f3abc2244dcc492a76db47242f3ac1e1f33b92fdb50b94a5eefde0417",
-        "tracked_state_caveat": "The recorded tracked changes were limited to README.md, meta.json, and src/e1/analyze_timings.py from ML-DSA-44 post-processing. The benchmark profile, runner, Fabric setup, block extractor, and block inspector matched commit 82dde3a and were not modified.",
-        "population": "unchanged common-profile warm-up followed by the unchanged 120-second 50-TPS round; the 200-TPS round is omitted",
-        "latency_use": "evidence-only; does not replace the clean common-profile latency population",
-        "caliper_success": 6001,
-        "caliper_fail": 0,
-        "run_log": "raw/e1/tx-evidence-50-v1_ml-dsa-65_caliper_run.log",
-        "run_log_sha256": "44ae6d048e44b6448517b0877ede337807ddd3d653564818f2b2db264666d2e2",
-        "block_heights": "raw/e1/tx-evidence-50-v1_ml-dsa-65_block_heights.csv",
-        "block_heights_sha256": "8f8e004df64362950582ef699100164aa737efa2839e89d05827351dd702937c",
-        "block_interval": "17-76",
-        "ordinary_block_count": 60,
-        "excluded_block_count": 0,
-        "block_transaction_count_distribution": {
-          "44": 1,
-          "100": 3,
-          "101": 55,
-          "102": 1
-        },
-        "closure_interpretation": "BatchTimeout-driven: 60 ordinary blocks over the 120-second round matches BatchTimeout=2s; 59 nonterminal blocks contain 100-102 transactions and the terminal residual contains 44, with no block approaching MaxMessageCount=500.",
-        "block_bytes_mean": "1581940.150000",
-        "block_utilisation": "0.754327846",
-        "block_utilisation_eligible_for_final": false,
+        "raw_summary": "raw/e1/tx-evidence-50-v1_ml-dsa-65_blocks_50-tps_summary.csv",
+        "derived_summary": "data/e1_ml_dsa_65_transaction_evidence.csv",
+        "derived_summary_sha256": "b08aa2cea843038243a30400a73667dbedfeab6a3969d0026202d8ea6be09f16",
         "ordinary_transaction_count": 6001,
         "tx_bytes_mean": "15803.491918",
-        "tx_bytes_mean_eligible_for_final": true,
-        "endorsements_per_tx": "2.000000",
-        "endorsements_min": 2,
-        "endorsements_max": 2,
-        "endorsement_count_distribution": {
-          "2": 6001
-        },
-        "endorsements_eligible_for_final": true,
-        "validation_evidence": "valid=0, invalid=0, unavailable=6001 because the orderer-sourced block copy has no peer-added TRANSACTIONS_FILTER metadata; unavailable is not invalid and does not affect envelope lengths or embedded endorsement counts.",
-        "raw_blocks": "raw/e1/tx-evidence-50-v1_ml-dsa-65_blocks_50-tps.csv",
-        "raw_blocks_sha256": "503fcf3c4dbf9592c077f5ca0afba4cdfdf3fbd9e9067942aa5e9a8e289c514e",
-        "raw_transactions": "raw/e1/tx-evidence-50-v1_ml-dsa-65_transactions_50-tps.csv",
-        "raw_transactions_sha256": "ae5b39edec4420e12998e40d757914ffedc75e1a3946225e990a310110d29e3c",
-        "raw_summary": "raw/e1/tx-evidence-50-v1_ml-dsa-65_blocks_50-tps_summary.csv",
-        "raw_summary_sha256": "1aed04e08c5d2ead6c219f58501d28427bbe8e55920fbfa63afeee84ab399677",
-        "derived_summary": "data/e1_ml_dsa_65_transaction_evidence.csv",
-        "derived_summary_sha256": "b08aa2cea843038243a30400a73667dbedfeab6a3969d0026202d8ea6be09f16"
+        "endorsements_per_tx": "2.000000"
       },
       "pending_block_evidence": {
         "ML-DSA-44": {
-          "status": "pending professor methodology decision; preserve",
+          "status": "pending_professor_methodology_clarification",
           "namespace": "sustained-200-v1_ml-dsa-44",
-          "benchmark": "env/caliper/e1/benchmark_ml_dsa_sustained_200.yaml",
-          "interval": "17-106",
+          "block_interval": "17-106",
           "ordinary_blocks": 90,
           "block_bytes_mean": "1640832.944444",
           "block_utilisation": "0.782410118",
           "raw_blocks": "raw/e1/sustained-200-v1_ml-dsa-44_blocks_sustained-200-tps.csv",
           "raw_blocks_sha256": "0600a235762027479a8b41ea330be0e52f773577cdea6a04cd1f008f6959dd45",
-          "raw_transactions": "raw/e1/sustained-200-v1_ml-dsa-44_transactions_sustained-200-tps.csv",
-          "raw_transactions_sha256": "ea9a9e1accf934da14e1ce65cf570de1016adf3444b099d821a6afd421ee2f02",
           "raw_summary": "raw/e1/sustained-200-v1_ml-dsa-44_blocks_sustained-200-tps_summary.csv",
           "raw_summary_sha256": "29d9c882d075aa25a2e5da20f32a628f8760a74a9f4bf94b84b309ecb7cab49d"
         },
         "ML-DSA-65": {
-          "status": "pending professor methodology decision; preserve",
+          "status": "pending_professor_methodology_clarification",
           "namespace": "sustained-345-v1_ml-dsa-65",
-          "benchmark": "env/caliper/e1/benchmark_ml_dsa_65_sustained_345.yaml",
-          "interval": "17-177",
+          "block_interval": "17-177",
           "ordinary_blocks": 161,
           "block_bytes_mean": "1917454.229814",
           "block_utilisation": "0.914313426",
           "raw_blocks": "raw/e1/sustained-345-v1_ml-dsa-65_blocks_sustained-345-tps.csv",
           "raw_blocks_sha256": "5cb3a0d6074bddc39a1a71b388acb9fcbd850ed30e0f941fcc41002222b3cfa5",
-          "raw_transactions": "raw/e1/sustained-345-v1_ml-dsa-65_transactions_sustained-345-tps.csv",
-          "raw_transactions_sha256": "75e4fa179d2d8fb9297fb78cd7e4768a3e9803790e229b69152d102e061a9aee",
           "raw_summary": "raw/e1/sustained-345-v1_ml-dsa-65_blocks_sustained-345-tps_summary.csv",
           "raw_summary_sha256": "76eef37ba535749df2a72981cfaf1251839685a6c7e26461447d7e1ec9bd9246"
         },
         "SPHINCS+-SHA2-128s-simple": {
-          "status": "20-TPS population is timeout-driven and diagnostic; 54-TPS block-fill profile exists but is unrun pending professor direction",
+          "status": "pending_professor_methodology_clarification; retained 20-TPS population is timeout-driven and diagnostic only",
           "namespace": "sphincs-lowrate-v1_sphincs",
-          "planned_profile": "env/caliper/e1/benchmark_sphincs_blockutil_54.yaml",
           "raw_summary": "raw/e1/sphincs-lowrate-v1_sphincs_blocks_sphincs-20-tps_summary.csv",
           "raw_summary_sha256": "8fc34c40fd11f03a7fefc20c83863a9f17225cf58666d0f5a25496f023727e5d"
         }
@@ -904,8 +609,7 @@
     },
     "data_provenance": {
       "supporting_signcert_evidence": {
-        "status": "Historically collected per-peer MSP signcert PEM sizes are preserved for all four configurations as supporting evidence only.",
-        "identity_bytes_eligible": false,
+        "status": "supporting only; not identity_bytes",
         "measurements": {
           "ECDSA": {
             "file_config": "ecdsa",
@@ -932,7 +636,6 @@
           "SLH-DSA": {
             "file_config": "sphincs",
             "run_label": "identity-only-v1",
-            "implementation": "SPHINCS+-SHA2-128s-simple",
             "source": "raw/e1/identity-only-v1_sphincs_identity_bytes.csv",
             "sha256": "87bde54b4839d5c445328d9a1eb17f65da27f094afb9f164cb5984719580bc70",
             "generation_log": "raw/e1/identity-only-v1_sphincs_identity_generation.log",
@@ -940,8 +643,6 @@
           }
         }
       },
-      "public_key_summary_command": "./src/e1/analyze_timings.py --identity-public-keys",
-      "working_e1_schema_command": "./src/e1/analyze_timings.py --working-e1",
       "final_output_schema": [
         "config",
         "identity_bytes",
@@ -956,17 +657,13 @@
         "block_bytes_mean",
         "block_utilisation"
       ],
-      "common_profile_rate_population": "Final latency and common-profile success/error metrics use the clean 200-TPS population; clean 50-TPS rows remain supporting evidence; SPHINCS+ remains saturation-only.",
-      "final_summary": "data/e1_fabric.csv (not yet created)",
+      "final_summary": "data/e1_fabric.csv",
+      "final_summary_status": "pending_block_methodology",
       "raw_sources": "raw/e1/"
     }
   },
-  "known_scientific_decisions_pending": {
-    "block_utilisation": "Professor methodology review remains required for ML-DSA-44, ML-DSA-65, and SPHINCS+ block populations. ECDSA is final."
-  },
   "notes": {
-    "falcon_liboqs_caveat": "Falcon in liboqs 0.15.0 follows the round-3 submission rather than final FIPS 206.",
-    "ecdsa_api_note": "E0 uses the low-level OpenSSL ECDSA API, deprecated in OpenSSL 3.0, to measure the primitive directly without provider dispatch.",
-    "make_figures_sanity_gate_gap": "The student specification references a supplied make_figures.py checker, but its plausible bands/source file are absent; this is not an E1 final-output methodology decision."
+    "falcon_liboqs_caveat": "Falcon-512 in liboqs 0.15.0 is the round-3 implementation, not final FIPS 206.",
+    "make_figures_gap": "The student specification references a supplied make_figures.py sanity checker, but its source and plausible bands are absent."
   }
 }
