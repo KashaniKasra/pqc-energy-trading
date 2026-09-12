@@ -1,0 +1,5 @@
+config,run_label,peer,identity_type,identity_path,bytes,sha256
+sphincs,identity-only-v1,peer0.org1.example.com,msp_signcert_pem,generated_crypto_config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp/signcerts/peer0.org1.example.com-cert.pem,916,9fee9c357facc6518e841ca3123f8d08563b6403bbf88e9b2bc9c1124c75035a
+sphincs,identity-only-v1,peer1.org1.example.com,msp_signcert_pem,generated_crypto_config/peerOrganizations/org1.example.com/peers/peer1.org1.example.com/msp/signcerts/peer1.org1.example.com-cert.pem,916,4eee7e22e3cb2ca2df484f6c5dedf5c677ead30208131af6c8a5053eb40c499b
+sphincs,identity-only-v1,peer0.org2.example.com,msp_signcert_pem,generated_crypto_config/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/msp/signcerts/peer0.org2.example.com-cert.pem,916,c1924687fcc3001e81632e4b98e067855eec8e6998734dec1735b06962610516
+sphincs,identity-only-v1,peer1.org2.example.com,msp_signcert_pem,generated_crypto_config/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/msp/signcerts/peer1.org2.example.com-cert.pem,916,de095bfeda00efe9218a741932faf3467972541ca0d47af2df732776fc7a971b

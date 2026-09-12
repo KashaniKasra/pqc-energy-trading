@@ -1,0 +1,5 @@
+config,run_label,peer,identity_type,identity_path,bytes,sha256
+ml-dsa-44,identity-only-v1,peer0.org1.example.com,msp_signcert_pem,generated_crypto_config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp/signcerts/peer0.org1.example.com-cert.pem,2638,f80681c89d612994f3b6ed7598076c2aea26229ab564966b67d7d8e616da9785
+ml-dsa-44,identity-only-v1,peer1.org1.example.com,msp_signcert_pem,generated_crypto_config/peerOrganizations/org1.example.com/peers/peer1.org1.example.com/msp/signcerts/peer1.org1.example.com-cert.pem,2642,3e1e794fd1b8287be14eeb87001bea042b07852b16c35b58e06d4eef67006dad
+ml-dsa-44,identity-only-v1,peer0.org2.example.com,msp_signcert_pem,generated_crypto_config/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/msp/signcerts/peer0.org2.example.com-cert.pem,2642,9e1404e15d083864995bcd30f2410ea5be493a251fc3da34a4226d07756735d1
+ml-dsa-44,identity-only-v1,peer1.org2.example.com,msp_signcert_pem,generated_crypto_config/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/msp/signcerts/peer1.org2.example.com-cert.pem,2642,b56f177ceb59d09970e7c09f71354fe8dea354ec5c86ffc72946a321b42e5aa5

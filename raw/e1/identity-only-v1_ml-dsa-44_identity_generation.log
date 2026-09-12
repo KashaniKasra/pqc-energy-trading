@@ -1,0 +1,42 @@
+generated_at=2026-09-04T21:16:40+03:30
+config=ml-dsa-44
+algorithm=ML-DSA-44
+run_label=identity-only-v1
+project_commit=4596790c16afcf35b953a1abe906f91aa41bd594
+project_status_begin
+?? raw/e1/
+project_status_end
+6b7208daa343bf57296dcbe8152484c5062fe410824105fd374d46dcf2a0336c  env/fabric/e1/crypto-config.yaml
+c9bf2231155e1275ab8ad04787b0ede194a70d871d84aa6ef88103b6df898422  env/fabric/e1/measure_identity_bytes.sh
+b4d8e0515fd4898f221a3618bc41971fcf35778175ae4e6e7c94ccd8f0ca9e48  src/e1/pqidentity/generate.go
+d159ba3e9d065db362fa6b094af00f0711bb402ead07f879fa1498bc77d91c2c  src/e1/pqidentity/go.mod
+5951440881a173770058b3e21ef853ed6fa401530a5c12b589ee00afd932647c  src/e1/pqidentity/go.sum
+cryptogen:
+ Version: v2.5.16
+ Commit SHA: f871cf9
+ Go version: go1.26.4
+ OS/Arch: linux/amd64
+go version go1.22.2 linux/amd64
+org1.example.com
+org2.example.com
+peer0.org1.example.com: algorithm=ML-DSA-44 public_key_bytes=1312 certificate_bytes=2638
+peer1.org1.example.com: algorithm=ML-DSA-44 public_key_bytes=1312 certificate_bytes=2642
+peer0.org2.example.com: algorithm=ML-DSA-44 public_key_bytes=1312 certificate_bytes=2642
+peer1.org2.example.com: algorithm=ML-DSA-44 public_key_bytes=1312 certificate_bytes=2642
+PQ identities generated successfully using ML-DSA-44
+Per-peer identity evidence written without aggregation:
+  run_namespace=identity-only-v1_ml-dsa-44
+  output_file=/home/user/projects/pqc-energy-trading/raw/e1/identity-only-v1_ml-dsa-44_identity_bytes.csv
+config     run_label         peer                    identity_type     identity_path                                                                                                                          bytes  sha256
+ml-dsa-44  identity-only-v1  peer0.org1.example.com  msp_signcert_pem  generated_crypto_config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp/signcerts/peer0.org1.example.com-cert.pem  2638   f80681c89d612994f3b6ed7598076c2aea26229ab564966b67d7d8e616da9785
+ml-dsa-44  identity-only-v1  peer1.org1.example.com  msp_signcert_pem  generated_crypto_config/peerOrganizations/org1.example.com/peers/peer1.org1.example.com/msp/signcerts/peer1.org1.example.com-cert.pem  2642   3e1e794fd1b8287be14eeb87001bea042b07852b16c35b58e06d4eef67006dad
+ml-dsa-44  identity-only-v1  peer0.org2.example.com  msp_signcert_pem  generated_crypto_config/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/msp/signcerts/peer0.org2.example.com-cert.pem  2642   9e1404e15d083864995bcd30f2410ea5be493a251fc3da34a4226d07756735d1
+ml-dsa-44  identity-only-v1  peer1.org2.example.com  msp_signcert_pem  generated_crypto_config/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/msp/signcerts/peer1.org2.example.com-cert.pem  2642   b56f177ceb59d09970e7c09f71354fe8dea354ec5c86ffc72946a321b42e5aa5
+evidence_sha256:
+47c46478f0b656421f8fdb1b8bcdbd74b220604d0c368d84e2d2410306ad37e1  raw/e1/identity-only-v1_ml-dsa-44_identity_bytes.csv
+evidence_contents:
+config,run_label,peer,identity_type,identity_path,bytes,sha256
+ml-dsa-44,identity-only-v1,peer0.org1.example.com,msp_signcert_pem,generated_crypto_config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp/signcerts/peer0.org1.example.com-cert.pem,2638,f80681c89d612994f3b6ed7598076c2aea26229ab564966b67d7d8e616da9785
+ml-dsa-44,identity-only-v1,peer1.org1.example.com,msp_signcert_pem,generated_crypto_config/peerOrganizations/org1.example.com/peers/peer1.org1.example.com/msp/signcerts/peer1.org1.example.com-cert.pem,2642,3e1e794fd1b8287be14eeb87001bea042b07852b16c35b58e06d4eef67006dad
+ml-dsa-44,identity-only-v1,peer0.org2.example.com,msp_signcert_pem,generated_crypto_config/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/msp/signcerts/peer0.org2.example.com-cert.pem,2642,9e1404e15d083864995bcd30f2410ea5be493a251fc3da34a4226d07756735d1
+ml-dsa-44,identity-only-v1,peer1.org2.example.com,msp_signcert_pem,generated_crypto_config/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/msp/signcerts/peer1.org2.example.com-cert.pem,2642,b56f177ceb59d09970e7c09f71354fe8dea354ec5c86ffc72946a321b42e5aa5

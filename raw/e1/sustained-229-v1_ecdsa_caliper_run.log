@@ -1,0 +1,737 @@
+[E1] Run provenance
+[E1] started_at=2026-09-06T17:09:46+03:30
+[E1] configuration=ecdsa
+[E1] run_type=sustainability
+[E1] run_label=sustained-229-v1
+[E1] run_namespace=sustained-229-v1_ecdsa
+[E1] benchmark_config=env/caliper/e1/benchmark_ecdsa_sustained_229.yaml
+[E1] benchmark_config_sha256=6fc3498dbfda369103ab33a688e8b7fc7444d36869681cc5028ce5eee7f9ddbd
+[E1] project_git_commit=994afe6008b73d7f4ea0e30d450faffeccafcc54
+[E1] project_git_state_before_log_creation=dirty
+[E1] project_git_status_sha256_before_log_creation=5337e5d1f13cfa399a57991399dcb890e12b0430218e9675101be5ef6ed14dc2
+[E1] project_tracked_state_before_log_creation=clean
+[E1] project_tracked_status_sha256_before_log_creation=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+[E1] project_untracked_paths_sha256_before_log_creation=36bba9c3ecb82ef1c17961b1bbea464010f21c495fc3a1b13980437448c48dda
+[E1] host_kernel=7.0.0-30-generic
+[E1] docker_server_version=29.1.3
+[E1] fixed_cpu_set=2-15
+[E1] Verifying CPU measurement state...
+[E1] cpu2_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu3_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu4_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu5_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu6_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu7_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu8_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu9_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu10_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu11_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu12_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu13_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu14_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu15_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] CPU state verified.
+[E1] amd_pstate_mode=passive
+[E1] boost_state=0
+[E1] Frequency lock verified: 3201000 kHz on CPUs 2-15.
+[E1] fabric_source_tag=v2.5.16
+[E1] fabric_source_commit=f871cf92a026aba7b12e6f06d71ded3e6e659d71
+[E1] fabric_source_state=clean
+[E1] fabric_peer_image_id=sha256:6fe74f12e91ab73a07b13d4a7d2954df8a2ad5a6e00ea2665cfffed7f34f5448
+[E1] fabric_orderer_image_id=sha256:b56ec95ae9168725b8c8e1dc4bc4126f30f2b661e3dc99dd72225dc87b1f3d1f
+[E1] configtx_sha256=87022050421db9821be46266cfe68b9789c3fe125d089e31d368a01ffe27b384
+[E1] crypto_config_sha256=6b7208daa343bf57296dcbe8152484c5062fe410824105fd374d46dcf2a0336c
+[E1] docker_compose_sha256=0c3f145d34c1f06a0b84c4f94fd7f8817f0b37a2bd6ce5dce52ec1851cedc026
+[E1] fabric_setup_sha256=b69af762feee33e800bc26ef5af9e0a45301ba0c2172f580de6fc90b25ac2831
+[E1] fabric_build_sha256=28758546c3bd0add2e67a8330c84591c49d6b5cf2d6eb308d3b0f7061bb1f219
+[E1] fabric_pq_patch_sha256=2eeee5582fabd90bb9e675e98bce3daf94a087d2d6848ccfa720f7216e23550f
+[E1] chaincode_sha256=64973916cfe23691d2bc715b5b257f8ed2db8e08731720e750a2240c5cd0f8e1
+[E1] pq_identity_generator_sha256=b4d8e0515fd4898f221a3618bc41971fcf35778175ae4e6e7c94ccd8f0ca9e48
+[E1] caliper_package_lock_sha256=b45f505c22bcc63537590f39f748d7145a617cf9a83e2ac07fb4b48c48322355
+[E1] caliper_network_sha256=7f3882ef30fc5bf532f2484ef55ebac5ce720290a6cd0f1e79b24f512cfa62fb
+[E1] caliper_connection_org1_sha256=1a6c60a78e642181dcbebddd86537a7015063f3d00badb6dca4a35c8d9b30b6d
+[E1] caliper_connection_org2_sha256=a7f68c912cb9b975cac96c0435e1e311dbdc87e903a9e29eb6ec0c5b9d3b0da8
+[E1] caliper_workload_sha256=28a48fd0ce5ec7e883d3dd2b43d44797a2edc3eb9da01ade14d97a2965bffc65
+[E1] caliper_timing_patch_sha256=7d3eaab0e3ce1a7713f09761ea2353b5d280cb51588f2ddb1098a9d50f17c578
+[E1] e1_run_policy_sha256=f384807b82a7c6d94446242a07d5820bcd23c90529ce131e07764400807ca071
+[E1] e1_runner_sha256=9d03daf5a7bddd9b192c58438e973c2ae603101d63419c7331e49fc4b2f15ac0
+[E1] Setting up Fabric network for configuration: ecdsa
+[E1] Fabric setup starting...
+[E1] Fabric binaries: /home/user/projects/fabric-samples/bin
+[E1] Channel: energychannel
+[E1] Chaincode: simplekv
+[E1] Configuration: ecdsa
+[E1] Running preflight checks...
+[E1] Hyperledger Fabric version: 2.5.16
+[E1] Preflight checks passed.
+[E1] Removing previous E1 containers and generated artifacts...
+ Container peer1.org1.example.com  Stopping
+ Container peer0.org2.example.com  Stopping
+ Container orderer.example.com  Stopping
+ Container peer1.org2.example.com  Stopping
+ Container peer0.org1.example.com  Stopping
+ Container orderer.example.com  Stopped
+ Container orderer.example.com  Removing
+ Container orderer.example.com  Removed
+ Container peer1.org1.example.com  Stopped
+ Container peer1.org1.example.com  Removing
+ Container peer1.org1.example.com  Removed
+ Container peer0.org1.example.com  Stopped
+ Container peer0.org1.example.com  Removing
+ Container peer0.org1.example.com  Removed
+ Container peer0.org2.example.com  Stopped
+ Container peer0.org2.example.com  Removing
+ Container peer0.org2.example.com  Removed
+ Container peer1.org2.example.com  Stopped
+ Container peer1.org2.example.com  Removing
+ Container peer1.org2.example.com  Removed
+ Network e1net  Removing
+ Network e1net  Removed
+[E1] Previous generated state removed.
+[E1] Generating cryptographic material...
+org1.example.com
+org2.example.com
+[E1] Generating orderer genesis block...
+[34m2026-09-06 17:09:47.674 +0330 0001 INFO[0m [common.tools.configtxgen] [34;1mmain[0m -> Loading configuration
+[34m2026-09-06 17:09:47.679 +0330 0002 INFO[0m [common.tools.configtxgen.localconfig] [34;1mcompleteInitialization[0m -> orderer type: etcdraft
+[34m2026-09-06 17:09:47.680 +0330 0003 INFO[0m [common.tools.configtxgen.localconfig] [34;1mcompleteInitialization[0m -> Orderer.EtcdRaft.Options unset, setting to tick_interval:"500ms" election_tick:10 heartbeat_tick:1 max_inflight_blocks:5 snapshot_interval_size:16777216 
+[34m2026-09-06 17:09:47.680 +0330 0004 INFO[0m [common.tools.configtxgen.localconfig] [34;1mLoad[0m -> Loaded configuration: /home/user/projects/pqc-energy-trading/env/fabric/e1/configtx.yaml
+[34m2026-09-06 17:09:47.681 +0330 0005 INFO[0m [common.tools.configtxgen] [34;1mdoOutputBlock[0m -> Generating genesis block
+[34m2026-09-06 17:09:47.681 +0330 0006 INFO[0m [common.tools.configtxgen] [34;1mdoOutputBlock[0m -> Creating system channel genesis block
+[34m2026-09-06 17:09:47.682 +0330 0007 INFO[0m [common.tools.configtxgen] [34;1mdoOutputBlock[0m -> Writing genesis block
+[E1] Generating channel creation transaction...
+[34m2026-09-06 17:09:47.718 +0330 0001 INFO[0m [common.tools.configtxgen] [34;1mmain[0m -> Loading configuration
+[34m2026-09-06 17:09:47.723 +0330 0002 INFO[0m [common.tools.configtxgen.localconfig] [34;1mLoad[0m -> Loaded configuration: /home/user/projects/pqc-energy-trading/env/fabric/e1/configtx.yaml
+[34m2026-09-06 17:09:47.723 +0330 0003 INFO[0m [common.tools.configtxgen] [34;1mdoOutputChannelCreateTx[0m -> Generating new channel configtx
+[34m2026-09-06 17:09:47.725 +0330 0004 INFO[0m [common.tools.configtxgen] [34;1mdoOutputChannelCreateTx[0m -> Writing new channel tx
+[E1] Generating anchor peer updates...
+[34m2026-09-06 17:09:47.759 +0330 0001 INFO[0m [common.tools.configtxgen] [34;1mmain[0m -> Loading configuration
+[34m2026-09-06 17:09:47.764 +0330 0002 INFO[0m [common.tools.configtxgen.localconfig] [34;1mLoad[0m -> Loaded configuration: /home/user/projects/pqc-energy-trading/env/fabric/e1/configtx.yaml
+[34m2026-09-06 17:09:47.764 +0330 0003 INFO[0m [common.tools.configtxgen] [34;1mdoOutputAnchorPeersUpdate[0m -> Generating anchor peer update
+[34m2026-09-06 17:09:47.766 +0330 0004 INFO[0m [common.tools.configtxgen] [34;1mdoOutputAnchorPeersUpdate[0m -> Writing anchor peer update
+[34m2026-09-06 17:09:47.803 +0330 0001 INFO[0m [common.tools.configtxgen] [34;1mmain[0m -> Loading configuration
+[34m2026-09-06 17:09:47.807 +0330 0002 INFO[0m [common.tools.configtxgen.localconfig] [34;1mLoad[0m -> Loaded configuration: /home/user/projects/pqc-energy-trading/env/fabric/e1/configtx.yaml
+[34m2026-09-06 17:09:47.807 +0330 0003 INFO[0m [common.tools.configtxgen] [34;1mdoOutputAnchorPeersUpdate[0m -> Generating anchor peer update
+[34m2026-09-06 17:09:47.809 +0330 0004 INFO[0m [common.tools.configtxgen] [34;1mdoOutputAnchorPeersUpdate[0m -> Writing anchor peer update
+[E1] Fabric cryptographic and channel artifacts generated.
+[E1] Starting Fabric network...
+ Network e1net  Creating
+ Network e1net  Created
+ Container peer0.org1.example.com  Creating
+ Container peer1.org1.example.com  Creating
+ Container orderer.example.com  Creating
+ Container peer0.org2.example.com  Creating
+ Container peer1.org2.example.com  Creating
+ Container peer1.org2.example.com  Created
+ Container peer0.org2.example.com  Created
+ Container peer1.org1.example.com  Created
+ Container orderer.example.com  Created
+ Container peer0.org1.example.com  Created
+ Container peer0.org1.example.com  Starting
+ Container peer0.org2.example.com  Starting
+ Container peer1.org1.example.com  Starting
+ Container peer1.org2.example.com  Starting
+ Container orderer.example.com  Starting
+ Container peer0.org2.example.com  Started
+ Container orderer.example.com  Started
+ Container peer1.org2.example.com  Started
+ Container peer0.org1.example.com  Started
+ Container peer1.org1.example.com  Started
+[E1] orderer.example.com is running.
+[E1] peer0.org1.example.com is running.
+[E1] peer1.org1.example.com is running.
+[E1] peer0.org2.example.com is running.
+[E1] peer1.org2.example.com is running.
+[E1] Fabric containers are running.
+[E1] Waiting for Raft leader...
+[E1] Raft leader is ready.
+[E1] Waiting for peers to become ready...
+[E1] peer0.org1.example.com:7051 is ready.
+[E1] peer1.org1.example.com:8051 is ready.
+[E1] peer0.org2.example.com:9051 is ready.
+[E1] peer1.org2.example.com:10051 is ready.
+[E1] All peers are ready.
+[E1] Creating channel energychannel...
+[34m2026-09-06 17:09:49.577 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-06 17:09:49.589 +0330 0002 INFO[0m [cli.common] [34;1mreadBlock[0m -> Expect block, but got status: &{NOT_FOUND}
+[34m2026-09-06 17:09:49.592 +0330 0003 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-06 17:09:49.793 +0330 0004 INFO[0m [cli.common] [34;1mreadBlock[0m -> Expect block, but got status: &{SERVICE_UNAVAILABLE}
+[34m2026-09-06 17:09:49.796 +0330 0005 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-06 17:09:49.998 +0330 0006 INFO[0m [cli.common] [34;1mreadBlock[0m -> Expect block, but got status: &{SERVICE_UNAVAILABLE}
+[34m2026-09-06 17:09:50.000 +0330 0007 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-06 17:09:50.201 +0330 0008 INFO[0m [cli.common] [34;1mreadBlock[0m -> Expect block, but got status: &{SERVICE_UNAVAILABLE}
+[34m2026-09-06 17:09:50.203 +0330 0009 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-06 17:09:50.405 +0330 000a INFO[0m [cli.common] [34;1mreadBlock[0m -> Expect block, but got status: &{SERVICE_UNAVAILABLE}
+[34m2026-09-06 17:09:50.407 +0330 000b INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-06 17:09:50.609 +0330 000c INFO[0m [cli.common] [34;1mreadBlock[0m -> Received block: 0
+[E1] Joining peer0.org1...
+[34m2026-09-06 17:09:50.659 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-06 17:09:50.674 +0330 0002 INFO[0m [channelCmd] [34;1mexecuteJoin[0m -> Successfully submitted proposal to join channel
+[E1] Joining peer1.org1...
+[34m2026-09-06 17:09:50.723 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-06 17:09:50.738 +0330 0002 INFO[0m [channelCmd] [34;1mexecuteJoin[0m -> Successfully submitted proposal to join channel
+[E1] Joining peer0.org2...
+[34m2026-09-06 17:09:50.787 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-06 17:09:50.803 +0330 0002 INFO[0m [channelCmd] [34;1mexecuteJoin[0m -> Successfully submitted proposal to join channel
+[E1] Joining peer1.org2...
+[34m2026-09-06 17:09:50.852 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-06 17:09:50.867 +0330 0002 INFO[0m [channelCmd] [34;1mexecuteJoin[0m -> Successfully submitted proposal to join channel
+[E1] All four peers joined energychannel.
+[E1] Applying Org1 anchor peer update...
+[34m2026-09-06 17:09:50.914 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-06 17:09:50.923 +0330 0002 INFO[0m [channelCmd] [34;1mupdate[0m -> Successfully submitted channel update
+[E1] Applying Org2 anchor peer update...
+[34m2026-09-06 17:09:50.972 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-06 17:09:50.982 +0330 0002 INFO[0m [channelCmd] [34;1mupdate[0m -> Successfully submitted channel update
+[E1] Anchor peer updates applied.
+[E1] Packaging chaincode...
+[E1] Installing chaincode on all four peers...
+[34m2026-09-06 17:09:51.267 +0330 0001 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Installed remotely: response:<status:200 payload:"\nKsimplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b\022\nsimplekv_1" > 
+[34m2026-09-06 17:09:51.268 +0330 0002 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Chaincode code package identifier: simplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b
+[34m2026-09-06 17:09:51.326 +0330 0001 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Installed remotely: response:<status:200 payload:"\nKsimplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b\022\nsimplekv_1" > 
+[34m2026-09-06 17:09:51.326 +0330 0002 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Chaincode code package identifier: simplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b
+[34m2026-09-06 17:09:51.383 +0330 0001 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Installed remotely: response:<status:200 payload:"\nKsimplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b\022\nsimplekv_1" > 
+[34m2026-09-06 17:09:51.383 +0330 0002 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Chaincode code package identifier: simplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b
+[34m2026-09-06 17:09:51.442 +0330 0001 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Installed remotely: response:<status:200 payload:"\nKsimplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b\022\nsimplekv_1" > 
+[34m2026-09-06 17:09:51.442 +0330 0002 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Chaincode code package identifier: simplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b
+[E1] Chaincode package ID: simplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b
+[E1] Approving chaincode for Org1...
+[34m2026-09-06 17:09:53.569 +0330 0001 INFO[0m [chaincodeCmd] [34;1mClientWait[0m -> txid [2dbcb8a0c4408ff5c7c9e29660985f9aa16aa1dcee613f38d47bcd4b4deb0d03] committed with status (VALID) at peer0.org1.example.com:7051
+[E1] Approving chaincode for Org2...
+[34m2026-09-06 17:09:55.641 +0330 0001 INFO[0m [chaincodeCmd] [34;1mClientWait[0m -> txid [74be314125d9cd08d078ea02bf2201af9e353876eef8ccd6414937a76cbbac00] committed with status (VALID) at peer0.org2.example.com:9051
+[E1] Checking chaincode commit readiness...
+{
+	"approvals": {
+		"Org1MSP": true,
+		"Org2MSP": true
+	}
+}
+[E1] Committing chaincode definition...
+[34m2026-09-06 17:09:57.793 +0330 0001 INFO[0m [chaincodeCmd] [34;1mClientWait[0m -> txid [25f3107c6b3daff715d289a6dba2f3f2a44bbb19ae10abf33ed82e7e2d45d62a] committed with status (VALID) at peer0.org2.example.com:9051
+[34m2026-09-06 17:09:57.793 +0330 0002 INFO[0m [chaincodeCmd] [34;1mClientWait[0m -> txid [25f3107c6b3daff715d289a6dba2f3f2a44bbb19ae10abf33ed82e7e2d45d62a] committed with status (VALID) at peer0.org1.example.com:7051
+[E1] Chaincode committed.
+[E1] Running chaincode smoke test...
+[34m2026-09-06 17:09:58.010 +0330 0001 INFO[0m [chaincodeCmd] [34;1mchaincodeInvokeOrQuery[0m -> Chaincode invoke successful. result: status:200 
+[E1] Chaincode smoke test passed.
+[E1] Verifying cross-organization discovery...
+[E1] Discovery check passed: all four peers visible.
+[E1] Fabric E1 setup completed successfully.
+[E1] Fabric network ready for configuration: ecdsa
+[E1] effective_BatchTimeout=2s
+[E1] effective_MaxMessageCount=500
+[E1] effective_PreferredMaxBytes=2097152
+[E1] effective_AbsoluteMaxBytes=10485760
+[E1] Starting Caliper benchmark...
+[E1] Log: /home/user/projects/pqc-energy-trading/raw/e1/sustained-229-v1_ecdsa_caliper_run.log
+npm notice run e1@1.0.0 npx
+npm notice run 'caliper' launch manager --caliper-workspace . --caliper-benchconfig /home/user/projects/pqc-energy-trading/env/caliper/e1/benchmark_ecdsa_sustained_229.yaml --caliper-networkconfig network.yaml
+2026.09.06-17:10:00.623[32m info [39m [caliper] [cli-launch-manager] 	Set workspace path: /home/user/projects/pqc-energy-trading/env/caliper/e1
+2026.09.06-17:10:00.624[32m info [39m [caliper] [cli-launch-manager] 	Set benchmark configuration path: /home/user/projects/pqc-energy-trading/env/caliper/e1/benchmark_ecdsa_sustained_229.yaml
+2026.09.06-17:10:00.624[32m info [39m [caliper] [cli-launch-manager] 	Set network configuration path: /home/user/projects/pqc-energy-trading/env/caliper/e1/network.yaml
+2026.09.06-17:10:00.624[32m info [39m [caliper] [cli-launch-manager] 	Set SUT type: fabric
+2026.09.06-17:10:00.643[32m info [39m [caliper] [benchmark-validator] 	No observer specified, will default to `none`
+2026.09.06-17:10:00.643[32m info [39m [caliper] [caliper-engine] 	Starting benchmark flow
+2026.09.06-17:10:00.643[32m info [39m [caliper] [caliper-engine] 	Network configuration attribute "caliper.command.start" is not present, skipping start command
+2026.09.06-17:10:00.755[32m info [39m [caliper] [FabricConnectorFactory] 	Initializing peer gateway connector compatible with installed fabric-gateway SDK: 1.7.1
+2026.09.06-17:10:00.762[32m info [39m [caliper] [IdentityManager] 	Adding User1 (admin=false) as User1 for organization Org1MSP
+2026.09.06-17:10:00.763[32m info [39m [caliper] [IdentityManager] 	Adding User1Org2 (admin=false) as _Org2MSP_User1Org2 for organization Org2MSP
+2026.09.06-17:10:00.765[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Fabric-Gateway SDK version: 1.7.1 for Peer-Gateway connector; TLS based on Org1MSP: server
+2026.09.06-17:10:00.765[32m info [39m [caliper] [caliper-engine] 	Executed "init" step in 0.001 seconds
+2026.09.06-17:10:00.765[33m warn [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Install smart contract not available for the Fabric Peer Gateway connector
+2026.09.06-17:10:00.765[32m info [39m [caliper] [caliper-engine] 	Executed "install" step in 0 seconds
+2026.09.06-17:10:00.767[32m info [39m [caliper] [monitor.js] 	Attempting to create resource monitor of type docker
+2026.09.06-17:10:00.768[32m info [39m [caliper] [default-observer] 	Observer interval set to 5000 milliseconds
+2026.09.06-17:10:00.770[32m info [39m [caliper] [round-orchestrator] 	Preparing worker connections
+2026.09.06-17:10:00.771[32m info [39m [caliper] [worker-orchestrator] 	Launching worker 1 of 1
+2026.09.06-17:10:00.775[32m info [39m [caliper] [worker-orchestrator] 	Messenger not configured, entering configure phase...
+2026.09.06-17:10:00.775[32m info [39m [caliper] [worker-orchestrator] 	No existing workers detected, entering worker launch phase...
+2026.09.06-17:10:00.775[32m info [39m [caliper] [worker-orchestrator] 	Waiting for 1 workers to be connected...
+2026.09.06-17:10:00.987[32m info [39m [caliper] [cli-launch-worker] 	Set workspace path: /home/user/projects/pqc-energy-trading/env/caliper/e1
+2026.09.06-17:10:00.988[32m info [39m [caliper] [cli-launch-worker] 	Set benchmark configuration path: /home/user/projects/pqc-energy-trading/env/caliper/e1/benchmark_ecdsa_sustained_229.yaml
+2026.09.06-17:10:00.988[32m info [39m [caliper] [cli-launch-worker] 	Set network configuration path: /home/user/projects/pqc-energy-trading/env/caliper/e1/network.yaml
+2026.09.06-17:10:00.988[32m info [39m [caliper] [cli-launch-worker] 	Set SUT type: fabric
+2026.09.06-17:10:01.018[32m info [39m [caliper] [worker-orchestrator] 	1 workers connected, progressing to worker assignment phase.
+2026.09.06-17:10:01.018[32m info [39m [caliper] [worker-orchestrator] 	Workers currently unassigned, awaiting index assignment...
+2026.09.06-17:10:01.018[32m info [39m [caliper] [worker-orchestrator] 	Waiting for 1 workers to be assigned...
+2026.09.06-17:10:01.036[32m info [39m [caliper] [worker-orchestrator] 	1 workers assigned, progressing to worker initialization phase.
+2026.09.06-17:10:01.036[32m info [39m [caliper] [worker-orchestrator] 	Waiting for 1 workers to be ready...
+2026.09.06-17:10:01.037[32m info [39m [caliper] [worker-message-handler] 	Initializing Worker#0...
+2026.09.06-17:10:01.142[32m info [39m [caliper] [FabricConnectorFactory] 	Initializing peer gateway connector compatible with installed fabric-gateway SDK: 1.7.1
+2026.09.06-17:10:01.147[32m info [39m [caliper] [IdentityManager] 	Adding User1 (admin=false) as User1 for organization Org1MSP
+2026.09.06-17:10:01.148[32m info [39m [caliper] [IdentityManager] 	Adding User1Org2 (admin=false) as _Org2MSP_User1Org2 for organization Org2MSP
+2026.09.06-17:10:01.150[32m info [39m [caliper] [worker-message-handler] 	Worker#0 initialized
+2026.09.06-17:10:01.151[32m info [39m [caliper] [worker-orchestrator] 	1 workers ready, progressing to test preparation phase.
+2026.09.06-17:10:01.151[32m info [39m [caliper] [round-orchestrator] 	Started round 1 (warmup)
+2026.09.06-17:10:01.152[32m info [39m [caliper] [worker-message-handler] 	Preparing Worker#0 for Round#0
+2026.09.06-17:10:01.163[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Generating contract map for user User1
+2026.09.06-17:10:01.166[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Generating contract map for user _Org2MSP_User1Org2
+2026.09.06-17:10:01.166[32m info [39m [caliper] [caliper-worker] 	Info: worker 0 prepare test phase for round 0 is starting...
+2026.09.06-17:10:01.273[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gateway for user User1
+2026.09.06-17:10:01.273[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gateway for user _Org2MSP_User1Org2
+2026.09.06-17:10:01.273[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gRpc client at peer peer0.org1.example.com
+2026.09.06-17:10:01.273[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gRpc client at peer peer0.org2.example.com
+2026.09.06-17:10:01.274[32m info [39m [caliper] [caliper-worker] 	Info: worker 0 prepare test phase for round 0 is completed
+2026.09.06-17:10:01.274[32m info [39m [caliper] [worker-message-handler] 	Worker#0 prepared for Round#0
+2026.09.06-17:10:01.274[32m info [39m [caliper] [worker-orchestrator] 	1 workers prepared, progressing to test phase.
+2026.09.06-17:10:01.287[32m info [39m [caliper] [round-orchestrator] 	Monitors successfully started
+2026.09.06-17:10:01.288[32m info [39m [caliper] [worker-message-handler] 	Worker#0 is starting Round#0
+2026.09.06-17:10:01.291[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Generating contract map for user User1
+2026.09.06-17:10:01.292[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Generating contract map for user _Org2MSP_User1Org2
+2026.09.06-17:10:01.293[32m info [39m [caliper] [caliper-worker] 	Worker #0 starting workload loop
+2026.09.06-17:10:06.284[32m info [39m [caliper] [default-observer] 	[warmup Round 0 Transaction Info] - Submitted: 200 Succ: 106 Fail:0 Unfinished:94
+2026.09.06-17:10:11.277[32m info [39m [caliper] [default-observer] 	[warmup Round 0 Transaction Info] - Submitted: 451 Succ: 409 Fail:0 Unfinished:42
+2026.09.06-17:10:16.277[32m info [39m [caliper] [default-observer] 	[warmup Round 0 Transaction Info] - Submitted: 701 Succ: 612 Fail:0 Unfinished:89
+2026.09.06-17:10:21.278[32m info [39m [caliper] [default-observer] 	[warmup Round 0 Transaction Info] - Submitted: 951 Succ: 914 Fail:0 Unfinished:37
+2026.09.06-17:10:22.804[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gateway for user User1
+2026.09.06-17:10:22.804[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gateway for user _Org2MSP_User1Org2
+2026.09.06-17:10:22.804[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gRpc client at peer peer0.org1.example.com
+2026.09.06-17:10:22.804[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gRpc client at peer peer0.org2.example.com
+2026.09.06-17:10:22.805[32m info [39m [caliper] [worker-message-handler] 	Worker#0 finished Round#0
+2026.09.06-17:10:27.806[32m info [39m [caliper] [default-observer] 	Resetting txCount indicator count
+2026.09.06-17:10:27.807[32m info [39m [caliper] [report-builder] 	### Test result ###
+2026.09.06-17:10:27.811[32m info [39m [caliper] [report-builder] 	
++--------+------+------+-----------------+-----------------+-----------------+-----------------+------------------+
+| Name   | Succ | Fail | Send Rate (TPS) | Max Latency (s) | Min Latency (s) | Avg Latency (s) | Throughput (TPS) |
+|--------|------|------|-----------------|-----------------|-----------------|-----------------|------------------|
+| warmup | 1001 | 0    | 50.1            | 2.19            | 0.06            | 1.09            | 49.2             |
++--------+------+------+-----------------+-----------------+-----------------+-----------------+------------------+
+
+2026.09.06-17:10:27.812[32m info [39m [caliper] [round-orchestrator] 	Finished round 1 (warmup) in 20.406 seconds
+2026.09.06-17:10:27.812[32m info [39m [caliper] [monitor.js] 	Stopping all monitors
+2026.09.06-17:10:27.912[32m info [39m [caliper] [round-orchestrator] 	Waiting 5 seconds for the next round...
+2026.09.06-17:10:32.918[32m info [39m [caliper] [round-orchestrator] 	Started round 2 (sustained-229-tps)
+2026.09.06-17:10:32.919[32m info [39m [caliper] [worker-message-handler] 	Preparing Worker#0 for Round#1
+2026.09.06-17:10:32.926[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Generating contract map for user User1
+2026.09.06-17:10:32.928[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Generating contract map for user _Org2MSP_User1Org2
+2026.09.06-17:10:32.928[32m info [39m [caliper] [caliper-worker] 	Info: worker 0 prepare test phase for round 1 is starting...
+2026.09.06-17:10:33.037[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gateway for user User1
+2026.09.06-17:10:33.038[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gateway for user _Org2MSP_User1Org2
+2026.09.06-17:10:33.038[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gRpc client at peer peer0.org1.example.com
+2026.09.06-17:10:33.038[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gRpc client at peer peer0.org2.example.com
+2026.09.06-17:10:33.038[32m info [39m [caliper] [caliper-worker] 	Info: worker 0 prepare test phase for round 1 is completed
+2026.09.06-17:10:33.038[32m info [39m [caliper] [worker-message-handler] 	Worker#0 prepared for Round#1
+2026.09.06-17:10:33.038[32m info [39m [caliper] [worker-orchestrator] 	1 workers prepared, progressing to test phase.
+2026.09.06-17:10:33.042[32m info [39m [caliper] [round-orchestrator] 	Monitors successfully started
+2026.09.06-17:10:33.043[32m info [39m [caliper] [worker-message-handler] 	Worker#0 is starting Round#1
+2026.09.06-17:10:33.045[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Generating contract map for user User1
+2026.09.06-17:10:33.046[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Generating contract map for user _Org2MSP_User1Org2
+2026.09.06-17:10:33.047[32m info [39m [caliper] [caliper-worker] 	Worker #0 starting workload loop
+2026.09.06-17:10:35.272[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_498,value_498],  with error: CommitStatusError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.273[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_501,value_501],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.276[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_502,value_502],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.279[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_503,value_503],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.279[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_504,value_504],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.283[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_505,value_505],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.283[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_506,value_506],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.290[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_500,value_500],  with error: SubmitError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.290[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_508,value_508],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.293[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_499,value_499],  with error: CommitStatusError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.294[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_510,value_510],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.299[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_509,value_509],  with error: SubmitError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.301[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_512,value_512],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.303[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_513,value_513],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.306[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_507,value_507],  with error: SubmitError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.308[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_511,value_511],  with error: SubmitError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.309[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_516,value_516],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.309[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_517,value_517],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.311[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_518,value_518],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.314[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_519,value_519],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:35.320[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_520,value_520],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:38.040[32m info [39m [caliper] [default-observer] 	[sustained-229-tps Round 1 Transaction Info] - Submitted: 916 Succ: 462 Fail:21 Unfinished:433
+2026.09.06-17:10:39.290[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_1422,value_1422],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:39.293[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_1423,value_1423],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:39.296[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_1424,value_1424],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:39.297[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_1425,value_1425],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:39.298[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_1426,value_1426],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:39.299[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_1427,value_1427],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:39.302[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_1428,value_1428],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:39.304[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_1429,value_1429],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:39.304[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_1430,value_1430],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:39.307[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_1431,value_1431],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:39.309[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_1432,value_1432],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:39.310[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_1433,value_1433],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:43.041[32m info [39m [caliper] [default-observer] 	[sustained-229-tps Round 1 Transaction Info] - Submitted: 2062 Succ: 1806 Fail:33 Unfinished:223
+2026.09.06-17:10:43.299[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_2334,value_2334],  with error: CommitStatusError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:43.300[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_2340,value_2340],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:43.302[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_2341,value_2341],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:43.303[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_2342,value_2342],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:43.305[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_2343,value_2343],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:43.309[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_2344,value_2344],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:43.311[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_2345,value_2345],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:43.311[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_2346,value_2346],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:43.313[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_2347,value_2347],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:43.315[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_2348,value_2348],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:43.317[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_2339,value_2339],  with error: CommitStatusError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:43.319[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_2350,value_2350],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:43.319[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_2351,value_2351],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:47.295[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_3255,value_3255],  with error: CommitStatusError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:47.296[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_3258,value_3258],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:47.297[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_3259,value_3259],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:47.300[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_3260,value_3260],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:47.300[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_3261,value_3261],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:47.301[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_3262,value_3262],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:47.303[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_3263,value_3263],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:47.305[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_3264,value_3264],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:47.308[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_3265,value_3265],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:47.317[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_3256,value_3256],  with error: CommitStatusError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:47.318[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_3267,value_3267],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:47.318[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_3268,value_3268],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:47.324[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_3269,value_3269],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:47.327[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_3270,value_3270],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:47.331[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_3271,value_3271],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:48.041[32m info [39m [caliper] [default-observer] 	[sustained-229-tps Round 1 Transaction Info] - Submitted: 3207 Succ: 2711 Fail:46 Unfinished:450
+2026.09.06-17:10:51.301[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_4174,value_4174],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:51.303[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_4175,value_4175],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:51.304[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_4176,value_4176],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:51.305[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_4177,value_4177],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:51.308[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_4178,value_4178],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:51.308[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_4179,value_4179],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:51.311[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_4180,value_4180],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:51.312[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_4181,value_4181],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:51.312[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_4182,value_4182],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:51.315[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_4183,value_4183],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:53.043[32m info [39m [caliper] [default-observer] 	[sustained-229-tps Round 1 Transaction Info] - Submitted: 4352 Succ: 4072 Fail:71 Unfinished:209
+2026.09.06-17:10:55.311[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_5092,value_5092],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:55.313[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_5093,value_5093],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:55.313[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_5094,value_5094],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:55.317[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_5090,value_5090],  with error: SubmitError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:55.320[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_5089,value_5089],  with error: CommitStatusError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:55.320[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_5097,value_5097],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:55.321[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_5098,value_5098],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:55.323[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_5099,value_5099],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:55.324[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_5100,value_5100],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:55.325[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_5101,value_5101],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:55.327[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_5102,value_5102],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:58.044[32m info [39m [caliper] [default-observer] 	[sustained-229-tps Round 1 Transaction Info] - Submitted: 5497 Succ: 4980 Fail:82 Unfinished:435
+2026.09.06-17:10:59.313[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6008,value_6008],  with error: SubmitError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:59.313[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6011,value_6011],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:59.316[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6012,value_6012],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:59.321[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6013,value_6013],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:59.324[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6014,value_6014],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:59.324[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6015,value_6015],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:59.327[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6016,value_6016],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:59.328[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6017,value_6017],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:59.329[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6018,value_6018],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:59.332[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6019,value_6019],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:59.338[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6009,value_6009],  with error: SubmitError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:59.341[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6021,value_6021],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:10:59.344[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6022,value_6022],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:03.045[32m info [39m [caliper] [default-observer] 	[sustained-229-tps Round 1 Transaction Info] - Submitted: 6642 Succ: 6333 Fail:95 Unfinished:214
+2026.09.06-17:11:03.329[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6928,value_6928],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:03.332[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6929,value_6929],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:03.334[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6930,value_6930],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:03.336[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6931,value_6931],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:03.337[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6932,value_6932],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:03.338[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6933,value_6933],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:03.339[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6934,value_6934],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:03.341[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6935,value_6935],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:03.342[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6936,value_6936],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:03.343[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6937,value_6937],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:03.346[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6938,value_6938],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:03.349[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_6939,value_6939],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:07.334[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_7846,value_7846],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:07.337[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_7847,value_7847],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:07.338[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_7848,value_7848],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:07.339[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_7849,value_7849],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:07.341[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_7850,value_7850],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:07.342[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_7851,value_7851],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:07.343[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_7852,value_7852],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:07.345[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_7853,value_7853],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:07.346[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_7854,value_7854],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:07.350[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_7845,value_7845],  with error: CommitStatusError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:07.354[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_7844,value_7844],  with error: SubmitError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:08.045[32m info [39m [caliper] [default-observer] 	[sustained-229-tps Round 1 Transaction Info] - Submitted: 7787 Succ: 7239 Fail:107 Unfinished:441
+2026.09.06-17:11:11.342[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_8763,value_8763],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:11.343[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_8764,value_8764],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:11.343[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_8765,value_8765],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:11.345[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_8766,value_8766],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:11.346[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_8767,value_8767],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:11.348[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_8768,value_8768],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:11.351[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_8769,value_8769],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:11.352[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_8770,value_8770],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:11.352[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_8771,value_8771],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:11.354[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_8772,value_8772],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:13.046[32m info [39m [caliper] [default-observer] 	[sustained-229-tps Round 1 Transaction Info] - Submitted: 8932 Succ: 8604 Fail:128 Unfinished:200
+2026.09.06-17:11:13.364[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_9232,value_9232],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:13.366[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_9233,value_9233],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:13.372[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_9234,value_9234],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:15.350[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_9684,value_9684],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:15.352[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_9685,value_9685],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:15.353[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_9686,value_9686],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:15.356[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_9687,value_9687],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:15.356[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_9688,value_9688],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:15.359[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_9689,value_9689],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:15.363[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_9690,value_9690],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:17.358[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_10147,value_10147],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:17.365[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_10138,value_10138],  with error: CommitStatusError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:17.367[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_10149,value_10149],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:17.371[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_10150,value_10150],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:18.047[32m info [39m [caliper] [default-observer] 	[sustained-229-tps Round 1 Transaction Info] - Submitted: 10077 Succ: 9509 Fail:138 Unfinished:430
+2026.09.06-17:11:19.359[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_10603,value_10603],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:19.360[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_10604,value_10604],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:19.362[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_10605,value_10605],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:19.364[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_10606,value_10606],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:19.367[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_10607,value_10607],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:19.379[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_10600,value_10600],  with error: CommitStatusError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:19.379[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_10609,value_10609],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:21.368[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11062,value_11062],  with error: SubmitError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:21.369[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11065,value_11065],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:21.372[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11066,value_11066],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:21.376[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11067,value_11067],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:21.380[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11068,value_11068],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:21.389[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11061,value_11061],  with error: CommitStatusError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:21.390[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11070,value_11070],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:23.048[32m info [39m [caliper] [default-observer] 	[sustained-229-tps Round 1 Transaction Info] - Submitted: 11223 Succ: 10868 Fail:156 Unfinished:199
+2026.09.06-17:11:23.371[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11524,value_11524],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:23.376[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11525,value_11525],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:23.380[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11526,value_11526],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:23.385[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11527,value_11527],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:25.379[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11980,value_11980],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:25.380[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11981,value_11981],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:25.380[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11982,value_11982],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:25.383[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11983,value_11983],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:25.384[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11984,value_11984],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:25.384[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11985,value_11985],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:25.389[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11986,value_11986],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:25.394[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11975,value_11975],  with error: CommitStatusError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:25.398[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_11976,value_11976],  with error: CommitStatusError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:27.389[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_12444,value_12444],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:27.392[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_12445,value_12445],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:28.049[32m info [39m [caliper] [default-observer] 	[sustained-229-tps Round 1 Transaction Info] - Submitted: 12368 Succ: 11775 Fail:169 Unfinished:424
+2026.09.06-17:11:29.385[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_12893,value_12893],  with error: CommitStatusError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:29.386[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_12897,value_12897],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:29.387[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_12898,value_12898],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:29.389[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_12899,value_12899],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:29.389[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_12900,value_12900],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:29.391[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_12901,value_12901],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:29.394[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_12902,value_12902],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:29.395[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_12903,value_12903],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:29.402[31m error[39m [caliper] [connectors/peer-gateway/PeerGateway] 	Failed to perform submit transaction [Set] using arguments [key_0_1_12904,value_12904],  with error: EndorseError: 2 UNKNOWN: too many requests for /gateway.Gateway, exceeding concurrency limit (500)
+Details:
+2026.09.06-17:11:33.049[32m info [39m [caliper] [default-observer] 	[sustained-229-tps Round 1 Transaction Info] - Submitted: 13513 Succ: 13132 Fail:180 Unfinished:201
+2026.09.06-17:11:34.580[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gateway for user User1
+2026.09.06-17:11:34.580[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gateway for user _Org2MSP_User1Org2
+2026.09.06-17:11:34.580[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gRpc client at peer peer0.org1.example.com
+2026.09.06-17:11:34.581[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gRpc client at peer peer0.org2.example.com
+2026.09.06-17:11:34.581[32m info [39m [caliper] [worker-message-handler] 	Worker#0 finished Round#1
+2026.09.06-17:11:39.583[32m info [39m [caliper] [default-observer] 	Resetting txCount indicator count
+2026.09.06-17:11:39.584[32m info [39m [caliper] [report-builder] 	### Test result ###
+2026.09.06-17:11:39.585[32m info [39m [caliper] [report-builder] 	
++-------------------+-------+------+-----------------+-----------------+-----------------+-----------------+------------------+
+| Name              | Succ  | Fail | Send Rate (TPS) | Max Latency (s) | Min Latency (s) | Avg Latency (s) | Throughput (TPS) |
+|-------------------|-------|------|-----------------|-----------------|-----------------|-----------------|------------------|
+| sustained-229-tps | 13561 | 180  | 229.0           | 2.28            | 0.22            | 1.24            | 227.7            |
++-------------------+-------+------+-----------------+-----------------+-----------------+-----------------+------------------+
+
+2026.09.06-17:11:39.585[32m info [39m [caliper] [round-orchestrator] 	Finished round 2 (sustained-229-tps) in 60.403 seconds
+2026.09.06-17:11:39.585[32m info [39m [caliper] [monitor.js] 	Stopping all monitors
+2026.09.06-17:11:39.686[32m info [39m [caliper] [report-builder] 	### All test results ###
+2026.09.06-17:11:39.687[32m info [39m [caliper] [report-builder] 	
++-------------------+-------+------+-----------------+-----------------+-----------------+-----------------+------------------+
+| Name              | Succ  | Fail | Send Rate (TPS) | Max Latency (s) | Min Latency (s) | Avg Latency (s) | Throughput (TPS) |
+|-------------------|-------|------|-----------------|-----------------|-----------------|-----------------|------------------|
+| warmup            | 1001  | 0    | 50.1            | 2.19            | 0.06            | 1.09            | 49.2             |
+|-------------------|-------|------|-----------------|-----------------|-----------------|-----------------|------------------|
+| sustained-229-tps | 13561 | 180  | 229.0           | 2.28            | 0.22            | 1.24            | 227.7            |
++-------------------+-------+------+-----------------+-----------------+-----------------+-----------------+------------------+
+
+2026.09.06-17:11:39.693[32m info [39m [caliper] [report-builder] 	Generated report with path /home/user/projects/pqc-energy-trading/env/caliper/e1/report.html
+2026.09.06-17:11:39.693[32m info [39m [caliper] [monitor.js] 	Stopping all monitors
+2026.09.06-17:11:39.693[32m info [39m [caliper] [worker-orchestrator] 	Sending exit message to connected workers
+2026.09.06-17:11:39.694[32m info [39m [caliper] [round-orchestrator] 	Benchmark finished in 98.543 seconds. Total rounds: 2. Successful rounds: 2. Failed rounds: 0.
+2026.09.06-17:11:39.694[32m info [39m [caliper] [caliper-engine] 	Network configuration attribute "caliper.command.end" is not present, skipping end command
+2026.09.06-17:11:39.694[32m info [39m [caliper] [cli-launch-manager] 	Benchmark successfully finished!
+2026.09.06-17:11:39.694[32m info [39m [caliper] [worker-message-handler] 	Worker#0 is exiting
+[E1] Benchmark finished.
+[E1] finished_at=2026-09-06T17:11:39+03:30
+[E1] Raw timing files:
+sustained-229-v1_ecdsa_block_heights.csv	101 bytes
+sustained-229-v1_ecdsa_commit_sustained-229-tps_worker0_1788702094564.csv	156038 bytes
+sustained-229-v1_ecdsa_e2e_sustained-229-tps_worker0_1788702094567.csv	1338453 bytes
+sustained-229-v1_ecdsa_endorse_sustained-229-tps_worker0_1788702094561.csv	121850 bytes
+[E1] Block-height markers:
+marker,height
+before_warmup,7
+after_warmup,17
+before_sustained-229-tps,17
+after_sustained-229-tps,47
+[E1] Run completed successfully for namespace: sustained-229-v1_ecdsa

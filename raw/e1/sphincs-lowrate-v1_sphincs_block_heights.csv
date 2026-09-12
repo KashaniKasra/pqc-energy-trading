@@ -1,0 +1,13 @@
+marker,height
+before_warmup,7
+after_warmup,15
+before_sphincs-1-tps,15
+after_sphincs-1-tps,38
+before_sphincs-2-tps,38
+after_sphincs-2-tps,64
+before_sphincs-5-tps,64
+after_sphincs-5-tps,92
+before_sphincs-10-tps,92
+after_sphincs-10-tps,121
+before_sphincs-20-tps,121
+after_sphincs-20-tps,151

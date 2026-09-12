@@ -1,0 +1,5 @@
+config,run_label,peer,identity_type,identity_path,bytes,sha256
+ecdsa,blockutil-300,peer0.org1.example.com,msp_signcert_pem,env/fabric/e1/crypto-config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp/signcerts/peer0.org1.example.com-cert.pem,810,c00477969402083f5c348dbe5fceff5f62368d2122397da058ec356d2dba56c3
+ecdsa,blockutil-300,peer1.org1.example.com,msp_signcert_pem,env/fabric/e1/crypto-config/peerOrganizations/org1.example.com/peers/peer1.org1.example.com/msp/signcerts/peer1.org1.example.com-cert.pem,806,0ee23a3da26dba2a3af39bac1c24b7181f3b308de69f19091e766e39e113c3d4
+ecdsa,blockutil-300,peer0.org2.example.com,msp_signcert_pem,env/fabric/e1/crypto-config/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/msp/signcerts/peer0.org2.example.com-cert.pem,810,0de4ecafbdd3bd54b2a46d5b233c206afa3c3aeccdcc9a379e1a8167e4634096
+ecdsa,blockutil-300,peer1.org2.example.com,msp_signcert_pem,env/fabric/e1/crypto-config/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/msp/signcerts/peer1.org2.example.com-cert.pem,806,a5504346f1c7051bda8940292a5f642a9c6c941082a164c3bf07aa3bde5fabf0
