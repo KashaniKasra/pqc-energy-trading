@@ -91,20 +91,20 @@ class SustainabilityTests(unittest.TestCase):
     def test_generalized_ecdsa_single_rate_label(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            rows = self.successful_rows(13_320)
+            rows = self.successful_rows(13_680)
             self.write_fixture(
                 root,
                 rows,
                 run_namespace="test_ecdsa",
-                round_label="sustained-222-tps",
-                offered_rate=222,
+                round_label="sustained-228-tps",
+                offered_rate=228,
             )
             result = self.analyze(root, "test_ecdsa")
             self.assertEqual(result["config"], "ECDSA")
             self.assertEqual(result["run_namespace"], "test_ecdsa")
-            self.assertEqual(result["offered_tps"], "222")
-            self.assertEqual(result["total_count"], "13320")
-            self.assertEqual(result["successful_throughput_tps"], "222.000000")
+            self.assertEqual(result["offered_tps"], "228")
+            self.assertEqual(result["total_count"], "13680")
+            self.assertEqual(result["successful_throughput_tps"], "228.000000")
             self.assertEqual(result["successful_throughput_ratio"], "1.000000")
             self.assertEqual(result["begin_window_ms"], "[0,12000)")
             self.assertEqual(result["end_window_ms"], "[48000,60000)")
@@ -113,20 +113,20 @@ class SustainabilityTests(unittest.TestCase):
     def test_configured_rate_not_rounded_caliper_send_rate_defines_offered_tps(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            rows = self.successful_rows(17_995)
+            rows = self.successful_rows(21_355)
             self.write_fixture(
                 root,
                 rows,
                 run_namespace="test_ml-dsa-44",
-                round_label="sustained-300-tps",
-                offered_rate=300,
-                caliper_send_rate=299.9,
+                round_label="sustained-356-tps",
+                offered_rate=356,
+                caliper_send_rate=355.9,
             )
             result = self.analyze(root, "test_ml-dsa-44")
-            self.assertEqual(result["offered_tps"], "300")
-            self.assertEqual(result["success_count"], "17995")
-            self.assertEqual(result["successful_throughput_tps"], "299.916667")
-            self.assertEqual(result["successful_throughput_ratio"], "0.999722")
+            self.assertEqual(result["offered_tps"], "356")
+            self.assertEqual(result["success_count"], "21355")
+            self.assertEqual(result["successful_throughput_tps"], "355.916667")
+            self.assertEqual(result["successful_throughput_ratio"], "0.999766")
             self.assertEqual(result["throughput_gate_pass"], "true")
 
     def test_configured_benchmark_rate_must_match_round_label(self) -> None:
@@ -135,85 +135,69 @@ class SustainabilityTests(unittest.TestCase):
             benchmark.write_text(
                 "test:\n"
                 "  rounds:\n"
-                "    - label: sustained-300-tps\n"
+                "    - label: sustained-356-tps\n"
                 "      txDuration: 60\n"
                 "      rateControl:\n"
                 "        type: fixed-rate\n"
                 "        opts:\n"
-                "          tps: 299\n"
+                "          tps: 355\n"
                 "      workload:\n"
                 "        arguments:\n"
-                "          roundLabel: sustained-300-tps\n",
+                "          roundLabel: sustained-356-tps\n",
                 encoding="utf-8",
             )
             with self.assertRaisesRegex(ValueError, "configured fixed-rate TPS"):
                 ANALYZER.configured_sustainability_rate(
-                    benchmark, "sustained-300-tps"
+                    benchmark, "sustained-356-tps"
                 )
 
             benchmark.write_text(
                 benchmark.read_text(encoding="utf-8")
-                .replace("tps: 299", "tps: 300")
+                .replace("tps: 355", "tps: 356")
                 .replace(
-                    "roundLabel: sustained-300-tps",
-                    "roundLabel: sustained-299-tps",
+                    "roundLabel: sustained-356-tps",
+                    "roundLabel: sustained-355-tps",
                 ),
                 encoding="utf-8",
             )
             with self.assertRaisesRegex(ValueError, "roundLabel"):
                 ANALYZER.configured_sustainability_rate(
-                    benchmark, "sustained-300-tps"
+                    benchmark, "sustained-356-tps"
                 )
 
-    def test_ecdsa_223_profile_is_registered_immutably(self) -> None:
-        spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
-            ("ecdsa", ("sustained-223-tps",))
-        ]
+    def test_only_retained_sustainability_profiles_are_registered(self) -> None:
+        expected = {
+            ("sphincs", ("sphincs-1-tps", "sphincs-2-tps", "sphincs-5-tps",
+                         "sphincs-10-tps", "sphincs-20-tps")):
+                "env/caliper/e1/benchmark_sphincs_sweep.yaml",
+            ("sphincs", ("sphincs-22-tps",)):
+                "env/caliper/e1/benchmark_sphincs_boundary_22.yaml",
+            ("sphincs", ("sphincs-23-tps",)):
+                "env/caliper/e1/benchmark_sphincs_boundary_23.yaml",
+            ("ecdsa", ("sustained-228-tps",)):
+                "env/caliper/e1/benchmark_ecdsa_sustained_228.yaml",
+            ("ecdsa", ("sustained-229-tps",)):
+                "env/caliper/e1/benchmark_ecdsa_sustained_229.yaml",
+            ("ml-dsa-44", ("sustained-200-tps",)):
+                "env/caliper/e1/benchmark_ml_dsa_sustained_200.yaml",
+            ("ml-dsa-44", ("sustained-356-tps",)):
+                "env/caliper/e1/benchmark_ml_dsa_sustained_356.yaml",
+            ("ml-dsa-44", ("sustained-357-tps",)):
+                "env/caliper/e1/benchmark_ml_dsa_sustained_357.yaml",
+            ("ml-dsa-65", ("sustained-344-tps",)):
+                "env/caliper/e1/benchmark_ml_dsa_65_sustained_344.yaml",
+            ("ml-dsa-65", ("sustained-345-tps",)):
+                "env/caliper/e1/benchmark_ml_dsa_65_sustained_345.yaml",
+        }
         self.assertEqual(
-            spec["path"],
-            "env/caliper/e1/benchmark_ecdsa_sustained_223.yaml",
+            {key: spec["path"] for key, spec in
+             ANALYZER.SUSTAINABILITY_PROFILE_SPECS.items()},
+            expected,
         )
-        self.assertEqual(spec["run_type"], "sustainability")
-
-    def test_ecdsa_224_profile_is_registered_immutably(self) -> None:
-        spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
-            ("ecdsa", ("sustained-224-tps",))
-        ]
-        self.assertEqual(
-            spec["path"],
-            "env/caliper/e1/benchmark_ecdsa_sustained_224.yaml",
-        )
-        self.assertEqual(spec["run_type"], "sustainability")
-
-    def test_ecdsa_227_profile_is_registered_immutably(self) -> None:
-        spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
-            ("ecdsa", ("sustained-227-tps",))
-        ]
-        self.assertEqual(
-            spec["path"],
-            "env/caliper/e1/benchmark_ecdsa_sustained_227.yaml",
-        )
-        self.assertEqual(spec["run_type"], "sustainability")
-
-    def test_ecdsa_228_profile_is_registered_immutably(self) -> None:
-        spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
-            ("ecdsa", ("sustained-228-tps",))
-        ]
-        self.assertEqual(
-            spec["path"],
-            "env/caliper/e1/benchmark_ecdsa_sustained_228.yaml",
-        )
-        self.assertEqual(spec["run_type"], "sustainability")
-
-    def test_ecdsa_229_profile_is_registered_immutably(self) -> None:
-        spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
-            ("ecdsa", ("sustained-229-tps",))
-        ]
-        self.assertEqual(
-            spec["path"],
-            "env/caliper/e1/benchmark_ecdsa_sustained_229.yaml",
-        )
-        self.assertEqual(spec["run_type"], "sustainability")
+        self.assertTrue(all(
+            spec["run_type"] in {"sweep", "sustainability"}
+            for spec in ANALYZER.SUSTAINABILITY_PROFILE_SPECS.values()
+        ))
 
     def test_adjacent_integer_boundary_requires_pass_then_fail(self) -> None:
         passing = {
@@ -269,128 +253,12 @@ class SustainabilityTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "not adjacent"):
             ANALYZER.validated_adjacent_integer_boundary(
-                passing, {**failing, "offered_tps": "230"}
+                passing, {**failing, "offered_tps": "231"}
             )
         with self.assertRaisesRegex(ValueError, "pass/fail ordering"):
             ANALYZER.validated_adjacent_integer_boundary(
                 passing, {**failing, "sustainable": "true"}
             )
-
-    def test_ecdsa_230_profile_is_registered_immutably(self) -> None:
-        spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
-            ("ecdsa", ("sustained-230-tps",))
-        ]
-        self.assertEqual(
-            spec["path"],
-            "env/caliper/e1/benchmark_ecdsa_sustained_230.yaml",
-        )
-        self.assertEqual(spec["run_type"], "sustainability")
-
-    def test_ecdsa_237_profile_is_registered_immutably(self) -> None:
-        spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
-            ("ecdsa", ("sustained-237-tps",))
-        ]
-        self.assertEqual(
-            spec["path"],
-            "env/caliper/e1/benchmark_ecdsa_sustained_237.yaml",
-        )
-        self.assertEqual(spec["run_type"], "sustainability")
-
-    def test_ecdsa_250_profile_is_registered_immutably(self) -> None:
-        spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
-            ("ecdsa", ("sustained-250-tps",))
-        ]
-        self.assertEqual(
-            spec["path"],
-            "env/caliper/e1/benchmark_ecdsa_sustained_250.yaml",
-        )
-        self.assertEqual(spec["run_type"], "sustainability")
-
-    def test_ml_dsa_44_250_profile_is_registered_immutably(self) -> None:
-        spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
-            ("ml-dsa-44", ("sustained-250-tps",))
-        ]
-        self.assertEqual(
-            spec["path"],
-            "env/caliper/e1/benchmark_ml_dsa_sustained_250.yaml",
-        )
-        self.assertEqual(spec["run_type"], "sustainability")
-
-    def test_ml_dsa_44_300_profile_is_registered_immutably(self) -> None:
-        spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
-            ("ml-dsa-44", ("sustained-300-tps",))
-        ]
-        self.assertEqual(
-            spec["path"],
-            "env/caliper/e1/benchmark_ml_dsa_sustained_300.yaml",
-        )
-        self.assertEqual(spec["run_type"], "sustainability")
-
-    def test_ml_dsa_44_350_profile_is_registered_immutably(self) -> None:
-        spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
-            ("ml-dsa-44", ("sustained-350-tps",))
-        ]
-        self.assertEqual(
-            spec["path"],
-            "env/caliper/e1/benchmark_ml_dsa_sustained_350.yaml",
-        )
-        self.assertEqual(spec["run_type"], "sustainability")
-
-    def test_ml_dsa_44_prepared_midpoint_profiles_are_registered_immutably(self) -> None:
-        for tps in (356, 357, 358, 359, 360, 361, 362, 368, 381, 387, 393):
-            with self.subTest(tps=tps):
-                spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
-                    ("ml-dsa-44", (f"sustained-{tps}-tps",))
-                ]
-                self.assertEqual(
-                    spec["path"],
-                    f"env/caliper/e1/benchmark_ml_dsa_sustained_{tps}.yaml",
-                )
-                self.assertEqual(spec["run_type"], "sustainability")
-
-    def test_ml_dsa_44_375_profile_is_registered_immutably(self) -> None:
-        spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
-            ("ml-dsa-44", ("sustained-375-tps",))
-        ]
-        self.assertEqual(
-            spec["path"],
-            "env/caliper/e1/benchmark_ml_dsa_sustained_375.yaml",
-        )
-        self.assertEqual(spec["run_type"], "sustainability")
-
-    def test_ml_dsa_44_400_profile_is_registered_immutably(self) -> None:
-        spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
-            ("ml-dsa-44", ("sustained-400-tps",))
-        ]
-        self.assertEqual(
-            spec["path"],
-            "env/caliper/e1/benchmark_ml_dsa_sustained_400.yaml",
-        )
-        self.assertEqual(spec["run_type"], "sustainability")
-
-    def test_ml_dsa_65_coarse_profiles_are_registered_immutably(self) -> None:
-        for tps in (250, 300, 350, 400, 450):
-            with self.subTest(tps=tps):
-                spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
-                    ("ml-dsa-65", (f"sustained-{tps}-tps",))
-                ]
-                self.assertEqual(
-                    spec["path"],
-                    f"env/caliper/e1/benchmark_ml_dsa_65_sustained_{tps}.yaml",
-                )
-                self.assertEqual(spec["run_type"], "sustainability")
-
-    def test_ml_dsa_65_midpoint_profiles_are_registered_immutably(self) -> None:
-        for tps in (306, 312, 318, 325, 331, 337, 343, 344, 345, 346, 347, 348, 349):
-            with self.subTest(tps=tps):
-                spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
-                    ("ml-dsa-65", (f"sustained-{tps}-tps",))
-                ]
-                self.assertEqual(
-                    spec["path"],
-                    f"env/caliper/e1/benchmark_ml_dsa_65_sustained_{tps}.yaml",
-                )
-                self.assertEqual(spec["run_type"], "sustainability")
 
     def test_success_rate_threshold(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

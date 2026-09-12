@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 """Validate and summarize retained E1 evidence.
 
-The default output contains per-round candidate timing statistics. SPHINCS+
-fixed-profile outcomes are exposed separately with ``--fixed-outcomes`` because
-the saturation run is reportable but is not a valid normal-latency data point.
-
-``--latency-professor-review`` produces the separate 50-TPS and 200-TPS
-populations requested for professor review. It never combines rounds and leaves
-SPHINCS+ latency fields empty because that fixed-profile run was saturated.
+The clean common-profile modes preserve separate 50-TPS and 200-TPS
+populations. SPHINCS+ latency fields remain empty because its common-profile
+run saturated and is not a valid normal-latency population.
 
 ``--working-e1`` emits the exact final E1 schema to stdout, but leaves unresolved
 or unmeasured fields empty. It populates only values supported by retained
@@ -44,7 +40,6 @@ FIXED_CONFIGS = {
 }
 ROUNDS = ("50-tps", "200-tps")
 MINIMUM_SAMPLES = 1_000
-PROVENANCE_STATUS = "candidate_historical_preflight_not_captured"
 FINAL_CONFIGS = ("ECDSA", "ML-DSA-44", "ML-DSA-65", "SLH-DSA")
 FINAL_FIELDS = (
     "config",
@@ -59,31 +54,6 @@ FINAL_FIELDS = (
     "endorsements_per_tx",
     "block_bytes_mean",
     "block_utilisation",
-)
-LATENCY_REVIEW_FIELDS = (
-    "config",
-    "offered_tps",
-    "total",
-    "success",
-    "fail",
-    "tx_success_rate",
-    "tx_error_rate",
-    "endorse_sample_count",
-    "endorse_median_ms",
-    "endorse_p95_ms",
-    "endorse_p99_ms",
-    "commit_sample_count",
-    "commit_median_ms",
-    "commit_p95_ms",
-    "commit_p99_ms",
-    "status",
-    "notes",
-    "endorse_source",
-    "endorse_sha256",
-    "commit_source",
-    "commit_sha256",
-    "log_source",
-    "log_sha256",
 )
 IDENTITY_PEERS = {
     "peer0.org1.example.com",
@@ -112,22 +82,6 @@ SUSTAINABILITY_PROFILE_SPECS = {
         "path": "env/caliper/e1/benchmark_sphincs_sweep.yaml",
         "run_type": "sweep",
     },
-    ("sphincs", ("sphincs-3-tps", "sphincs-4-tps")): {
-        "path": "env/caliper/e1/benchmark_sphincs_refine_3_4.yaml",
-        "run_type": "sweep",
-    },
-    ("sphincs", ("sphincs-35-tps",)): {
-        "path": "env/caliper/e1/benchmark_sphincs_boundary_35.yaml",
-        "run_type": "sweep",
-    },
-    ("sphincs", ("sphincs-28-tps",)): {
-        "path": "env/caliper/e1/benchmark_sphincs_boundary_28.yaml",
-        "run_type": "sweep",
-    },
-    ("sphincs", ("sphincs-24-tps",)): {
-        "path": "env/caliper/e1/benchmark_sphincs_boundary_24.yaml",
-        "run_type": "sweep",
-    },
     ("sphincs", ("sphincs-22-tps",)): {
         "path": "env/caliper/e1/benchmark_sphincs_boundary_22.yaml",
         "run_type": "sweep",
@@ -135,22 +89,6 @@ SUSTAINABILITY_PROFILE_SPECS = {
     ("sphincs", ("sphincs-23-tps",)): {
         "path": "env/caliper/e1/benchmark_sphincs_boundary_23.yaml",
         "run_type": "sweep",
-    },
-    ("ecdsa", ("sustained-222-tps",)): {
-        "path": "env/caliper/e1/benchmark_ecdsa_sustained_222.yaml",
-        "run_type": "sustainability",
-    },
-    ("ecdsa", ("sustained-223-tps",)): {
-        "path": "env/caliper/e1/benchmark_ecdsa_sustained_223.yaml",
-        "run_type": "sustainability",
-    },
-    ("ecdsa", ("sustained-224-tps",)): {
-        "path": "env/caliper/e1/benchmark_ecdsa_sustained_224.yaml",
-        "run_type": "sustainability",
-    },
-    ("ecdsa", ("sustained-227-tps",)): {
-        "path": "env/caliper/e1/benchmark_ecdsa_sustained_227.yaml",
-        "run_type": "sustainability",
     },
     ("ecdsa", ("sustained-228-tps",)): {
         "path": "env/caliper/e1/benchmark_ecdsa_sustained_228.yaml",
@@ -160,32 +98,8 @@ SUSTAINABILITY_PROFILE_SPECS = {
         "path": "env/caliper/e1/benchmark_ecdsa_sustained_229.yaml",
         "run_type": "sustainability",
     },
-    ("ecdsa", ("sustained-230-tps",)): {
-        "path": "env/caliper/e1/benchmark_ecdsa_sustained_230.yaml",
-        "run_type": "sustainability",
-    },
-    ("ecdsa", ("sustained-237-tps",)): {
-        "path": "env/caliper/e1/benchmark_ecdsa_sustained_237.yaml",
-        "run_type": "sustainability",
-    },
-    ("ecdsa", ("sustained-250-tps",)): {
-        "path": "env/caliper/e1/benchmark_ecdsa_sustained_250.yaml",
-        "run_type": "sustainability",
-    },
     ("ml-dsa-44", ("sustained-200-tps",)): {
         "path": "env/caliper/e1/benchmark_ml_dsa_sustained_200.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-44", ("sustained-250-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_250.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-44", ("sustained-300-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_300.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-44", ("sustained-350-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_350.yaml",
         "run_type": "sustainability",
     },
     ("ml-dsa-44", ("sustained-356-tps",)): {
@@ -196,124 +110,12 @@ SUSTAINABILITY_PROFILE_SPECS = {
         "path": "env/caliper/e1/benchmark_ml_dsa_sustained_357.yaml",
         "run_type": "sustainability",
     },
-    ("ml-dsa-44", ("sustained-358-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_358.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-44", ("sustained-359-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_359.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-44", ("sustained-360-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_360.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-44", ("sustained-361-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_361.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-44", ("sustained-362-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_362.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-44", ("sustained-368-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_368.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-44", ("sustained-375-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_375.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-44", ("sustained-381-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_381.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-44", ("sustained-387-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_387.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-44", ("sustained-393-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_393.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-44", ("sustained-400-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_400.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-65", ("sustained-200-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_sustained_200.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-65", ("sustained-250-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_250.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-65", ("sustained-300-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_300.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-65", ("sustained-350-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_350.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-65", ("sustained-400-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_400.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-65", ("sustained-450-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_450.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-65", ("sustained-306-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_306.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-65", ("sustained-312-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_312.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-65", ("sustained-318-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_318.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-65", ("sustained-325-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_325.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-65", ("sustained-331-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_331.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-65", ("sustained-337-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_337.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-65", ("sustained-343-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_343.yaml",
-        "run_type": "sustainability",
-    },
     ("ml-dsa-65", ("sustained-344-tps",)): {
         "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_344.yaml",
         "run_type": "sustainability",
     },
     ("ml-dsa-65", ("sustained-345-tps",)): {
         "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_345.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-65", ("sustained-346-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_346.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-65", ("sustained-347-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_347.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-65", ("sustained-348-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_348.yaml",
-        "run_type": "sustainability",
-    },
-    ("ml-dsa-65", ("sustained-349-tps",)): {
-        "path": "env/caliper/e1/benchmark_ml_dsa_65_sustained_349.yaml",
         "run_type": "sustainability",
     },
 }
@@ -1019,7 +821,6 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
     """Build an explicitly incomplete E1-schema view from supported evidence."""
     validate_supporting_signcert_evidence(project_root)
     public_key_rows = validated_public_key_rows(project_root)
-    fixed_outcomes = build_fixed_outcome_rows(project_root)
     validated_endorsement_policy(project_root)
     block_mean, block_utilisation = validated_ecdsa_block_result(project_root)
     metadata = json.loads((project_root / "meta.json").read_text(encoding="utf-8"))
@@ -1052,13 +853,32 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
         row["config"] = config
     for row, key_row in zip(rows, public_key_rows):
         row["identity_bytes"] = key_row["identity_bytes_mean"]
-    common_50_outcomes = {
-        row["config"]: row for row in fixed_outcomes if row["round_label"] == "50-tps"
+    clean_common_rows = []
+    for namespace in (
+        "latency-common-clean-v1_ecdsa",
+        "latency-common-clean-v1_ml-dsa-44",
+        "latency-common-clean-v1_ml-dsa-65",
+        "latency-common-clean-v1_sphincs",
+    ):
+        clean_common_rows.extend(build_clean_fixed_profile_rows(project_root, namespace))
+    common_200_outcomes = {
+        row["config"]: row
+        for row in clean_common_rows
+        if row["round_label"] == "200-tps"
     }
     for row in rows:
-        outcome = common_50_outcomes[row["config"]]
+        lookup = (
+            "SPHINCS+-SHA2-128s-simple"
+            if row["config"] == "SLH-DSA"
+            else row["config"]
+        )
+        outcome = common_200_outcomes[lookup]
         row["tx_success_rate"] = outcome["tx_success_rate"]
         row["tx_error_rate"] = outcome["tx_error_rate"]
+        if outcome["status"] == "clean_equivalent_latency_candidate":
+            row["endorse_median_ms"] = outcome["endorse_median_ms"]
+            row["endorse_p95_ms"] = outcome["endorse_p95_ms"]
+            row["commit_median_ms"] = outcome["commit_median_ms"]
     rows[0]["block_bytes_mean"] = block_mean
     rows[0]["block_utilisation"] = block_utilisation
     rows[0]["tx_bytes_mean"] = ecdsa_transaction["tx_bytes_mean"]
@@ -1154,222 +974,6 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
     if boundary["integer_boundary_search"]["status"] != "complete":
         raise ValueError("SPHINCS+ integer sustained-TPS boundary is not complete")
     rows[3]["tps_sustained"] = str(boundary["highest_tested_sustainable_tps"])
-    return rows
-
-
-def build_rows(project_root: Path) -> list[dict[str, str]]:
-    raw_dir = project_root / "raw" / "e1"
-    rows = []
-
-    for file_label, display_label in CONFIGS.items():
-        log_path = raw_dir / f"{file_label}_caliper_run.log"
-        if not log_path.is_file():
-            raise ValueError(f"missing Caliper log: {log_path}")
-        caliper_results = load_caliper_results(log_path)
-
-        for round_label in ROUNDS:
-            endorse_path = one_matching_file(
-                raw_dir, f"{file_label}_endorse_{round_label}_worker0_*.csv"
-            )
-            commit_path = one_matching_file(
-                raw_dir, f"{file_label}_commit_{round_label}_worker0_*.csv"
-            )
-            endorse = load_samples(endorse_path)
-            commit = load_samples(commit_path)
-
-            if int(caliper_results[round_label]["caliper_fail"]) != 0:
-                raise ValueError(
-                    f"{log_path}: {round_label} contains failed requests and is not a "
-                    "valid candidate timing source"
-                )
-
-            tx_success_rate, tx_error_rate = transaction_rates(
-                caliper_results[round_label]["caliper_success"],
-                caliper_results[round_label]["caliper_fail"],
-            )
-            rows.append(
-                {
-                    "config": display_label,
-                    "round_label": round_label,
-                    **caliper_results[round_label],
-                    "tx_success_rate": tx_success_rate,
-                    "tx_error_rate": tx_error_rate,
-                    "endorse_n": str(len(endorse)),
-                    "endorse_median_ms": f"{percentile(endorse, 0.50):.6f}",
-                    "endorse_p95_ms": f"{percentile(endorse, 0.95):.6f}",
-                    "endorse_p99_ms": f"{percentile(endorse, 0.99):.6f}",
-                    "commit_n": str(len(commit)),
-                    "commit_median_ms": f"{percentile(commit, 0.50):.6f}",
-                    "commit_p95_ms": f"{percentile(commit, 0.95):.6f}",
-                    "commit_p99_ms": f"{percentile(commit, 0.99):.6f}",
-                    "endorse_source": relative(endorse_path, project_root),
-                    "endorse_sha256": sha256_file(endorse_path),
-                    "commit_source": relative(commit_path, project_root),
-                    "commit_sha256": sha256_file(commit_path),
-                    "log_source": relative(log_path, project_root),
-                    "log_sha256": sha256_file(log_path),
-                    "provenance_status": PROVENANCE_STATUS,
-                }
-            )
-    return rows
-
-
-def build_fixed_outcome_rows(project_root: Path) -> list[dict[str, str]]:
-    raw_dir = project_root / "raw" / "e1"
-    rows = []
-    for file_label, display_label in FIXED_CONFIGS.items():
-        log_path = raw_dir / f"{file_label}_caliper_run.log"
-        results = load_caliper_results(log_path)
-        log_text = log_path.read_text(encoding="utf-8")
-        gateway_limit_observed = "exceeding concurrency limit (500)" in log_text
-        if file_label == "sphincs" and not gateway_limit_observed:
-            raise ValueError(f"{log_path}: expected retained Gateway saturation evidence")
-
-        for round_label in ROUNDS:
-            result = results[round_label]
-            tx_success_rate, tx_error_rate = transaction_rates(
-                result["caliper_success"], result["caliper_fail"]
-            )
-            if file_label == "sphincs":
-                saturation_status = "saturation_observed_gateway_concurrency_limit"
-                latency_candidate = "false"
-            else:
-                saturation_status = "not_observed_in_retained_run"
-                latency_candidate = "true"
-            rows.append(
-                {
-                    "config": display_label,
-                    "implementation": (
-                        "SPHINCS+-SHA2-128s-simple"
-                        if file_label == "sphincs"
-                        else display_label
-                    ),
-                    "round_label": round_label,
-                    **result,
-                    "tx_success_rate": tx_success_rate,
-                    "tx_error_rate": tx_error_rate,
-                    "saturation_status": saturation_status,
-                    "normal_latency_candidate": latency_candidate,
-                    "log_source": relative(log_path, project_root),
-                    "log_sha256": sha256_file(log_path),
-                }
-            )
-    return rows
-
-
-def build_latency_professor_review_rows(project_root: Path) -> list[dict[str, str]]:
-    """Build separate fixed-profile populations without selecting a final one."""
-    raw_dir = project_root / "raw" / "e1"
-    timing_candidates = {
-        (row["config"], row["round_label"]): row
-        for row in build_rows(project_root)
-    }
-    outcomes = build_fixed_outcome_rows(project_root)
-    rows = []
-
-    for outcome in outcomes:
-        round_label = outcome["round_label"]
-        success = int(outcome["caliper_success"])
-        fail = int(outcome["caliper_fail"])
-        total = success + fail
-        if outcome["normal_latency_candidate"] == "true":
-            candidate = timing_candidates[(outcome["config"], round_label)]
-            for field in (
-                "caliper_success", "caliper_fail", "tx_success_rate", "tx_error_rate"
-            ):
-                if candidate[field] != outcome[field]:
-                    raise ValueError(
-                        f"{outcome['config']} {round_label}: timing/outcome {field} mismatch"
-                    )
-            if int(candidate["endorse_n"]) != success or int(candidate["commit_n"]) != success:
-                raise ValueError(
-                    f"{outcome['config']} {round_label}: timing counts do not reconcile "
-                    "with successful transactions"
-                )
-            row = {
-                "config": outcome["implementation"],
-                "offered_tps": outcome["send_rate_tps"],
-                "total": str(total),
-                "success": str(success),
-                "fail": str(fail),
-                "tx_success_rate": outcome["tx_success_rate"],
-                "tx_error_rate": outcome["tx_error_rate"],
-                "endorse_sample_count": candidate["endorse_n"],
-                "endorse_median_ms": candidate["endorse_median_ms"],
-                "endorse_p95_ms": candidate["endorse_p95_ms"],
-                "endorse_p99_ms": candidate["endorse_p99_ms"],
-                "commit_sample_count": candidate["commit_n"],
-                "commit_median_ms": candidate["commit_median_ms"],
-                "commit_p95_ms": candidate["commit_p95_ms"],
-                "commit_p99_ms": candidate["commit_p99_ms"],
-                "status": "valid_latency_candidate_historical_preflight_not_captured",
-                "notes": (
-                    "Zero failures and timing counts reconcile; retained historical log "
-                    "predates full standardized CPU preflight capture in the run log; "
-                    "these rows remain historical support after clean equivalent reruns."
-                ),
-                "endorse_source": candidate["endorse_source"],
-                "endorse_sha256": candidate["endorse_sha256"],
-                "commit_source": candidate["commit_source"],
-                "commit_sha256": candidate["commit_sha256"],
-                "log_source": candidate["log_source"],
-                "log_sha256": candidate["log_sha256"],
-            }
-        else:
-            endorse_path = one_matching_file(
-                raw_dir, f"sphincs_endorse_{round_label}_worker0_*.csv"
-            )
-            commit_path = one_matching_file(
-                raw_dir, f"sphincs_commit_{round_label}_worker0_*.csv"
-            )
-            endorse_samples = load_samples(endorse_path, minimum_samples=1)
-            commit_samples = load_samples(commit_path, minimum_samples=1)
-            if len(commit_samples) != success:
-                raise ValueError(
-                    f"SPHINCS+ {round_label}: commit samples do not reconcile with successes"
-                )
-            if not success <= len(endorse_samples) <= total:
-                raise ValueError(
-                    f"SPHINCS+ {round_label}: endorsement samples are outside the "
-                    "successful-to-total request range"
-                )
-            if fail == 0:
-                raise ValueError(f"SPHINCS+ {round_label}: expected retained saturation failures")
-            row = {
-                "config": outcome["implementation"],
-                "offered_tps": outcome["send_rate_tps"],
-                "total": str(total),
-                "success": str(success),
-                "fail": str(fail),
-                "tx_success_rate": outcome["tx_success_rate"],
-                "tx_error_rate": outcome["tx_error_rate"],
-                "endorse_sample_count": str(len(endorse_samples)),
-                "endorse_median_ms": "",
-                "endorse_p95_ms": "",
-                "endorse_p99_ms": "",
-                "commit_sample_count": str(len(commit_samples)),
-                "commit_median_ms": "",
-                "commit_p95_ms": "",
-                "commit_p99_ms": "",
-                "status": "saturation_only_not_a_valid_latency_candidate",
-                "notes": (
-                    "Common-profile Gateway concurrency-limit saturation; success/error "
-                    "outcome is reportable, but timing fields are intentionally blank. "
-                    "SLH-DSA row maps to SPHINCS+-SHA2-128s-simple."
-                ),
-                "endorse_source": relative(endorse_path, project_root),
-                "endorse_sha256": sha256_file(endorse_path),
-                "commit_source": relative(commit_path, project_root),
-                "commit_sha256": sha256_file(commit_path),
-                "log_source": outcome["log_source"],
-                "log_sha256": outcome["log_sha256"],
-            }
-        rows.append(row)
-
-    if len(rows) != 8 or [row["offered_tps"] for row in rows].count("50.0") != 4 or [
-        row["offered_tps"] for row in rows
-    ].count("200.0") != 4:
-        raise ValueError("professor-review table must contain four separate rows per rate")
     return rows
 
 
@@ -1524,10 +1128,6 @@ def build_clean_latency_professor_review_rows(
         config: validate_transaction_summary(project_root, summary)[0]
         for config, summary in tx_summaries.items()
     }
-    historical = {
-        (row["config"], row["offered_tps"]): row
-        for row in build_latency_professor_review_rows(project_root)
-    }
     rows_out = []
     for namespace in namespaces:
         for row in build_clean_fixed_profile_rows(project_root, namespace):
@@ -1543,16 +1143,6 @@ def build_clean_latency_professor_review_rows(
                 role = "professor_selected_final_latency_population"
             else:
                 role = "supporting_50_tps_population"
-            historical_commit = ""
-            delta_ms = ""
-            delta_percent = ""
-            if role == "professor_selected_final_latency_population":
-                historical_commit = historical[(config, row["offered_tps"])][
-                    "commit_median_ms"
-                ]
-                delta = float(row["commit_median_ms"]) - float(historical_commit)
-                delta_ms = f"{delta:.6f}"
-                delta_percent = f"{delta / float(historical_commit) * 100:.6f}"
             rows_out.append({
                 "config": config,
                 "population_role": role,
@@ -1577,9 +1167,6 @@ def build_clean_latency_professor_review_rows(
                 "tx_bytes_mean": tx["tx_bytes_mean"],
                 "tx_bytes_sample_count": tx["ordinary_transaction_count"],
                 "endorsements_per_tx": tx["endorsements_per_tx"],
-                "historical_200_commit_median_ms": historical_commit,
-                "clean_minus_historical_commit_median_ms": delta_ms,
-                "clean_minus_historical_commit_median_percent": delta_percent,
                 "status": row["status"],
                 "endorse_source": row["endorse_source"],
                 "endorse_sha256": row["endorse_sha256"],
@@ -2245,19 +1832,6 @@ def main() -> int:
         ),
     )
     mode.add_argument(
-        "--fixed-outcomes",
-        action="store_true",
-        help="report fixed-profile success/error rates and saturation status",
-    )
-    mode.add_argument(
-        "--latency-professor-review",
-        action="store_true",
-        help=(
-            "report separate 50-TPS and 200-TPS latency populations, retaining "
-            "SPHINCS+ as saturation-only evidence"
-        ),
-    )
-    mode.add_argument(
         "--clean-fixed-profile",
         metavar="RUN_NAMESPACE",
         help=(
@@ -2327,10 +1901,6 @@ def main() -> int:
             rows = build_clean_fixed_profile_rows(
                 project_root, args.clean_fixed_profile
             )
-        elif args.latency_professor_review:
-            rows = build_latency_professor_review_rows(project_root)
-        elif args.fixed_outcomes:
-            rows = build_fixed_outcome_rows(project_root)
         elif args.identity_public_keys:
             validate_supporting_signcert_evidence(project_root)
             rows = validated_public_key_rows(project_root)
@@ -2343,7 +1913,7 @@ def main() -> int:
         elif args.pq_verification_audits:
             rows = validate_pq_verification_audits(project_root)
         else:
-            rows = build_rows(project_root)
+            parser.error("one analysis mode is required")
     except (KeyError, OSError, ValueError, json.JSONDecodeError) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 1
