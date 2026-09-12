@@ -249,6 +249,24 @@ class SustainabilityTests(unittest.TestCase):
             ),
             "356",
         )
+        ml_dsa_65_passing = {
+            "config": "ML-DSA-65",
+            "offered_tps": "344",
+            "sustainable": "true",
+            "highest_tested_sustainable_tps": "344",
+        }
+        ml_dsa_65_failing = {
+            "config": "ML-DSA-65",
+            "offered_tps": "345",
+            "sustainable": "false",
+            "highest_tested_sustainable_tps": "",
+        }
+        self.assertEqual(
+            ANALYZER.validated_adjacent_integer_boundary(
+                ml_dsa_65_passing, ml_dsa_65_failing
+            ),
+            "344",
+        )
         with self.assertRaisesRegex(ValueError, "not adjacent"):
             ANALYZER.validated_adjacent_integer_boundary(
                 passing, {**failing, "offered_tps": "230"}

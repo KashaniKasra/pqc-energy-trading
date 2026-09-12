@@ -1,0 +1,387 @@
+[E1] Run provenance
+[E1] started_at=2026-09-12T12:12:26+03:30
+[E1] configuration=ml-dsa-65
+[E1] run_type=sustainability
+[E1] run_label=sustained-345-v1
+[E1] run_namespace=sustained-345-v1_ml-dsa-65
+[E1] benchmark_config=env/caliper/e1/benchmark_ml_dsa_65_sustained_345.yaml
+[E1] benchmark_config_sha256=95b82b76c92e7e1706538fc356909c513b2f6e3533a88f617ac3a18d8c01f177
+[E1] project_git_commit=47aafeb073a23b6a38cd633d8bbae2d197df28c8
+[E1] project_git_state_before_log_creation=dirty
+[E1] project_git_status_sha256_before_log_creation=17ca0d0be787bfece9074a851b821e787f98acd87302e28434e925225a8b963e
+[E1] project_tracked_state_before_log_creation=clean
+[E1] project_tracked_status_sha256_before_log_creation=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+[E1] project_untracked_paths_sha256_before_log_creation=9a1752ead4305dbd40746ba95c9acb222e46a02df368812e991784d05500763e
+[E1] host_kernel=7.0.0-31-generic
+[E1] docker_server_version=29.1.3
+[E1] fixed_cpu_set=2-15
+[E1] Verifying CPU measurement state...
+[E1] cpu2_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu3_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu4_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu5_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu6_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu7_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu8_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu9_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu10_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu11_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu12_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu13_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu14_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] cpu15_state=governor:performance,min_khz:3201000,max_khz:3201000
+[E1] CPU state verified.
+[E1] amd_pstate_mode=passive
+[E1] boost_state=0
+[E1] Frequency lock verified: 3201000 kHz on CPUs 2-15.
+[E1] fabric_source_tag=v2.5.16
+[E1] fabric_source_commit=f871cf92a026aba7b12e6f06d71ded3e6e659d71
+[E1] fabric_source_state=clean
+[E1] fabric_peer_image_id=sha256:3d71da5ac46b179c981527b69ac832cb7905bd3bc428ee6b2620bc580e3c944e
+[E1] fabric_orderer_image_id=sha256:4ec6f0287e3fda35a874357bfe9c9f2ef8b9fbb427a42457de3b6b1b98290058
+[E1] fabric_image_label_fabric_commit=f871cf92a026aba7b12e6f06d71ded3e6e659d71
+[E1] fabric_image_label_liboqs_commit=97f6b86b1b6d109cfd43cf276ae39c2e776aed80
+[E1] fabric_image_label_patch_sha256=5268f9f67656233d7e7b9ac7c449f20f05fc8a8257fb91eb0de63698a72d1293
+[E1] pq_verify_trace=0
+[E1] configtx_sha256=87022050421db9821be46266cfe68b9789c3fe125d089e31d368a01ffe27b384
+[E1] crypto_config_sha256=6b7208daa343bf57296dcbe8152484c5062fe410824105fd374d46dcf2a0336c
+[E1] docker_compose_sha256=0ae1009ed9c0f2d009100bbfb793b3b39e339bae86517df753114e26047102d4
+[E1] fabric_setup_sha256=b69af762feee33e800bc26ef5af9e0a45301ba0c2172f580de6fc90b25ac2831
+[E1] fabric_build_sha256=b17a4db58b1acf8ce94bb5b8cd895dcacfa06ae98dbcbef4e67152894d3c9281
+[E1] fabric_pq_patch_sha256=5268f9f67656233d7e7b9ac7c449f20f05fc8a8257fb91eb0de63698a72d1293
+[E1] chaincode_sha256=64973916cfe23691d2bc715b5b257f8ed2db8e08731720e750a2240c5cd0f8e1
+[E1] pq_identity_generator_sha256=b4d8e0515fd4898f221a3618bc41971fcf35778175ae4e6e7c94ccd8f0ca9e48
+[E1] caliper_package_lock_sha256=b45f505c22bcc63537590f39f748d7145a617cf9a83e2ac07fb4b48c48322355
+[E1] caliper_network_sha256=7f3882ef30fc5bf532f2484ef55ebac5ce720290a6cd0f1e79b24f512cfa62fb
+[E1] caliper_connection_org1_sha256=1a6c60a78e642181dcbebddd86537a7015063f3d00badb6dca4a35c8d9b30b6d
+[E1] caliper_connection_org2_sha256=a7f68c912cb9b975cac96c0435e1e311dbdc87e903a9e29eb6ec0c5b9d3b0da8
+[E1] caliper_workload_sha256=28a48fd0ce5ec7e883d3dd2b43d44797a2edc3eb9da01ade14d97a2965bffc65
+[E1] caliper_timing_patch_sha256=7d3eaab0e3ce1a7713f09761ea2353b5d280cb51588f2ddb1098a9d50f17c578
+[E1] e1_run_policy_sha256=0b5b67354cac80d6d719b5b7121a7b8695f5f78e81c8572039d459afc644dfa2
+[E1] e1_runner_sha256=6247ec72dcb6d6eee4996addbf5b65cefe62d716318e2d478ff4c6ff2c860b65
+[E1] Setting up Fabric network for configuration: ml-dsa-65
+[E1] Fabric setup starting...
+[E1] Fabric binaries: /home/user/projects/fabric-samples/bin
+[E1] Channel: energychannel
+[E1] Chaincode: simplekv
+[E1] Configuration: ml-dsa-65
+[E1] Running preflight checks...
+[E1] Hyperledger Fabric version: 2.5.16
+[E1] Preflight checks passed.
+[E1] Removing previous E1 containers and generated artifacts...
+ Container peer0.org2.example.com  Stopping
+ Container peer1.org2.example.com  Stopping
+ Container orderer.example.com  Stopping
+ Container peer0.org1.example.com  Stopping
+ Container peer1.org1.example.com  Stopping
+ Container orderer.example.com  Stopped
+ Container orderer.example.com  Removing
+ Container orderer.example.com  Removed
+ Container peer1.org1.example.com  Stopped
+ Container peer1.org1.example.com  Removing
+ Container peer1.org1.example.com  Removed
+ Container peer1.org2.example.com  Stopped
+ Container peer1.org2.example.com  Removing
+ Container peer1.org2.example.com  Removed
+ Container peer0.org2.example.com  Stopped
+ Container peer0.org2.example.com  Removing
+ Container peer0.org2.example.com  Removed
+ Container peer0.org1.example.com  Stopped
+ Container peer0.org1.example.com  Removing
+ Container peer0.org1.example.com  Removed
+ Network e1net  Removing
+ Network e1net  Removed
+[E1] Previous generated state removed.
+[E1] Generating cryptographic material...
+org1.example.com
+org2.example.com
+[E1] Generating PQ peer identities using ML-DSA-65...
+peer0.org1.example.com: algorithm=ML-DSA-65 public_key_bytes=1952 certificate_bytes=3508
+peer1.org1.example.com: algorithm=ML-DSA-65 public_key_bytes=1952 certificate_bytes=3508
+peer0.org2.example.com: algorithm=ML-DSA-65 public_key_bytes=1952 certificate_bytes=3508
+peer1.org2.example.com: algorithm=ML-DSA-65 public_key_bytes=1952 certificate_bytes=3508
+PQ identities generated successfully using ML-DSA-65
+[E1] Generating orderer genesis block...
+[34m2026-09-12 12:12:28.504 +0330 0001 INFO[0m [common.tools.configtxgen] [34;1mmain[0m -> Loading configuration
+[34m2026-09-12 12:12:28.509 +0330 0002 INFO[0m [common.tools.configtxgen.localconfig] [34;1mcompleteInitialization[0m -> orderer type: etcdraft
+[34m2026-09-12 12:12:28.509 +0330 0003 INFO[0m [common.tools.configtxgen.localconfig] [34;1mcompleteInitialization[0m -> Orderer.EtcdRaft.Options unset, setting to tick_interval:"500ms" election_tick:10 heartbeat_tick:1 max_inflight_blocks:5 snapshot_interval_size:16777216 
+[34m2026-09-12 12:12:28.509 +0330 0004 INFO[0m [common.tools.configtxgen.localconfig] [34;1mLoad[0m -> Loaded configuration: /home/user/projects/pqc-energy-trading/env/fabric/e1/configtx.yaml
+[34m2026-09-12 12:12:28.511 +0330 0005 INFO[0m [common.tools.configtxgen] [34;1mdoOutputBlock[0m -> Generating genesis block
+[34m2026-09-12 12:12:28.511 +0330 0006 INFO[0m [common.tools.configtxgen] [34;1mdoOutputBlock[0m -> Creating system channel genesis block
+[34m2026-09-12 12:12:28.511 +0330 0007 INFO[0m [common.tools.configtxgen] [34;1mdoOutputBlock[0m -> Writing genesis block
+[E1] Generating channel creation transaction...
+[34m2026-09-12 12:12:28.548 +0330 0001 INFO[0m [common.tools.configtxgen] [34;1mmain[0m -> Loading configuration
+[34m2026-09-12 12:12:28.553 +0330 0002 INFO[0m [common.tools.configtxgen.localconfig] [34;1mLoad[0m -> Loaded configuration: /home/user/projects/pqc-energy-trading/env/fabric/e1/configtx.yaml
+[34m2026-09-12 12:12:28.553 +0330 0003 INFO[0m [common.tools.configtxgen] [34;1mdoOutputChannelCreateTx[0m -> Generating new channel configtx
+[34m2026-09-12 12:12:28.555 +0330 0004 INFO[0m [common.tools.configtxgen] [34;1mdoOutputChannelCreateTx[0m -> Writing new channel tx
+[E1] Generating anchor peer updates...
+[34m2026-09-12 12:12:28.595 +0330 0001 INFO[0m [common.tools.configtxgen] [34;1mmain[0m -> Loading configuration
+[34m2026-09-12 12:12:28.600 +0330 0002 INFO[0m [common.tools.configtxgen.localconfig] [34;1mLoad[0m -> Loaded configuration: /home/user/projects/pqc-energy-trading/env/fabric/e1/configtx.yaml
+[34m2026-09-12 12:12:28.600 +0330 0003 INFO[0m [common.tools.configtxgen] [34;1mdoOutputAnchorPeersUpdate[0m -> Generating anchor peer update
+[34m2026-09-12 12:12:28.601 +0330 0004 INFO[0m [common.tools.configtxgen] [34;1mdoOutputAnchorPeersUpdate[0m -> Writing anchor peer update
+[34m2026-09-12 12:12:28.637 +0330 0001 INFO[0m [common.tools.configtxgen] [34;1mmain[0m -> Loading configuration
+[34m2026-09-12 12:12:28.641 +0330 0002 INFO[0m [common.tools.configtxgen.localconfig] [34;1mLoad[0m -> Loaded configuration: /home/user/projects/pqc-energy-trading/env/fabric/e1/configtx.yaml
+[34m2026-09-12 12:12:28.641 +0330 0003 INFO[0m [common.tools.configtxgen] [34;1mdoOutputAnchorPeersUpdate[0m -> Generating anchor peer update
+[34m2026-09-12 12:12:28.643 +0330 0004 INFO[0m [common.tools.configtxgen] [34;1mdoOutputAnchorPeersUpdate[0m -> Writing anchor peer update
+[E1] Fabric cryptographic and channel artifacts generated.
+[E1] Starting Fabric network...
+ Network e1net  Creating
+ Network e1net  Created
+ Container peer1.org1.example.com  Creating
+ Container peer1.org2.example.com  Creating
+ Container orderer.example.com  Creating
+ Container peer0.org1.example.com  Creating
+ Container peer0.org2.example.com  Creating
+ Container peer0.org1.example.com  Created
+ Container peer1.org2.example.com  Created
+ Container peer1.org1.example.com  Created
+ Container orderer.example.com  Created
+ Container peer0.org2.example.com  Created
+ Container peer1.org1.example.com  Starting
+ Container peer0.org2.example.com  Starting
+ Container orderer.example.com  Starting
+ Container peer1.org2.example.com  Starting
+ Container peer0.org1.example.com  Starting
+ Container peer1.org1.example.com  Started
+ Container peer0.org2.example.com  Started
+ Container orderer.example.com  Started
+ Container peer1.org2.example.com  Started
+ Container peer0.org1.example.com  Started
+[E1] orderer.example.com is running.
+[E1] peer0.org1.example.com is running.
+[E1] peer1.org1.example.com is running.
+[E1] peer0.org2.example.com is running.
+[E1] peer1.org2.example.com is running.
+[E1] Fabric containers are running.
+[E1] Waiting for Raft leader...
+[E1] Raft leader is ready.
+[E1] Waiting for peers to become ready...
+[E1] peer0.org1.example.com:7051 is ready.
+[E1] peer1.org1.example.com:8051 is ready.
+[E1] peer0.org2.example.com:9051 is ready.
+[E1] peer1.org2.example.com:10051 is ready.
+[E1] All peers are ready.
+[E1] Creating channel energychannel...
+[34m2026-09-12 12:12:30.419 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-12 12:12:30.431 +0330 0002 INFO[0m [cli.common] [34;1mreadBlock[0m -> Expect block, but got status: &{NOT_FOUND}
+[34m2026-09-12 12:12:30.433 +0330 0003 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-12 12:12:30.636 +0330 0004 INFO[0m [cli.common] [34;1mreadBlock[0m -> Expect block, but got status: &{SERVICE_UNAVAILABLE}
+[34m2026-09-12 12:12:30.638 +0330 0005 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-12 12:12:30.840 +0330 0006 INFO[0m [cli.common] [34;1mreadBlock[0m -> Expect block, but got status: &{SERVICE_UNAVAILABLE}
+[34m2026-09-12 12:12:30.842 +0330 0007 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-12 12:12:31.043 +0330 0008 INFO[0m [cli.common] [34;1mreadBlock[0m -> Expect block, but got status: &{SERVICE_UNAVAILABLE}
+[34m2026-09-12 12:12:31.045 +0330 0009 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-12 12:12:31.247 +0330 000a INFO[0m [cli.common] [34;1mreadBlock[0m -> Expect block, but got status: &{SERVICE_UNAVAILABLE}
+[34m2026-09-12 12:12:31.249 +0330 000b INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-12 12:12:31.452 +0330 000c INFO[0m [cli.common] [34;1mreadBlock[0m -> Received block: 0
+[E1] Joining peer0.org1...
+[34m2026-09-12 12:12:31.500 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-12 12:12:31.516 +0330 0002 INFO[0m [channelCmd] [34;1mexecuteJoin[0m -> Successfully submitted proposal to join channel
+[E1] Joining peer1.org1...
+[34m2026-09-12 12:12:31.564 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-12 12:12:31.579 +0330 0002 INFO[0m [channelCmd] [34;1mexecuteJoin[0m -> Successfully submitted proposal to join channel
+[E1] Joining peer0.org2...
+[34m2026-09-12 12:12:31.628 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-12 12:12:31.644 +0330 0002 INFO[0m [channelCmd] [34;1mexecuteJoin[0m -> Successfully submitted proposal to join channel
+[E1] Joining peer1.org2...
+[34m2026-09-12 12:12:31.693 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-12 12:12:31.709 +0330 0002 INFO[0m [channelCmd] [34;1mexecuteJoin[0m -> Successfully submitted proposal to join channel
+[E1] All four peers joined energychannel.
+[E1] Applying Org1 anchor peer update...
+[34m2026-09-12 12:12:31.755 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-12 12:12:31.765 +0330 0002 INFO[0m [channelCmd] [34;1mupdate[0m -> Successfully submitted channel update
+[E1] Applying Org2 anchor peer update...
+[34m2026-09-12 12:12:31.814 +0330 0001 INFO[0m [channelCmd] [34;1mInitCmdFactory[0m -> Endorser and orderer connections initialized
+[34m2026-09-12 12:12:31.824 +0330 0002 INFO[0m [channelCmd] [34;1mupdate[0m -> Successfully submitted channel update
+[E1] Anchor peer updates applied.
+[E1] Packaging chaincode...
+[E1] Installing chaincode on all four peers...
+[34m2026-09-12 12:12:32.114 +0330 0001 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Installed remotely: response:<status:200 payload:"\nKsimplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b\022\nsimplekv_1" > 
+[34m2026-09-12 12:12:32.114 +0330 0002 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Chaincode code package identifier: simplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b
+[34m2026-09-12 12:12:32.172 +0330 0001 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Installed remotely: response:<status:200 payload:"\nKsimplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b\022\nsimplekv_1" > 
+[34m2026-09-12 12:12:32.172 +0330 0002 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Chaincode code package identifier: simplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b
+[34m2026-09-12 12:12:32.230 +0330 0001 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Installed remotely: response:<status:200 payload:"\nKsimplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b\022\nsimplekv_1" > 
+[34m2026-09-12 12:12:32.230 +0330 0002 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Chaincode code package identifier: simplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b
+[34m2026-09-12 12:12:32.288 +0330 0001 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Installed remotely: response:<status:200 payload:"\nKsimplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b\022\nsimplekv_1" > 
+[34m2026-09-12 12:12:32.288 +0330 0002 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Chaincode code package identifier: simplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b
+[E1] Chaincode package ID: simplekv_1:c806deb2b025ac0d6e7758647d40416e68a179e25ff760a00f1a8b3e0a192b0b
+[E1] Approving chaincode for Org1...
+[34m2026-09-12 12:12:34.412 +0330 0001 INFO[0m [chaincodeCmd] [34;1mClientWait[0m -> txid [8c1d19476a8143c1587c1f3004425eab008d3ed56fc6af66c5fab8d66ebc7ffb] committed with status (VALID) at peer0.org1.example.com:7051
+[E1] Approving chaincode for Org2...
+[34m2026-09-12 12:12:36.482 +0330 0001 INFO[0m [chaincodeCmd] [34;1mClientWait[0m -> txid [9ed7c43a0b37dbef96751f38b37ab96eb8b4dd122b4bec4e9db72f0366889768] committed with status (VALID) at peer0.org2.example.com:9051
+[E1] Checking chaincode commit readiness...
+{
+	"approvals": {
+		"Org1MSP": true,
+		"Org2MSP": true
+	}
+}
+[E1] Committing chaincode definition...
+[34m2026-09-12 12:12:38.634 +0330 0001 INFO[0m [chaincodeCmd] [34;1mClientWait[0m -> txid [69982052319bfd93e8ae23941fa106a3c354dfb3a21e6cd8fa9212bd2e6c3265] committed with status (VALID) at peer0.org2.example.com:9051
+[34m2026-09-12 12:12:38.634 +0330 0002 INFO[0m [chaincodeCmd] [34;1mClientWait[0m -> txid [69982052319bfd93e8ae23941fa106a3c354dfb3a21e6cd8fa9212bd2e6c3265] committed with status (VALID) at peer0.org1.example.com:7051
+[E1] Chaincode committed.
+[E1] Running chaincode smoke test...
+[34m2026-09-12 12:12:38.838 +0330 0001 INFO[0m [chaincodeCmd] [34;1mchaincodeInvokeOrQuery[0m -> Chaincode invoke successful. result: status:200 
+[E1] Chaincode smoke test passed.
+[E1] Verifying cross-organization discovery...
+[E1] Discovery check passed: all four peers visible.
+[E1] Fabric E1 setup completed successfully.
+[E1] Fabric network ready for configuration: ml-dsa-65
+[E1] effective_BatchTimeout=2s
+[E1] effective_MaxMessageCount=500
+[E1] effective_PreferredMaxBytes=2097152
+[E1] effective_AbsoluteMaxBytes=10485760
+[E1] Starting Caliper benchmark...
+[E1] Log: /home/user/projects/pqc-energy-trading/raw/e1/sustained-345-v1_ml-dsa-65_caliper_run.log
+npm notice run e1@1.0.0 npx
+npm notice run 'caliper' launch manager --caliper-workspace . --caliper-benchconfig /home/user/projects/pqc-energy-trading/env/caliper/e1/benchmark_ml_dsa_65_sustained_345.yaml --caliper-networkconfig network.yaml
+2026.09.12-12:12:41.455[32m info [39m [caliper] [cli-launch-manager] 	Set workspace path: /home/user/projects/pqc-energy-trading/env/caliper/e1
+2026.09.12-12:12:41.456[32m info [39m [caliper] [cli-launch-manager] 	Set benchmark configuration path: /home/user/projects/pqc-energy-trading/env/caliper/e1/benchmark_ml_dsa_65_sustained_345.yaml
+2026.09.12-12:12:41.456[32m info [39m [caliper] [cli-launch-manager] 	Set network configuration path: /home/user/projects/pqc-energy-trading/env/caliper/e1/network.yaml
+2026.09.12-12:12:41.456[32m info [39m [caliper] [cli-launch-manager] 	Set SUT type: fabric
+2026.09.12-12:12:41.473[32m info [39m [caliper] [benchmark-validator] 	No observer specified, will default to `none`
+2026.09.12-12:12:41.474[32m info [39m [caliper] [caliper-engine] 	Starting benchmark flow
+2026.09.12-12:12:41.474[32m info [39m [caliper] [caliper-engine] 	Network configuration attribute "caliper.command.start" is not present, skipping start command
+2026.09.12-12:12:41.585[32m info [39m [caliper] [FabricConnectorFactory] 	Initializing peer gateway connector compatible with installed fabric-gateway SDK: 1.7.1
+2026.09.12-12:12:41.592[32m info [39m [caliper] [IdentityManager] 	Adding User1 (admin=false) as User1 for organization Org1MSP
+2026.09.12-12:12:41.593[32m info [39m [caliper] [IdentityManager] 	Adding User1Org2 (admin=false) as _Org2MSP_User1Org2 for organization Org2MSP
+2026.09.12-12:12:41.595[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Fabric-Gateway SDK version: 1.7.1 for Peer-Gateway connector; TLS based on Org1MSP: server
+2026.09.12-12:12:41.595[32m info [39m [caliper] [caliper-engine] 	Executed "init" step in 0.001 seconds
+2026.09.12-12:12:41.595[33m warn [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Install smart contract not available for the Fabric Peer Gateway connector
+2026.09.12-12:12:41.595[32m info [39m [caliper] [caliper-engine] 	Executed "install" step in 0 seconds
+2026.09.12-12:12:41.596[32m info [39m [caliper] [monitor.js] 	Attempting to create resource monitor of type docker
+2026.09.12-12:12:41.597[32m info [39m [caliper] [default-observer] 	Observer interval set to 5000 milliseconds
+2026.09.12-12:12:41.600[32m info [39m [caliper] [round-orchestrator] 	Preparing worker connections
+2026.09.12-12:12:41.600[32m info [39m [caliper] [worker-orchestrator] 	Launching worker 1 of 1
+2026.09.12-12:12:41.604[32m info [39m [caliper] [worker-orchestrator] 	Messenger not configured, entering configure phase...
+2026.09.12-12:12:41.604[32m info [39m [caliper] [worker-orchestrator] 	No existing workers detected, entering worker launch phase...
+2026.09.12-12:12:41.604[32m info [39m [caliper] [worker-orchestrator] 	Waiting for 1 workers to be connected...
+2026.09.12-12:12:41.817[32m info [39m [caliper] [cli-launch-worker] 	Set workspace path: /home/user/projects/pqc-energy-trading/env/caliper/e1
+2026.09.12-12:12:41.818[32m info [39m [caliper] [cli-launch-worker] 	Set benchmark configuration path: /home/user/projects/pqc-energy-trading/env/caliper/e1/benchmark_ml_dsa_65_sustained_345.yaml
+2026.09.12-12:12:41.818[32m info [39m [caliper] [cli-launch-worker] 	Set network configuration path: /home/user/projects/pqc-energy-trading/env/caliper/e1/network.yaml
+2026.09.12-12:12:41.818[32m info [39m [caliper] [cli-launch-worker] 	Set SUT type: fabric
+2026.09.12-12:12:41.848[32m info [39m [caliper] [worker-orchestrator] 	1 workers connected, progressing to worker assignment phase.
+2026.09.12-12:12:41.848[32m info [39m [caliper] [worker-orchestrator] 	Workers currently unassigned, awaiting index assignment...
+2026.09.12-12:12:41.848[32m info [39m [caliper] [worker-orchestrator] 	Waiting for 1 workers to be assigned...
+2026.09.12-12:12:41.867[32m info [39m [caliper] [worker-orchestrator] 	1 workers assigned, progressing to worker initialization phase.
+2026.09.12-12:12:41.867[32m info [39m [caliper] [worker-orchestrator] 	Waiting for 1 workers to be ready...
+2026.09.12-12:12:41.867[32m info [39m [caliper] [worker-message-handler] 	Initializing Worker#0...
+2026.09.12-12:12:41.972[32m info [39m [caliper] [FabricConnectorFactory] 	Initializing peer gateway connector compatible with installed fabric-gateway SDK: 1.7.1
+2026.09.12-12:12:41.977[32m info [39m [caliper] [IdentityManager] 	Adding User1 (admin=false) as User1 for organization Org1MSP
+2026.09.12-12:12:41.978[32m info [39m [caliper] [IdentityManager] 	Adding User1Org2 (admin=false) as _Org2MSP_User1Org2 for organization Org2MSP
+2026.09.12-12:12:41.980[32m info [39m [caliper] [worker-message-handler] 	Worker#0 initialized
+2026.09.12-12:12:41.981[32m info [39m [caliper] [worker-orchestrator] 	1 workers ready, progressing to test preparation phase.
+2026.09.12-12:12:41.981[32m info [39m [caliper] [round-orchestrator] 	Started round 1 (warmup)
+2026.09.12-12:12:41.982[32m info [39m [caliper] [worker-message-handler] 	Preparing Worker#0 for Round#0
+2026.09.12-12:12:41.993[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Generating contract map for user User1
+2026.09.12-12:12:41.996[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Generating contract map for user _Org2MSP_User1Org2
+2026.09.12-12:12:41.997[32m info [39m [caliper] [caliper-worker] 	Info: worker 0 prepare test phase for round 0 is starting...
+2026.09.12-12:12:42.106[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gateway for user User1
+2026.09.12-12:12:42.106[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gateway for user _Org2MSP_User1Org2
+2026.09.12-12:12:42.106[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gRpc client at peer peer0.org1.example.com
+2026.09.12-12:12:42.107[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gRpc client at peer peer0.org2.example.com
+2026.09.12-12:12:42.107[32m info [39m [caliper] [caliper-worker] 	Info: worker 0 prepare test phase for round 0 is completed
+2026.09.12-12:12:42.107[32m info [39m [caliper] [worker-message-handler] 	Worker#0 prepared for Round#0
+2026.09.12-12:12:42.108[32m info [39m [caliper] [worker-orchestrator] 	1 workers prepared, progressing to test phase.
+2026.09.12-12:12:42.120[32m info [39m [caliper] [round-orchestrator] 	Monitors successfully started
+2026.09.12-12:12:42.121[32m info [39m [caliper] [worker-message-handler] 	Worker#0 is starting Round#0
+2026.09.12-12:12:42.123[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Generating contract map for user User1
+2026.09.12-12:12:42.125[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Generating contract map for user _Org2MSP_User1Org2
+2026.09.12-12:12:42.126[32m info [39m [caliper] [caliper-worker] 	Worker #0 starting workload loop
+2026.09.12-12:12:47.117[32m info [39m [caliper] [default-observer] 	[warmup Round 0 Transaction Info] - Submitted: 200 Succ: 106 Fail:0 Unfinished:94
+2026.09.12-12:12:52.110[32m info [39m [caliper] [default-observer] 	[warmup Round 0 Transaction Info] - Submitted: 450 Succ: 410 Fail:0 Unfinished:40
+2026.09.12-12:12:57.111[32m info [39m [caliper] [default-observer] 	[warmup Round 0 Transaction Info] - Submitted: 700 Succ: 612 Fail:0 Unfinished:88
+2026.09.12-12:13:02.112[32m info [39m [caliper] [default-observer] 	[warmup Round 0 Transaction Info] - Submitted: 950 Succ: 915 Fail:0 Unfinished:35
+2026.09.12-12:13:03.641[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gateway for user User1
+2026.09.12-12:13:03.641[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gateway for user _Org2MSP_User1Org2
+2026.09.12-12:13:03.641[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gRpc client at peer peer0.org1.example.com
+2026.09.12-12:13:03.642[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gRpc client at peer peer0.org2.example.com
+2026.09.12-12:13:03.642[32m info [39m [caliper] [worker-message-handler] 	Worker#0 finished Round#0
+2026.09.12-12:13:08.643[32m info [39m [caliper] [default-observer] 	Resetting txCount indicator count
+2026.09.12-12:13:08.644[32m info [39m [caliper] [report-builder] 	### Test result ###
+2026.09.12-12:13:08.648[32m info [39m [caliper] [report-builder] 	
++--------+------+------+-----------------+-----------------+-----------------+-----------------+------------------+
+| Name   | Succ | Fail | Send Rate (TPS) | Max Latency (s) | Min Latency (s) | Avg Latency (s) | Throughput (TPS) |
+|--------|------|------|-----------------|-----------------|-----------------|-----------------|------------------|
+| warmup | 1001 | 0    | 50.1            | 2.24            | 0.09            | 1.12            | 49.1             |
++--------+------+------+-----------------+-----------------+-----------------+-----------------+------------------+
+
+2026.09.12-12:13:08.648[32m info [39m [caliper] [round-orchestrator] 	Finished round 1 (warmup) in 20.405 seconds
+2026.09.12-12:13:08.648[32m info [39m [caliper] [monitor.js] 	Stopping all monitors
+2026.09.12-12:13:08.749[32m info [39m [caliper] [round-orchestrator] 	Waiting 5 seconds for the next round...
+2026.09.12-12:13:13.752[32m info [39m [caliper] [round-orchestrator] 	Started round 2 (sustained-345-tps)
+2026.09.12-12:13:13.753[32m info [39m [caliper] [worker-message-handler] 	Preparing Worker#0 for Round#1
+2026.09.12-12:13:13.759[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Generating contract map for user User1
+2026.09.12-12:13:13.761[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Generating contract map for user _Org2MSP_User1Org2
+2026.09.12-12:13:13.761[32m info [39m [caliper] [caliper-worker] 	Info: worker 0 prepare test phase for round 1 is starting...
+2026.09.12-12:13:13.877[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gateway for user User1
+2026.09.12-12:13:13.877[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gateway for user _Org2MSP_User1Org2
+2026.09.12-12:13:13.877[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gRpc client at peer peer0.org1.example.com
+2026.09.12-12:13:13.877[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gRpc client at peer peer0.org2.example.com
+2026.09.12-12:13:13.877[32m info [39m [caliper] [caliper-worker] 	Info: worker 0 prepare test phase for round 1 is completed
+2026.09.12-12:13:13.877[32m info [39m [caliper] [worker-message-handler] 	Worker#0 prepared for Round#1
+2026.09.12-12:13:13.878[32m info [39m [caliper] [worker-orchestrator] 	1 workers prepared, progressing to test phase.
+2026.09.12-12:13:13.882[32m info [39m [caliper] [round-orchestrator] 	Monitors successfully started
+2026.09.12-12:13:13.883[32m info [39m [caliper] [worker-message-handler] 	Worker#0 is starting Round#1
+2026.09.12-12:13:13.885[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Generating contract map for user User1
+2026.09.12-12:13:13.886[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	Generating contract map for user _Org2MSP_User1Org2
+2026.09.12-12:13:13.887[32m info [39m [caliper] [caliper-worker] 	Worker #0 starting workload loop
+2026.09.12-12:13:18.879[32m info [39m [caliper] [default-observer] 	[sustained-345-tps Round 1 Transaction Info] - Submitted: 1189 Succ: 1101 Fail:0 Unfinished:88
+2026.09.12-12:13:23.880[32m info [39m [caliper] [default-observer] 	[sustained-345-tps Round 1 Transaction Info] - Submitted: 2756 Succ: 2716 Fail:0 Unfinished:40
+2026.09.12-12:13:28.881[32m info [39m [caliper] [default-observer] 	[sustained-345-tps Round 1 Transaction Info] - Submitted: 4382 Succ: 4266 Fail:0 Unfinished:116
+2026.09.12-12:13:33.882[32m info [39m [caliper] [default-observer] 	[sustained-345-tps Round 1 Transaction Info] - Submitted: 6014 Succ: 5972 Fail:0 Unfinished:42
+2026.09.12-12:13:38.883[32m info [39m [caliper] [default-observer] 	[sustained-345-tps Round 1 Transaction Info] - Submitted: 7672 Succ: 7556 Fail:0 Unfinished:116
+2026.09.12-12:13:43.884[32m info [39m [caliper] [default-observer] 	[sustained-345-tps Round 1 Transaction Info] - Submitted: 9319 Succ: 9269 Fail:0 Unfinished:50
+2026.09.12-12:13:48.885[32m info [39m [caliper] [default-observer] 	[sustained-345-tps Round 1 Transaction Info] - Submitted: 10973 Succ: 10856 Fail:0 Unfinished:117
+2026.09.12-12:13:53.886[32m info [39m [caliper] [default-observer] 	[sustained-345-tps Round 1 Transaction Info] - Submitted: 12610 Succ: 12573 Fail:0 Unfinished:37
+2026.09.12-12:13:58.887[32m info [39m [caliper] [default-observer] 	[sustained-345-tps Round 1 Transaction Info] - Submitted: 14268 Succ: 14152 Fail:0 Unfinished:116
+2026.09.12-12:14:03.888[32m info [39m [caliper] [default-observer] 	[sustained-345-tps Round 1 Transaction Info] - Submitted: 15905 Succ: 15872 Fail:0 Unfinished:33
+2026.09.12-12:14:08.889[32m info [39m [caliper] [default-observer] 	[sustained-345-tps Round 1 Transaction Info] - Submitted: 17565 Succ: 17453 Fail:0 Unfinished:112
+2026.09.12-12:14:13.890[32m info [39m [caliper] [default-observer] 	[sustained-345-tps Round 1 Transaction Info] - Submitted: 19204 Succ: 19168 Fail:0 Unfinished:36
+2026.09.12-12:14:15.232[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gateway for user User1
+2026.09.12-12:14:15.233[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gateway for user _Org2MSP_User1Org2
+2026.09.12-12:14:15.233[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gRpc client at peer peer0.org1.example.com
+2026.09.12-12:14:15.233[32m info [39m [caliper] [connectors/peer-gateway/PeerGateway] 	disconnecting gRpc client at peer peer0.org2.example.com
+2026.09.12-12:14:15.233[32m info [39m [caliper] [worker-message-handler] 	Worker#0 finished Round#1
+2026.09.12-12:14:20.235[32m info [39m [caliper] [default-observer] 	Resetting txCount indicator count
+2026.09.12-12:14:20.235[32m info [39m [caliper] [report-builder] 	### Test result ###
+2026.09.12-12:14:20.236[32m info [39m [caliper] [report-builder] 	
++-------------------+-------+------+-----------------+-----------------+-----------------+-----------------+------------------+
+| Name              | Succ  | Fail | Send Rate (TPS) | Max Latency (s) | Min Latency (s) | Avg Latency (s) | Throughput (TPS) |
+|-------------------|-------|------|-----------------|-----------------|-----------------|-----------------|------------------|
+| sustained-345-tps | 19521 | 0    | 325.4           | 0.61            | 0.06            | 0.32            | 324.3            |
++-------------------+-------+------+-----------------+-----------------+-----------------+-----------------+------------------+
+
+2026.09.12-12:14:20.237[32m info [39m [caliper] [round-orchestrator] 	Finished round 2 (sustained-345-tps) in 60.201 seconds
+2026.09.12-12:14:20.237[32m info [39m [caliper] [monitor.js] 	Stopping all monitors
+2026.09.12-12:14:20.337[32m info [39m [caliper] [report-builder] 	### All test results ###
+2026.09.12-12:14:20.338[32m info [39m [caliper] [report-builder] 	
++-------------------+-------+------+-----------------+-----------------+-----------------+-----------------+------------------+
+| Name              | Succ  | Fail | Send Rate (TPS) | Max Latency (s) | Min Latency (s) | Avg Latency (s) | Throughput (TPS) |
+|-------------------|-------|------|-----------------|-----------------|-----------------|-----------------|------------------|
+| warmup            | 1001  | 0    | 50.1            | 2.24            | 0.09            | 1.12            | 49.1             |
+|-------------------|-------|------|-----------------|-----------------|-----------------|-----------------|------------------|
+| sustained-345-tps | 19521 | 0    | 325.4           | 0.61            | 0.06            | 0.32            | 324.3            |
++-------------------+-------+------+-----------------+-----------------+-----------------+-----------------+------------------+
+
+2026.09.12-12:14:20.345[32m info [39m [caliper] [report-builder] 	Generated report with path /home/user/projects/pqc-energy-trading/env/caliper/e1/report.html
+2026.09.12-12:14:20.345[32m info [39m [caliper] [monitor.js] 	Stopping all monitors
+2026.09.12-12:14:20.346[32m info [39m [caliper] [worker-orchestrator] 	Sending exit message to connected workers
+2026.09.12-12:14:20.346[32m info [39m [caliper] [round-orchestrator] 	Benchmark finished in 98.365 seconds. Total rounds: 2. Successful rounds: 2. Failed rounds: 0.
+2026.09.12-12:14:20.346[32m info [39m [caliper] [caliper-engine] 	Network configuration attribute "caliper.command.end" is not present, skipping end command
+2026.09.12-12:14:20.346[32m info [39m [caliper] [cli-launch-manager] 	Benchmark successfully finished!
+2026.09.12-12:14:20.346[32m info [39m [caliper] [worker-message-handler] 	Worker#0 is exiting
+[E1] Benchmark finished.
+[E1] finished_at=2026-09-12T12:14:20+03:30
+[E1] Raw timing files:
+sustained-345-v1_ml-dsa-65_block_heights.csv	102 bytes
+sustained-345-v1_ml-dsa-65_commit_sustained-345-tps_worker0_1789202655206.csv	212532 bytes
+sustained-345-v1_ml-dsa-65_e2e_sustained-345-tps_worker0_1789202655210.csv	1890173 bytes
+sustained-345-v1_ml-dsa-65_endorse_sustained-345-tps_worker0_1789202655202.csv	176735 bytes
+[E1] Block-height markers:
+marker,height
+before_warmup,7
+after_warmup,17
+before_sustained-345-tps,17
+after_sustained-345-tps,178
+[E1] Run completed successfully for namespace: sustained-345-v1_ml-dsa-65

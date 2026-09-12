@@ -559,7 +559,9 @@ def validated_adjacent_integer_boundary(
 
 
 def validated_sustainability_probe_metadata(
-    project_root: Path, probes: list[dict[str, object]]
+    project_root: Path,
+    probes: list[dict[str, object]],
+    expected_config: str,
 ) -> dict[str, dict[str, str]]:
     """Validate recorded derived rows and every raw source they reference."""
     rows_by_namespace = {}
@@ -577,7 +579,7 @@ def validated_sustainability_probe_metadata(
                 f"{result_path}: derived sustainability row does not regenerate exactly"
             )
         if (
-            recorded["config"] != "ML-DSA-44"
+            recorded["config"] != expected_config
             or recorded["offered_tps"] != str(probe["offered_tps"])
             or (recorded["sustainable"] == "true") != probe["sustainable"]
         ):
@@ -1092,7 +1094,9 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
         "prepared_remaining_profiles"
     ]["ml_dsa_44_integer_boundary"]
     ml_dsa_44_probes = validated_sustainability_probe_metadata(
-        project_root, ml_dsa_44_boundary["validated_probes"]
+        project_root,
+        ml_dsa_44_boundary["validated_probes"],
+        "ML-DSA-44",
     )
     ml_dsa_44_passing = ml_dsa_44_probes[
         ml_dsa_44_boundary["highest_sustainable_run_namespace"]
@@ -1116,6 +1120,36 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
             "ML-DSA-44 integer sustained-TPS boundary metadata is inconsistent"
         )
     rows[1]["tps_sustained"] = ml_dsa_44_sustained
+    ml_dsa_65_boundary = metadata["e1_benchmark"]["caliper"][
+        "prepared_remaining_profiles"
+    ]["ml_dsa_65_integer_boundary"]
+    ml_dsa_65_probes = validated_sustainability_probe_metadata(
+        project_root,
+        ml_dsa_65_boundary["validated_probes"],
+        "ML-DSA-65",
+    )
+    ml_dsa_65_passing = ml_dsa_65_probes[
+        ml_dsa_65_boundary["highest_sustainable_run_namespace"]
+    ]
+    ml_dsa_65_failing = ml_dsa_65_probes[
+        ml_dsa_65_boundary["first_failing_run_namespace"]
+    ]
+    ml_dsa_65_sustained = validated_adjacent_integer_boundary(
+        ml_dsa_65_passing, ml_dsa_65_failing
+    )
+    if (
+        ml_dsa_65_boundary["status"] != "complete"
+        or str(ml_dsa_65_boundary["highest_sustainable_integer_tps"])
+        != ml_dsa_65_sustained
+        or str(ml_dsa_65_boundary["first_failing_integer_tps"])
+        != ml_dsa_65_failing["offered_tps"]
+        or str(ml_dsa_65_boundary["final_tps_sustained"])
+        != ml_dsa_65_sustained
+    ):
+        raise ValueError(
+            "ML-DSA-65 integer sustained-TPS boundary metadata is inconsistent"
+        )
+    rows[2]["tps_sustained"] = ml_dsa_65_sustained
     boundary = metadata["e1_benchmark"]["caliper"]["sphincs_low_rate_sweep"]
     if boundary["integer_boundary_search"]["status"] != "complete":
         raise ValueError("SPHINCS+ integer sustained-TPS boundary is not complete")
