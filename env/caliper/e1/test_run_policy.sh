@@ -57,6 +57,12 @@ const expected = {
     'benchmark_ml_dsa_65_sustained_331.yaml': [['warmup', 20, 50], ['sustained-331-tps', 60, 331]],
     'benchmark_ml_dsa_65_sustained_337.yaml': [['warmup', 20, 50], ['sustained-337-tps', 60, 337]],
     'benchmark_ml_dsa_65_sustained_343.yaml': [['warmup', 20, 50], ['sustained-343-tps', 60, 343]],
+    'benchmark_ml_dsa_65_sustained_344.yaml': [['warmup', 20, 50], ['sustained-344-tps', 60, 344]],
+    'benchmark_ml_dsa_65_sustained_345.yaml': [['warmup', 20, 50], ['sustained-345-tps', 60, 345]],
+    'benchmark_ml_dsa_65_sustained_346.yaml': [['warmup', 20, 50], ['sustained-346-tps', 60, 346]],
+    'benchmark_ml_dsa_65_sustained_347.yaml': [['warmup', 20, 50], ['sustained-347-tps', 60, 347]],
+    'benchmark_ml_dsa_65_sustained_348.yaml': [['warmup', 20, 50], ['sustained-348-tps', 60, 348]],
+    'benchmark_ml_dsa_65_sustained_349.yaml': [['warmup', 20, 50], ['sustained-349-tps', 60, 349]],
     'benchmark_sphincs_blockutil_54.yaml': [['warmup', 20, 1], ['blockutil-54-tps', 60, 54]],
 };
 
@@ -116,7 +122,7 @@ for (const tps of [250, 300, 350, 400, 450]) {
     );
 }
 
-for (const tps of [306, 312, 318, 325, 331, 337, 343]) {
+for (const tps of [306, 312, 318, 325, 331, 337, 343, 344, 345, 346, 347, 348, 349]) {
     const wanted = structuredClone(mlDsa65Base);
     wanted.test.name = `E1 ML-DSA-65 Sustainable-Rate Probe at ${tps} TPS`;
     wanted.test.rounds[1].label = `sustained-${tps}-tps`;
@@ -186,6 +192,12 @@ validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_325.yaml sustaina
 validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_331.yaml sustainability sustained-331-v1
 validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_337.yaml sustainability sustained-337-v1
 validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_343.yaml sustainability sustained-343-v1
+validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_344.yaml sustainability sustained-344-v1
+validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_345.yaml sustainability sustained-345-v1
+validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_346.yaml sustainability sustained-346-v1
+validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_347.yaml sustainability sustained-347-v1
+validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_348.yaml sustainability sustained-348-v1
+validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_349.yaml sustainability sustained-349-v1
 validate_e1_run_policy sphincs benchmark_sphincs_blockutil_54.yaml diagnostic blockutil-54-v1
 
 expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_ecdsa_sustained_222.yaml sustainability bad
@@ -258,7 +270,7 @@ for tps in 250 300 350 400 450; do
     expect_rejected validate_e1_run_policy ml-dsa-65 "$profile" diagnostic bad
     expect_rejected validate_e1_run_policy ml-dsa-65 "$profile" sustainability ""
 done
-for tps in 306 312 318 325 331 337 343; do
+for tps in 306 312 318 325 331 337 343 344 345 346 347 348 349; do
     profile="benchmark_ml_dsa_65_sustained_${tps}.yaml"
     expect_rejected validate_e1_run_policy ml-dsa-44 "$profile" sustainability bad
     expect_rejected validate_e1_run_policy ml-dsa-65 "$profile" diagnostic bad

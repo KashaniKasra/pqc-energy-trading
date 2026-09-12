@@ -1,0 +1,45 @@
+test:
+  name: E1 ML-DSA-65 Sustainable-Rate Probe at 349 TPS
+  description: Shared immutable 60-second profile for separate ML-DSA-44 and ML-DSA-65 runs
+  workers:
+    type: local
+    number: 1
+
+  rounds:
+    - label: warmup
+      description: Warm-up round; results are discarded
+      txDuration: 20
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 50
+      workload:
+        module: workload/set.js
+        arguments:
+          contractId: simplekv
+          roundLabel: warmup
+
+    - label: sustained-349-tps
+      description: Offer 349 TPS for 60 seconds
+      txDuration: 60
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 349
+      workload:
+        module: workload/set.js
+        arguments:
+          contractId: simplekv
+          roundLabel: sustained-349-tps
+
+monitors:
+  resource:
+    - module: docker
+      options:
+        interval: 1
+        containers:
+          - orderer.example.com
+          - peer0.org1.example.com
+          - peer1.org1.example.com
+          - peer0.org2.example.com
+          - peer1.org2.example.com

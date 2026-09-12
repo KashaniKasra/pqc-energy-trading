@@ -363,7 +363,7 @@ class SustainabilityTests(unittest.TestCase):
                 self.assertEqual(spec["run_type"], "sustainability")
 
     def test_ml_dsa_65_midpoint_profiles_are_registered_immutably(self) -> None:
-        for tps in (306, 312, 318, 325, 331, 337, 343):
+        for tps in (306, 312, 318, 325, 331, 337, 343, 344, 345, 346, 347, 348, 349):
             with self.subTest(tps=tps):
                 spec = ANALYZER.SUSTAINABILITY_PROFILE_SPECS[
                     ("ml-dsa-65", (f"sustained-{tps}-tps",))
