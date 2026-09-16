@@ -205,15 +205,31 @@ primary classifier:
 | ML-DSA-44 | 90 | 60 | 30 | 2091602.116667 | 0.997353609 |
 | ML-DSA-65 | 161 | 131 | 30 | 2087381.732824 | 0.995341174 |
 
-The retained SPHINCS+ 20-TPS population is entirely timeout-driven and remains
-diagnostic only. The 54-TPS diagnostic produced 30 ordinary blocks. Exact
-block-cutter accounting retains one 106-transaction size-filled block
-(`block_bytes_mean=2091254.000000`, `block_utilisation=0.997187614`) and excludes
-29 underfilled timeout candidates. This one-block population is valid diagnostic
-evidence but is too small to become the final SPHINCS+ block-utilisation result.
-The nominal `duration / BatchTimeout` count is only an all-timeout upper and
-corroborating expectation because every size cut resets the next timeout cadence.
-A larger volume-filled population is still required.
+The retained SPHINCS+ 20-TPS population is entirely timeout-driven. Dedicated
+54- and 60-TPS diagnostics used exact block-cutter accounting:
+
+| Offered rate | Namespace | Ordinary blocks | Ledger transactions | Retained size-filled | Excluded underfilled | Terminal underfilled |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| 54 TPS | `blockutil-54-v1_sphincs` | 30 | 756 | 1 | 29 | 1 |
+| 60 TPS | `blockutil-60-v1_sphincs` | 24 | 524 | 0 | 24 | 1 |
+
+At 54 TPS, block 43 contained 106 transactions and 2,089,162 exact block-cutter
+message bytes. Its remaining 7,990-byte capacity could not fit the next observed
+19,710-byte message. Its fetched size was 2,091,254 bytes, giving the one-block
+diagnostic population `block_bytes_mean=2091254.000000` and
+`block_utilisation=0.997187614`. This is supporting diagnostic evidence only
+because `n=1`.
+
+At 60 TPS no block reached `MaxMessageCount` or satisfied the exact size-fill
+test. The immediate all-block mean, 431,483.708333 bytes, and utilisation,
+0.205747465, include underfilled blocks and are not professor-defined final
+statistics. Increasing offered load reduced ledger transactions from 756 to 524
+and retained size-filled blocks from one to zero, so higher offered rates are not
+currently justified. The next controlled diagnostic is an independent 54-TPS
+repeat to assess repeatability, not selective repetition to obtain a desired
+outcome. Final SPHINCS+ `block_bytes_mean` and `block_utilisation` remain
+unresolved. `duration / BatchTimeout` remains corroborating only, not an exact
+mixed-population invariant, because size cuts reset the timeout cadence.
 
 ## Reproduction and deterministic analysis
 

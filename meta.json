@@ -663,7 +663,18 @@
             "terminal_treatment": "The last ordinary block was underfilled and is excluded; no next observed message proves a size cut, so it is not silently retained as an end-of-run partial block.",
             "timeout_residual_upper_bound": 30,
             "timeout_corroboration": "The 29 underfilled candidates do not exceed the 30-block all-timeout upper expectation for 60 seconds at BatchTimeout=2s. Per-block close timestamps are not retained, so this is count corroboration only; classification comes from exact block-cutter capacity accounting.",
+            "max_message_count_block_count": 0,
             "volume_filled_transaction_counts": [106],
+            "retained_blocks": [
+              {
+                "block_number": 43,
+                "transaction_count": 106,
+                "accumulated_orderer_message_bytes": 2089162,
+                "remaining_preferred_max_bytes_capacity": 7990,
+                "next_observed_orderer_message_bytes": 19710,
+                "fetched_block_bytes": 2091254
+              }
+            ],
             "minimum_orderer_message_bytes": 19696,
             "max_volume_block_remaining_capacity": 7990,
             "min_timeout_residual_remaining_capacity": 934309,
@@ -684,6 +695,51 @@
             "caliper_fail": 2704,
             "ledger_transaction_count": 756,
             "interpretation": "One block is directly proven size-filled; 29 underfilled blocks are excluded. This one-block retained population is diagnostic and does not populate final SPHINCS block fields."
+          },
+          "diagnostic_no_retained_population_evidence": {
+            "status": "insufficient_diagnostic_no_volume_filled_population",
+            "file_config": "sphincs",
+            "namespace": "blockutil-60-v1_sphincs",
+            "run_label": "blockutil-60-v1",
+            "benchmark_label": "blockutil-60-tps",
+            "benchmark": "env/caliper/e1/benchmark_sphincs_blockutil_60.yaml",
+            "benchmark_sha256": "5e6ba1ae03904b02bba6bd532e1240fe9d2252965a44acf4f238391e0002e21c",
+            "offered_tps": 60,
+            "block_interval": "15-38",
+            "round_duration_seconds": 60,
+            "batch_timeout_seconds": 2,
+            "orderer_message_bytes_source": "direct_common_envelope_payload_plus_signature",
+            "ordinary_block_count_total": 24,
+            "ledger_transaction_count": 524,
+            "retained_volume_filled_block_count": 0,
+            "excluded_timeout_block_count": 24,
+            "ambiguous_block_count": 0,
+            "terminal_underfilled_candidate_count": 1,
+            "max_message_count_block_count": 0,
+            "all_block_diagnostic_summary": {
+              "block_bytes_mean": "431483.708333",
+              "block_utilisation": "0.205747465",
+              "status": "not_professor_defined_final; retained volume-filled population is empty"
+            },
+            "raw_summary": "raw/e1/blockutil-60-v1_sphincs_blocks_blockutil-60-tps_summary.csv",
+            "raw_summary_sha256": "63d64888e565f0e1bdc06b46fcc72f006a5889b2189b0ca8cb2d90156619d8d2",
+            "raw_blocks": "raw/e1/blockutil-60-v1_sphincs_blocks_blockutil-60-tps.csv",
+            "raw_blocks_sha256": "bc1f2f5e74fe6553d9469d7aeecaf5175e2c2d5d648e5221fce06f51f86666bf",
+            "raw_transactions": "raw/e1/blockutil-60-v1_sphincs_transactions_blockutil-60-tps.csv",
+            "raw_transactions_sha256": "341d5fc3e176dafc7b9357d403a7d512d99209d25e62a3a6fadf99ac008356c9",
+            "block_heights": "raw/e1/blockutil-60-v1_sphincs_block_heights.csv",
+            "block_heights_sha256": "47e408533062e4bf886f3c0b31d1be8f369c16554fdb9e955852ca63fa226783",
+            "run_log": "raw/e1/blockutil-60-v1_sphincs_caliper_run.log",
+            "run_log_sha256": "a84effbabff2c09c70e621807b135da6e491d656875e95cc5c53e53cf061ccc8",
+            "caliper_success": 311,
+            "caliper_fail": 3290,
+            "interpretation": "No ordinary block reached MaxMessageCount or satisfied the exact size-fill rule. All-block summary values include underfilled candidates and cannot populate final SPHINCS block fields."
+          },
+          "cross_diagnostic_interpretation": {
+            "ledger_transaction_change_54_to_60": "756 to 524",
+            "retained_size_filled_block_change_54_to_60": "1 to 0",
+            "conclusion": "Increasing offered load worsened saturation; higher offered rates are not currently justified.",
+            "next_controlled_diagnostic": "Independent repeat at 54 TPS to assess repeatability of the size-filled regime; this is not selective repetition to obtain a desired outcome."
           }
         }
       }
