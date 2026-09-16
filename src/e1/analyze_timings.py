@@ -733,18 +733,21 @@ def classify_traffic_volume_blocks(
     orderer_message_bytes_by_block: dict[int, list[int]],
     preferred_max_bytes: int,
     max_message_count: int,
-    timeout_residual_upper_bound: int,
 ) -> dict[str, object]:
-    """Separate capacity-filled blocks from periodic BatchTimeout residuals.
+    """Separate capacity-filled blocks from underfilled timeout candidates.
 
     Fabric v2.5.16 block cutting accounts for ``len(Payload)+len(Signature)``.
     The caller must provide that exact quantity, except for the separately
     allowlisted legacy ML-DSA evidence handled before this function is called.
+    No per-block timeout-close timestamps are retained, so BatchTimeout closure
+    is inferred for the underfilled population from exact non-fill evidence and
+    the professor-approved exclusion rule. Timeout counts never classify or
+    reject blocks.
     """
     if preferred_max_bytes <= 0 or max_message_count <= 0:
         raise ValueError("Fabric block-capacity parameters must be positive")
-    if not blocks or timeout_residual_upper_bound < 0:
-        raise ValueError("block population or timeout-residual count is invalid")
+    if not blocks:
+        raise ValueError("block population is empty")
 
     for block_number, transaction_count, _ in blocks:
         message_sizes = orderer_message_bytes_by_block.get(block_number)
@@ -790,23 +793,17 @@ def classify_traffic_volume_blocks(
             if block_index == len(blocks) - 1:
                 terminal_underfilled_candidate_count += 1
 
-    if len(underfilled_candidates) > timeout_residual_upper_bound:
-        raise ValueError(
-            "underfilled ordinary-block count exceeds the all-timeout "
-            "BatchTimeout upper bound"
-        )
-    if not retained:
-        raise ValueError("no traffic-volume-filled ordinary blocks remain")
     return {
         "retained": retained,
         "timeout_residuals": underfilled_candidates,
         "minimum_message_bytes": minimum_message_bytes,
-        "max_retained_remaining_capacity": max(retained_remaining_capacity),
+        "max_retained_remaining_capacity": (
+            max(retained_remaining_capacity) if retained_remaining_capacity else None
+        ),
         "min_timeout_remaining_capacity": (
             min(timeout_remaining_capacity) if timeout_remaining_capacity else None
         ),
         "terminal_underfilled_candidate_count": terminal_underfilled_candidate_count,
-        "timeout_residual_upper_bound": timeout_residual_upper_bound,
     }
 
 
@@ -920,16 +917,17 @@ def validated_timeout_filtered_block_result(
     batch_timeout_seconds = result["batch_timeout_seconds"]
     if batch_timeout_seconds != 2 or duration_seconds % batch_timeout_seconds != 0:
         raise ValueError(f"{metadata_path}: invalid timeout-period provenance")
-    timeout_residual_upper_bound = duration_seconds // batch_timeout_seconds
+    nominal_timeout_period_count = duration_seconds // batch_timeout_seconds
     classified = classify_traffic_volume_blocks(
         blocks,
         orderer_message_bytes_by_block,
         preferred,
         max_message_count,
-        timeout_residual_upper_bound,
     )
     retained = classified["retained"]
     timeout_residuals = classified["timeout_residuals"]
+    if not retained:
+        raise ValueError("no traffic-volume-filled ordinary blocks remain")
     retained_bytes = [block[2] for block in retained]
     mean_text = f"{sum(retained_bytes) / len(retained_bytes):.6f}"
     utilisation_text = f"{(sum(retained_bytes) / len(retained_bytes)) / preferred:.9f}"
@@ -940,8 +938,7 @@ def validated_timeout_filtered_block_result(
         or result["ordinary_block_count_total"] != len(blocks)
         or result["retained_volume_filled_block_count"] != len(retained)
         or result["excluded_timeout_block_count"] != len(timeout_residuals)
-        or result["timeout_residual_upper_bound"]
-        != classified["timeout_residual_upper_bound"]
+        or result["timeout_residual_upper_bound"] != nominal_timeout_period_count
         or result["volume_filled_transaction_counts"] != retained_transaction_counts
         or result["minimum_orderer_message_bytes"]
         != classified["minimum_message_bytes"]

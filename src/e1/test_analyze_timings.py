@@ -491,7 +491,6 @@ class BlockUtilisationTests(unittest.TestCase):
             envelope_bytes_by_block,
             preferred_max_bytes=1000,
             max_message_count=500,
-            timeout_residual_upper_bound=3,
         )
 
         self.assertEqual(
@@ -500,7 +499,6 @@ class BlockUtilisationTests(unittest.TestCase):
         self.assertEqual(
             [block[0] for block in classified["timeout_residuals"]], [11, 13]
         )
-        self.assertEqual(classified["timeout_residual_upper_bound"], 3)
         self.assertEqual(classified["terminal_underfilled_candidate_count"], 1)
         retained_bytes = [block[2] for block in classified["retained"]]
         self.assertEqual(f"{sum(retained_bytes) / len(retained_bytes):.6f}", "910.000000")
@@ -509,33 +507,36 @@ class BlockUtilisationTests(unittest.TestCase):
             "0.910000000",
         )
 
-    def test_timeout_candidates_cannot_exceed_all_timeout_upper_bound(self) -> None:
-        blocks = [(10, 3, 900), (11, 1, 250)]
-        envelope_bytes_by_block = {10: [300, 300, 300], 11: [300]}
-        with self.assertRaisesRegex(ValueError, "all-timeout BatchTimeout upper bound"):
-            ANALYZER.classify_traffic_volume_blocks(
-                blocks,
-                envelope_bytes_by_block,
-                preferred_max_bytes=1000,
-                max_message_count=500,
-                timeout_residual_upper_bound=0,
-            )
+    def test_timeout_candidate_count_does_not_control_classification(self) -> None:
+        blocks = [(number, 1, 250) for number in range(1, 31)]
+        blocks.extend([(31, 3, 900), (32, 1, 250)])
+        message_bytes_by_block = {number: [100] for number in range(1, 31)}
+        message_bytes_by_block[31] = [300, 300, 350]
+        message_bytes_by_block[32] = [100]
+
+        classified = ANALYZER.classify_traffic_volume_blocks(
+            blocks,
+            message_bytes_by_block,
+            preferred_max_bytes=1000,
+            max_message_count=500,
+        )
+
+        self.assertEqual(len(classified["retained"]), 1)
+        self.assertEqual(len(classified["timeout_residuals"]), 31)
 
     def test_sphincs_is_not_final_when_thirty_candidates_leave_no_retained_blocks(self) -> None:
         blocks = [(number, 1, 250) for number in range(1, 31)]
         message_bytes_by_block = {number: [100] for number in range(1, 31)}
-        with self.assertRaisesRegex(
-            ValueError, "no traffic-volume-filled ordinary blocks remain"
-        ):
-            ANALYZER.classify_traffic_volume_blocks(
-                blocks,
-                message_bytes_by_block,
-                preferred_max_bytes=1000,
-                max_message_count=500,
-                timeout_residual_upper_bound=30,
-            )
+        classified = ANALYZER.classify_traffic_volume_blocks(
+            blocks,
+            message_bytes_by_block,
+            preferred_max_bytes=1000,
+            max_message_count=500,
+        )
+        self.assertEqual(classified["retained"], [])
+        self.assertEqual(len(classified["timeout_residuals"]), 30)
 
-    def test_sphincs_mixed_population_accepts_fewer_than_timeout_upper_bound(self) -> None:
+    def test_sphincs_mixed_population_is_classified_only_by_capacity(self) -> None:
         blocks = [(number, 1, 250) for number in range(1, 29)]
         blocks.extend([(29, 3, 900), (30, 1, 250)])
         message_bytes_by_block = {number: [100] for number in range(1, 29)}
@@ -547,11 +548,58 @@ class BlockUtilisationTests(unittest.TestCase):
             message_bytes_by_block,
             preferred_max_bytes=1000,
             max_message_count=500,
-            timeout_residual_upper_bound=30,
         )
 
         self.assertEqual(len(classified["retained"]), 1)
         self.assertEqual(len(classified["timeout_residuals"]), 29)
+
+    def test_all_retained_sphincs_diagnostics_use_exact_non_fill_evidence(self) -> None:
+        project_root = Path(__file__).resolve().parents[2]
+        cases = (
+            ("blockutil-54-v1_sphincs", "blockutil-54-tps", 1, 29, "0.997187614"),
+            ("blockutil-54-v2_sphincs", "blockutil-54-tps", 1, 31, "0.997399330"),
+            ("blockutil-60-v1_sphincs", "blockutil-60-tps", 0, 24, None),
+        )
+        for namespace, benchmark_label, retained_count, excluded_count, utilisation in cases:
+            blocks_path = (
+                project_root / "raw/e1" / f"{namespace}_blocks_{benchmark_label}.csv"
+            )
+            transactions_path = (
+                project_root
+                / "raw/e1"
+                / f"{namespace}_transactions_{benchmark_label}.csv"
+            )
+            with blocks_path.open(newline="", encoding="utf-8") as source:
+                block_rows = list(csv.DictReader(source))
+            with transactions_path.open(newline="", encoding="utf-8") as source:
+                transaction_rows = list(csv.DictReader(source))
+            blocks = [
+                (
+                    int(row["block_number"]),
+                    int(row["transaction_count"]),
+                    int(row["block_bytes"]),
+                )
+                for row in block_rows
+            ]
+            message_bytes_by_block: dict[int, list[int]] = {}
+            for row in transaction_rows:
+                message_bytes_by_block.setdefault(
+                    int(row["block_number"]), []
+                ).append(int(row["orderer_message_bytes"]))
+
+            classified = ANALYZER.classify_traffic_volume_blocks(
+                blocks,
+                message_bytes_by_block,
+                preferred_max_bytes=2097152,
+                max_message_count=500,
+            )
+
+            self.assertEqual(len(classified["retained"]), retained_count)
+            self.assertEqual(len(classified["timeout_residuals"]), excluded_count)
+            if utilisation is not None:
+                retained_bytes = [block[2] for block in classified["retained"]]
+                observed = sum(retained_bytes) / len(retained_bytes) / 2097152
+                self.assertEqual(f"{observed:.9f}", utilisation)
 
     def test_retained_sphincs_diagnostic_is_validated_but_not_final(self) -> None:
         project_root = Path(__file__).resolve().parents[2]
