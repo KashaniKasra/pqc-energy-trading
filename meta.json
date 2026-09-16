@@ -246,9 +246,9 @@
           "min_bytes": 1312,
           "max_bytes": 1312,
           "dispersion_percent": "0.000000",
-          "provenance": "Four peer records in the retained identity-generation log.",
           "generation_log": "raw/e1/identity-only-v1_ml-dsa-44_identity_generation.log.gz",
-          "generation_log_sha256": "66ce1a4e4cac4be2b39050a3f133faed0d46955e9dd2c695dc85659d83c157ca"
+          "generation_log_sha256": "66ce1a4e4cac4be2b39050a3f133faed0d46955e9dd2c695dc85659d83c157ca",
+          "provenance": "Four peer records in the retained identity-generation log."
         },
         "ML-DSA-65": {
           "representation": "raw liboqs public key returned by pqPublicKey.Bytes()",
@@ -262,9 +262,9 @@
           "min_bytes": 1952,
           "max_bytes": 1952,
           "dispersion_percent": "0.000000",
-          "provenance": "Four peer records in the retained identity-generation log.",
           "generation_log": "raw/e1/identity-only-v1_ml-dsa-65_identity_generation.log.gz",
-          "generation_log_sha256": "b291d91883851a4f257611f5e1e277d979f9d2e9952b09d43a9b9cca1083e347"
+          "generation_log_sha256": "b291d91883851a4f257611f5e1e277d979f9d2e9952b09d43a9b9cca1083e347",
+          "provenance": "Four peer records in the retained identity-generation log."
         },
         "SLH-DSA": {
           "representation": "raw liboqs SPHINCS+-SHA2-128s-simple public key returned by pqPublicKey.Bytes()",
@@ -278,9 +278,9 @@
           "min_bytes": 32,
           "max_bytes": 32,
           "dispersion_percent": "0.000000",
-          "provenance": "Four peer records in the retained identity-generation log.",
           "generation_log": "raw/e1/identity-only-v1_sphincs_identity_generation.log.gz",
-          "generation_log_sha256": "ebe8a11a5e8406adeae0b042c2ed28397fc8107507fd5494226fddc2bcda5366"
+          "generation_log_sha256": "ebe8a11a5e8406adeae0b042c2ed28397fc8107507fd5494226fddc2bcda5366",
+          "provenance": "Four peer records in the retained identity-generation log."
         }
       }
     },
@@ -379,7 +379,6 @@
         "run_log": "raw/e1/sphincs-lowrate-v1_sphincs_caliper_run.log.gz",
         "run_log_sha256": "affc7bf4f8d71bcad4d9aa0a66375592792c3c4f68f4521417303b13d2aec342",
         "transaction_evidence_20_tps": {
-          "status": "transaction evidence valid; block utilisation timeout-driven and diagnostic only",
           "raw_summary": "raw/e1/sphincs-lowrate-v1_sphincs_blocks_sphincs-20-tps_summary.csv.gz",
           "raw_summary_sha256": "8fc34c40fd11f03a7fefc20c83863a9f17225cf58666d0f5a25496f023727e5d"
         },
@@ -463,9 +462,7 @@
     "block_utilisation": {
       "definition": "mean(actual ordinary-transaction block bytes) / effective PreferredMaxBytes",
       "population_rule": "exclude genesis, config, and other nonordinary blocks; exclude ordinary blocks cut prematurely by BatchTimeout; retain traffic-volume-filled ordinary blocks; retain a terminal ordinary partial block unless evidence establishes BatchTimeout closure",
-      "traffic_volume_requirement": "blocks should fill by traffic volume rather than close prematurely because of BatchTimeout",
-      "mixed_population_treatment": "resolved by direct professor clarification: exclude periodic BatchTimeout residual blocks from block_bytes_mean and block_utilisation",
-      "timeout_classification_method": "Retain a block when MaxMessageCount is reached or when exact accumulated block-cutter bytes show that the next observed workload message could not fit within PreferredMaxBytes. Remaining underfilled blocks are timeout candidates. duration / BatchTimeout is an all-timeout upper and corroborating expectation, not an exact mixed-population invariant, because size cuts reset timeout cadence.",
+      "timeout_classification_method": "retain MaxMessageCount blocks or blocks proven size-filled by exact block-cutter accounting; exclude remaining underfilled timeout candidates",
       "new_evidence_message_accounting": "direct len(common.Envelope.Payload) + len(common.Envelope.Signature) recorded per transaction as orderer_message_bytes",
       "legacy_message_accounting_scope": "Only the retained sustained-200-v1_ml-dsa-44 and sustained-345-v1_ml-dsa-65 evidence predates orderer_message_bytes; those already-validated datasets retain their dataset-specific five-byte protobuf-framing reconstruction.",
       "transaction_size_method": "decode each fetched block's Block.Data.Data[i] as the exact serialized common.Envelope; retain its length and embedded endorsement count",
