@@ -232,8 +232,7 @@
           "min_bytes": 91,
           "max_bytes": 91,
           "dispersion_percent": "0.000000",
-          "provenance": "The 91-byte value is derived and cross-checked from the DER-encoded P-256 SubjectPublicKeyInfo returned by Fabric v2.5.16 ecdsaPublicKey.Bytes() in bccsp/sw/ecdsakey.go. Four ECDSA peer certificates and their hashes are retained in raw/e1/blockutil-300_ecdsa_identity_bytes.csv.gz as supporting certificate evidence only; that file is not a public-key-byte measurement CSV.",
-          "dedicated_per_peer_public_key_extraction_csv": null
+          "provenance": "The 91-byte value is derived and cross-checked from the DER-encoded P-256 SubjectPublicKeyInfo returned by Fabric v2.5.16 ecdsaPublicKey.Bytes() in bccsp/sw/ecdsakey.go. Four ECDSA peer certificates and their hashes are retained in raw/e1/blockutil-300_ecdsa_identity_bytes.csv.gz as supporting certificate evidence only; that file is not a public-key-byte measurement CSV."
         },
         "ML-DSA-44": {
           "representation": "raw liboqs public key returned by pqPublicKey.Bytes()",
@@ -349,58 +348,6 @@
             "heights": "raw/e1/latency-common-clean-v1_sphincs_block_heights.csv.gz",
             "heights_sha256": "1bb3084114f2ab3a3f6fadc4b28f926d7e0aa7b71e4d2d50645340b0b59dc4ce"
           }
-        },
-        "results_200_tps": {
-          "ECDSA": {
-            "total": 24001,
-            "success": 24001,
-            "fail": 0,
-            "tx_success_rate": "1.000000000",
-            "endorse_median_ms": "3.631845",
-            "endorse_p95_ms": "29.692575",
-            "endorse_p99_ms": "51.665168",
-            "commit_median_ms": "1210.965735",
-            "commit_p95_ms": "2062.837374",
-            "commit_p99_ms": "2174.454991"
-          },
-          "ML-DSA-44": {
-            "total": 24000,
-            "success": 24000,
-            "fail": 0,
-            "tx_success_rate": "1.000000000",
-            "endorse_median_ms": "4.034757",
-            "endorse_p95_ms": "21.290463",
-            "endorse_p99_ms": "33.333694",
-            "commit_median_ms": "473.614710",
-            "commit_p95_ms": "905.356157",
-            "commit_p99_ms": "955.036991"
-          },
-          "ML-DSA-65": {
-            "total": 24001,
-            "success": 24001,
-            "fail": 0,
-            "tx_success_rate": "1.000000000",
-            "endorse_median_ms": "4.047892",
-            "endorse_p95_ms": "23.881626",
-            "endorse_p99_ms": "36.930557",
-            "commit_median_ms": "445.157309",
-            "commit_p95_ms": "725.150242",
-            "commit_p99_ms": "769.665123"
-          },
-          "SPHINCS+-SHA2-128s-simple": {
-            "total": 24001,
-            "success": 532,
-            "fail": 23469,
-            "tx_success_rate": "0.022165743",
-            "status": "saturation_only_not_a_valid_latency_population"
-          }
-        },
-        "sphincs_50_tps_saturation": {
-          "total": 6001,
-          "success": 462,
-          "fail": 5539,
-          "tx_success_rate": "0.076987169",
-          "status": "saturation_only_not_a_valid_latency_population"
         }
       },
       "sustainability": {

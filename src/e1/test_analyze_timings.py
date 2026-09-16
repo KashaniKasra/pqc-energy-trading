@@ -1111,8 +1111,6 @@ class MetadataCleanlinessTests(unittest.TestCase):
                 "fresh_ledger_start_height",
                 "pq_verify_trace",
                 "runs",
-                "results_200_tps",
-                "sphincs_50_tps_saturation",
             },
         )
 
