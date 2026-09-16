@@ -287,9 +287,12 @@ bash env/caliper/e1/test_run_policy.sh
 
 SPHINCS+ latency fields are empty in the final CSV because the selected 200-TPS
 common-profile population saturated and is not a valid normal-latency
-population; its success/error rates remain reported. Raw CSV/log evidence will
-be gzip-compressed only after the E1 KEEP set is frozen, with provenance hashes
-and readers updated together.
+population; its success/error rates remain reported. E1 raw CSV/log evidence is
+frozen using deterministic gzip storage. `raw/e1/evidence_manifest.json` maps
+each original scientific evidence identity to its compressed file; scientific
+SHA-256 values refer to the decompressed/original bytes, while the manifest also
+records each gzip container hash. This storage migration does not change any E1
+result.
 
 Falcon-512 in liboqs 0.15.0 is the round-3 implementation and must not be
 described as final FIPS 206.

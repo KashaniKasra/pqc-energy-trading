@@ -1,5 +1,7 @@
 import csv
+import gzip
 import importlib.util
+import io
 import json
 import hashlib
 from pathlib import Path
@@ -12,6 +14,183 @@ SPEC = importlib.util.spec_from_file_location("analyze_timings", MODULE_PATH)
 ANALYZER = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(ANALYZER)
+
+
+class FrozenEvidenceTests(unittest.TestCase):
+    def setUp(self) -> None:
+        ANALYZER._MANIFEST_CACHE.clear()
+        ANALYZER._VALIDATED_COMPRESSED_EVIDENCE.clear()
+
+    def write_manifest(
+        self,
+        root: Path,
+        files: dict[str, bytes],
+        *,
+        entry_changes: dict[str, dict[str, object]] | None = None,
+        duplicate: str | None = None,
+    ) -> tuple[Path, dict[str, dict[str, object]]]:
+        raw = root / "raw" / "e1"
+        raw.mkdir(parents=True)
+        entries = []
+        by_name = {}
+        for name, content in sorted(files.items()):
+            compressed = gzip.compress(content, compresslevel=9, mtime=0)
+            compressed_path = raw / f"{name}.gz"
+            compressed_path.write_bytes(compressed)
+            entry: dict[str, object] = {
+                "original_path": f"raw/e1/{name}",
+                "original_size": len(content),
+                "original_sha256": hashlib.sha256(content).hexdigest(),
+                "compressed_path": f"raw/e1/{name}.gz",
+                "compressed_size": len(compressed),
+                "compressed_sha256": hashlib.sha256(compressed).hexdigest(),
+            }
+            if entry_changes and name in entry_changes:
+                entry.update(entry_changes[name])
+            entries.append(entry)
+            by_name[name] = entry
+        if duplicate is not None:
+            entries.append(dict(by_name[duplicate]))
+        manifest = {
+            "schema": ANALYZER.EVIDENCE_MANIFEST_SCHEMA,
+            "source_file_count": len(entries),
+            "compression": {
+                "format": "gzip",
+                "level": 9,
+                "deterministic_header": True,
+                "command": "gzip -9 -n",
+                "implementation": "python-test-fixture",
+            },
+            "hash_semantics": {
+                "original_sha256": "SHA-256 of decompressed/original bytes",
+                "compressed_sha256": "SHA-256 of tracked gzip bytes",
+            },
+            "files": entries,
+        }
+        manifest_path = raw / ANALYZER.EVIDENCE_MANIFEST_NAME
+        manifest_path.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        return raw, by_name
+
+    def test_gzip_transparent_read_and_scientific_hash(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            content = b"latency_ms\n1.25\n"
+            raw, _ = self.write_manifest(root, {"sample.csv": content})
+            logical = raw / "sample.csv"
+            self.assertEqual(ANALYZER.read_evidence_bytes(logical), content)
+            self.assertEqual(ANALYZER.read_evidence_text(logical), content.decode())
+            self.assertEqual(ANALYZER.sha256_file(logical), hashlib.sha256(content).hexdigest())
+
+    def test_plain_and_gzip_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw, _ = self.write_manifest(root, {"sample.csv": b"x\n"})
+            (raw / "sample.csv").write_bytes(b"x\n")
+            with self.assertRaisesRegex(ValueError, "plain and compressed"):
+                ANALYZER.resolve_evidence_path(raw / "sample.csv")
+
+    def test_missing_manifest_entry_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw, _ = self.write_manifest(root, {"sample.csv": b"x\n"})
+            (raw / "extra.csv.gz").write_bytes(gzip.compress(b"extra\n", mtime=0))
+            with self.assertRaisesRegex(ValueError, "absent from the manifest"):
+                ANALYZER.resolve_evidence_path(raw / "extra.csv.gz")
+
+    def test_corrupted_gzip_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw, entries = self.write_manifest(root, {"sample.csv": b"x\n"})
+            bad = b"not-a-gzip-stream"
+            compressed = raw / "sample.csv.gz"
+            compressed.write_bytes(bad)
+            entries["sample.csv"].update({
+                "compressed_size": len(bad),
+                "compressed_sha256": hashlib.sha256(bad).hexdigest(),
+            })
+            manifest = json.loads((raw / ANALYZER.EVIDENCE_MANIFEST_NAME).read_text())
+            manifest["files"][0].update(entries["sample.csv"])
+            (raw / ANALYZER.EVIDENCE_MANIFEST_NAME).write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n"
+            )
+            with self.assertRaisesRegex(ValueError, "invalid gzip"):
+                ANALYZER.resolve_evidence_path(raw / "sample.csv")
+
+    def test_compressed_hash_mismatch_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw, _ = self.write_manifest(root, {"sample.csv": b"x\n"})
+            compressed = raw / "sample.csv.gz"
+            changed = bytearray(compressed.read_bytes())
+            changed[-5] ^= 1
+            compressed.write_bytes(changed)
+            with self.assertRaisesRegex(ValueError, "compressed SHA-256"):
+                ANALYZER.resolve_evidence_path(raw / "sample.csv")
+
+    def test_decompressed_hash_mismatch_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            wrong = hashlib.sha256(b"different\n").hexdigest()
+            raw, _ = self.write_manifest(
+                root,
+                {"sample.csv": b"x\n"},
+                entry_changes={"sample.csv": {"original_sha256": wrong}},
+            )
+            with self.assertRaisesRegex(ValueError, "original SHA-256"):
+                ANALYZER.resolve_evidence_path(raw / "sample.csv")
+
+    def test_duplicate_manifest_paths_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw, _ = self.write_manifest(
+                root, {"sample.csv": b"x\n"}, duplicate="sample.csv"
+            )
+            with self.assertRaisesRegex(ValueError, "duplicate evidence path"):
+                ANALYZER.resolve_evidence_path(raw / "sample.csv")
+
+    def test_namespace_discovery_finds_csv_and_log_gzip(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw, _ = self.write_manifest(
+                root,
+                {"run_e2e_1-tps_worker0_1.csv": b"x\n", "run_caliper_run.log": b"x\n"},
+            )
+            self.assertEqual(
+                [path.name for path in ANALYZER.evidence_glob(raw, "run_*.csv")],
+                ["run_e2e_1-tps_worker0_1.csv.gz"],
+            )
+            self.assertEqual(
+                [path.name for path in ANALYZER.evidence_glob(raw, "run_*.log")],
+                ["run_caliper_run.log.gz"],
+            )
+
+    def test_legacy_embedded_plain_path_resolves_to_gzip(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            content = b"field\nvalue\n"
+            raw, _ = self.write_manifest(root, {"legacy.csv": content})
+            fields, row = ANALYZER.one_csv_row(raw / "legacy.csv")
+            self.assertEqual(fields, ["field"])
+            self.assertEqual(row, {"field": "value"})
+
+    def test_final_e1_regenerates_byte_identically_from_frozen_evidence(self) -> None:
+        project_root = MODULE_PATH.parents[2]
+        manifest = json.loads(
+            (project_root / "raw/e1/evidence_manifest.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(manifest["source_file_count"], 156)
+        rows = ANALYZER.build_final_e1_rows(project_root)
+        output = io.StringIO(newline="")
+        writer = csv.DictWriter(
+            output, fieldnames=ANALYZER.FINAL_FIELDS, lineterminator="\n"
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+        self.assertEqual(
+            output.getvalue().encode(), (project_root / "data/e1_fabric.csv").read_bytes()
+        )
 
 
 class SustainabilityTests(unittest.TestCase):
@@ -569,9 +748,9 @@ class BlockUtilisationTests(unittest.TestCase):
                 / "raw/e1"
                 / f"{namespace}_transactions_{benchmark_label}.csv"
             )
-            with blocks_path.open(newline="", encoding="utf-8") as source:
+            with ANALYZER.open_evidence_text(blocks_path, newline="") as source:
                 block_rows = list(csv.DictReader(source))
-            with transactions_path.open(newline="", encoding="utf-8") as source:
+            with ANALYZER.open_evidence_text(transactions_path, newline="") as source:
                 transaction_rows = list(csv.DictReader(source))
             blocks = [
                 (

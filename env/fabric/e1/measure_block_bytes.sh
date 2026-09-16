@@ -54,14 +54,19 @@ if [[ ! -x "$CONFIGTXLATOR" ]]; then
     exit 1
 fi
 
+if [[ -f "${HEIGHTS_FILE}.gz" ]]; then
+    echo "ERROR: Run namespace is archived/frozen; refusing post-processing against compressed height evidence: ${HEIGHTS_FILE}.gz"
+    exit 1
+fi
+
 if [[ ! -f "$HEIGHTS_FILE" ]]; then
     echo "ERROR: Height markers not found for run namespace: $HEIGHTS_FILE"
     exit 1
 fi
 
 for output_file in "$RAW_BLOCKS_FILE" "$SUMMARY_FILE" "$TRANSACTIONS_FILE"; do
-    if [[ -e "$output_file" ]]; then
-        echo "ERROR: Refusing to overwrite existing measurement output: $output_file"
+    if [[ -e "$output_file" || -e "${output_file}.gz" ]]; then
+        echo "ERROR: Refusing to overwrite existing or frozen measurement output: $output_file"
         exit 1
     fi
 done

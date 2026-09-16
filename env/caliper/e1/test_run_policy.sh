@@ -151,5 +151,7 @@ trap 'rm -rf "$TEST_DIR"' EXIT
 ensure_e1_namespace_available "$TEST_DIR" available_ecdsa
 touch "$TEST_DIR/collision_ecdsa_caliper_run.log"
 expect_rejected ensure_e1_namespace_available "$TEST_DIR" collision_ecdsa
+touch "$TEST_DIR/frozen_ecdsa_caliper_run.log.gz"
+expect_rejected ensure_e1_namespace_available "$TEST_DIR" frozen_ecdsa
 
 echo "run policy tests passed"

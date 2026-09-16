@@ -18,8 +18,10 @@ clean source/image/patch provenance.
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import csv
 from decimal import Decimal
+import gzip
 import hashlib
 import json
 import math
@@ -27,6 +29,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+from typing import Iterator, TextIO
 
 
 CONFIGS = {
@@ -177,12 +180,238 @@ SPHINCS_BLOCK_NAMESPACES = frozenset({
     "blockutil-54-v2_sphincs",
 })
 
+EVIDENCE_MANIFEST_NAME = "evidence_manifest.json"
+EVIDENCE_MANIFEST_SCHEMA = "e1-raw-evidence-manifest-v1"
+_MANIFEST_CACHE: dict[Path, tuple[tuple[int, int], dict[str, object]]] = {}
+_VALIDATED_COMPRESSED_EVIDENCE: set[tuple[Path, int, int, str, str, int]] = set()
 
-def sha256_file(path: Path) -> str:
+
+def _physical_sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as source:
         for chunk in iter(lambda: source.read(1024 * 1024), b""):
             digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _raw_e1_root(path: Path) -> Path | None:
+    candidate = path.resolve(strict=False)
+    for parent in (candidate, *candidate.parents):
+        if parent.name == "e1" and parent.parent.name == "raw":
+            return parent
+    return None
+
+
+def _manifest_index(raw_root: Path) -> dict[str, object]:
+    manifest_path = raw_root / EVIDENCE_MANIFEST_NAME
+    stat = manifest_path.stat()
+    cache_key = (stat.st_mtime_ns, stat.st_size)
+    cached = _MANIFEST_CACHE.get(manifest_path)
+    if cached is not None and cached[0] == cache_key:
+        return cached[1]
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("schema") != EVIDENCE_MANIFEST_SCHEMA:
+        raise ValueError(f"{manifest_path}: unsupported evidence manifest schema")
+    entries = manifest.get("files")
+    if not isinstance(entries, list) or manifest.get("source_file_count") != len(entries):
+        raise ValueError(f"{manifest_path}: source file count does not reconcile")
+    compression = manifest.get("compression")
+    if not isinstance(compression, dict) or (
+        compression.get("format") != "gzip"
+        or compression.get("level") != 9
+        or compression.get("deterministic_header") is not True
+        or compression.get("command") != "gzip -9 -n"
+    ):
+        raise ValueError(f"{manifest_path}: invalid compression provenance")
+
+    project_root = raw_root.parent.parent.resolve()
+    by_original: dict[Path, dict[str, object]] = {}
+    by_compressed: dict[Path, dict[str, object]] = {}
+    hash_pattern = re.compile(r"[0-9a-f]{64}")
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise ValueError(f"{manifest_path}: invalid manifest entry")
+        original_text = entry.get("original_path")
+        compressed_text = entry.get("compressed_path")
+        if not isinstance(original_text, str) or not isinstance(compressed_text, str):
+            raise ValueError(f"{manifest_path}: invalid evidence path")
+        original_rel = Path(original_text)
+        compressed_rel = Path(compressed_text)
+        if original_rel.is_absolute() or compressed_rel.is_absolute():
+            raise ValueError(f"{manifest_path}: absolute evidence path is forbidden")
+        original = (project_root / original_rel).resolve(strict=False)
+        compressed = (project_root / compressed_rel).resolve(strict=False)
+        if (
+            original.parent != raw_root
+            or compressed.parent != raw_root
+            or compressed != Path(f"{original}.gz")
+        ):
+            raise ValueError(f"{manifest_path}: evidence path escapes raw/e1")
+        if original in by_original or compressed in by_compressed:
+            raise ValueError(f"{manifest_path}: duplicate evidence path")
+        if (
+            not isinstance(entry.get("original_size"), int)
+            or entry["original_size"] < 0
+            or not isinstance(entry.get("compressed_size"), int)
+            or entry["compressed_size"] <= 0
+            or not isinstance(entry.get("original_sha256"), str)
+            or hash_pattern.fullmatch(entry["original_sha256"]) is None
+            or not isinstance(entry.get("compressed_sha256"), str)
+            or hash_pattern.fullmatch(entry["compressed_sha256"]) is None
+        ):
+            raise ValueError(f"{manifest_path}: invalid evidence size or hash")
+        by_original[original] = entry
+        by_compressed[compressed] = entry
+
+    index: dict[str, object] = {
+        "manifest": manifest,
+        "by_original": by_original,
+        "by_compressed": by_compressed,
+    }
+    _MANIFEST_CACHE[manifest_path] = (cache_key, index)
+    return index
+
+
+def resolve_evidence_path(path: Path) -> Path:
+    """Resolve a logical raw/e1 path and validate frozen gzip provenance."""
+    path = path.resolve(strict=False)
+    raw_root = _raw_e1_root(path)
+    if raw_root is None:
+        if not path.is_file():
+            raise ValueError(f"missing file: {path}")
+        return path
+
+    manifest_path = raw_root / EVIDENCE_MANIFEST_NAME
+    if path == manifest_path:
+        if not path.is_file():
+            raise ValueError(f"missing evidence manifest: {path}")
+        return path
+
+    gzip_peer = Path(f"{path}.gz") if path.suffix != ".gz" else None
+    if not manifest_path.is_file():
+        if path.suffix == ".gz" or (gzip_peer is not None and gzip_peer.exists()):
+            raise ValueError(f"{path}: compressed evidence requires a manifest")
+        if not path.is_file():
+            raise ValueError(f"missing evidence file: {path}")
+        return path
+
+    index = _manifest_index(raw_root)
+    by_original = index["by_original"]
+    by_compressed = index["by_compressed"]
+    assert isinstance(by_original, dict) and isinstance(by_compressed, dict)
+    entry = by_original.get(path) or by_compressed.get(path)
+    if entry is None:
+        raise ValueError(f"{path}: compressed evidence is absent from the manifest")
+    assert isinstance(entry, dict)
+    project_root = raw_root.parent.parent.resolve()
+    original = (project_root / str(entry["original_path"])).resolve(strict=False)
+    compressed = (project_root / str(entry["compressed_path"])).resolve(strict=False)
+    if original.is_file() and compressed.is_file():
+        raise ValueError(f"{original}: plain and compressed evidence both exist")
+    if original.exists():
+        raise ValueError(f"{original}: frozen evidence must be compressed")
+    if not compressed.is_file():
+        raise ValueError(f"{compressed}: frozen evidence is missing")
+
+    stat = compressed.stat()
+    validation_key = (
+        compressed,
+        stat.st_mtime_ns,
+        stat.st_size,
+        str(entry["compressed_sha256"]),
+        str(entry["original_sha256"]),
+        int(entry["original_size"]),
+    )
+    if validation_key not in _VALIDATED_COMPRESSED_EVIDENCE:
+        if stat.st_size != entry["compressed_size"]:
+            raise ValueError(f"{compressed}: compressed size does not match manifest")
+        if _physical_sha256(compressed) != entry["compressed_sha256"]:
+            raise ValueError(f"{compressed}: compressed SHA-256 does not match manifest")
+        digest = hashlib.sha256()
+        original_size = 0
+        try:
+            with gzip.open(compressed, "rb") as source:
+                for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                    original_size += len(chunk)
+                    digest.update(chunk)
+        except (OSError, EOFError) as error:
+            raise ValueError(f"{compressed}: invalid gzip evidence") from error
+        if original_size != entry["original_size"]:
+            raise ValueError(f"{compressed}: original size does not match manifest")
+        if digest.hexdigest() != entry["original_sha256"]:
+            raise ValueError(f"{compressed}: original SHA-256 does not match manifest")
+        _VALIDATED_COMPRESSED_EVIDENCE.add(validation_key)
+    return compressed
+
+
+@contextmanager
+def open_evidence_text(path: Path, *, newline: str | None = None) -> Iterator[TextIO]:
+    physical = resolve_evidence_path(path)
+    if physical.suffix == ".gz":
+        with gzip.open(
+            physical, "rt", encoding="utf-8", errors="strict", newline=newline
+        ) as source:
+            yield source
+    else:
+        with physical.open(newline=newline, encoding="utf-8") as source:
+            yield source
+
+
+def read_evidence_bytes(path: Path) -> bytes:
+    physical = resolve_evidence_path(path)
+    try:
+        if physical.suffix == ".gz":
+            with gzip.open(physical, "rb") as source:
+                return source.read()
+        return physical.read_bytes()
+    except (OSError, EOFError) as error:
+        raise ValueError(f"{physical}: invalid evidence stream") from error
+
+
+def read_evidence_text(path: Path) -> str:
+    return read_evidence_bytes(path).decode("utf-8", errors="strict")
+
+
+def evidence_exists(path: Path) -> bool:
+    try:
+        resolve_evidence_path(path)
+    except ValueError:
+        return False
+    return True
+
+
+def evidence_glob(raw_dir: Path, pattern: str) -> list[Path]:
+    candidates = set(raw_dir.glob(pattern))
+    if not pattern.endswith(".gz"):
+        candidates.update(raw_dir.glob(f"{pattern}.gz"))
+    logical: dict[Path, Path] = {}
+    for candidate in candidates:
+        original = Path(str(candidate)[:-3]) if candidate.suffix == ".gz" else candidate
+        if original in logical:
+            raise ValueError(f"{original}: plain and compressed evidence both discovered")
+        logical[original] = resolve_evidence_path(candidate)
+    return sorted(logical.values())
+
+
+def same_evidence_reference(
+    project_root: Path, first: str, second: str
+) -> bool:
+    """Compare logical evidence references across plain and gzip storage names."""
+    return resolve_evidence_path(project_root / first) == resolve_evidence_path(
+        project_root / second
+    )
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    raw_root = _raw_e1_root(path)
+    if raw_root is not None and path.resolve(strict=False) != raw_root / EVIDENCE_MANIFEST_NAME:
+        digest.update(read_evidence_bytes(path))
+    else:
+        with path.open("rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(chunk)
     return digest.hexdigest()
 
 
@@ -215,7 +444,7 @@ def percentile(sorted_samples: list[float], fraction: float) -> float:
 
 
 def load_samples(path: Path, minimum_samples: int = MINIMUM_SAMPLES) -> list[float]:
-    with path.open(newline="", encoding="utf-8") as source:
+    with open_evidence_text(path, newline="") as source:
         reader = csv.DictReader(source)
         if reader.fieldnames != ["latency_ms"]:
             raise ValueError(f"{path}: expected only a latency_ms column")
@@ -239,7 +468,7 @@ def load_samples(path: Path, minimum_samples: int = MINIMUM_SAMPLES) -> list[flo
 
 
 def one_matching_file(raw_dir: Path, pattern: str) -> Path:
-    matches = sorted(raw_dir.glob(pattern))
+    matches = evidence_glob(raw_dir, pattern)
     if len(matches) != 1:
         raise ValueError(
             f"{raw_dir}/{pattern}: expected exactly one source file, found {len(matches)}"
@@ -255,7 +484,7 @@ def load_caliper_results(
     }
     ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
 
-    for raw_line in log_path.read_text(encoding="utf-8", errors="strict").splitlines():
+    for raw_line in read_evidence_text(log_path).splitlines():
         line = ansi_escape.sub("", raw_line).strip()
         if not line.startswith("|"):
             continue
@@ -413,7 +642,7 @@ def validated_sustainability_probe_metadata(
 
 
 def one_csv_row(path: Path) -> tuple[list[str], dict[str, str]]:
-    with path.open(newline="", encoding="utf-8") as source:
+    with open_evidence_text(path, newline="") as source:
         reader = csv.DictReader(source)
         if reader.fieldnames is None:
             raise ValueError(f"{path}: missing CSV header")
@@ -455,9 +684,9 @@ def validate_pq_verification_audits(project_root: Path) -> list[dict[str, str]]:
         namespace = spec["run_namespace"]
         csv_path = project_root / "raw" / "e1" / f"{namespace}_pq_verification_audit.csv"
         log_path = project_root / "raw" / "e1" / f"{namespace}_pq_verification_audit.log"
-        log_bytes = log_path.read_bytes()
+        log_bytes = read_evidence_bytes(log_path)
         log_text = log_bytes.decode("utf-8", errors="strict")
-        with csv_path.open(newline="", encoding="utf-8") as source:
+        with open_evidence_text(csv_path, newline="") as source:
             reader = csv.DictReader(source)
             if reader.fieldnames != PQ_VERIFICATION_FIELDS:
                 raise ValueError(f"{csv_path}: unexpected PQ verification schema")
@@ -572,7 +801,7 @@ def validated_ecdsa_block_result(project_root: Path) -> tuple[str, str]:
         )
 
     summary_path = project_root / working["summary_source"]
-    if not summary_path.is_file():
+    if not evidence_exists(summary_path):
         raise ValueError(f"missing ECDSA block summary: {summary_path}")
     if sha256_file(summary_path) != working["summary_sha256"]:
         raise ValueError(f"{summary_path}: SHA-256 does not match meta.json")
@@ -587,15 +816,17 @@ def validated_ecdsa_block_result(project_root: Path) -> tuple[str, str]:
         raise ValueError(f"{summary_path}: unexpected ECDSA diagnostic provenance")
 
     raw_path = project_root / summary["raw_blocks_file"]
-    if not raw_path.is_file():
+    if not evidence_exists(raw_path):
         raise ValueError(f"missing raw ECDSA block evidence: {raw_path}")
-    if summary["raw_blocks_file"] != working["raw_blocks_source"]:
+    if not same_evidence_reference(
+        project_root, summary["raw_blocks_file"], working["raw_blocks_source"]
+    ):
         raise ValueError(f"{summary_path}: raw source does not match meta.json")
     raw_hash = sha256_file(raw_path)
     if raw_hash != summary["raw_blocks_sha256"] or raw_hash != working["raw_blocks_sha256"]:
         raise ValueError(f"{raw_path}: SHA-256 provenance mismatch")
 
-    with raw_path.open(newline="", encoding="utf-8") as source:
+    with open_evidence_text(raw_path, newline="") as source:
         reader = csv.DictReader(source)
         required = {
             "config",
@@ -828,15 +1059,21 @@ def validated_timeout_filtered_block_result(
     if original["summary_sha256"] != result["raw_summary_sha256"]:
         raise ValueError(f"{metadata_path}: {config} raw summary hash mismatch")
     if (
-        original["raw_blocks_file"] != result["raw_blocks"]
+        not same_evidence_reference(
+            project_root, original["raw_blocks_file"], result["raw_blocks"]
+        )
         or original["raw_blocks_sha256"] != result["raw_blocks_sha256"]
-        or original["raw_transactions_file"] != result["raw_transactions"]
+        or not same_evidence_reference(
+            project_root,
+            original["raw_transactions_file"],
+            result["raw_transactions"],
+        )
         or original["raw_transactions_sha256"] != result["raw_transactions_sha256"]
     ):
         raise ValueError(f"{metadata_path}: {config} raw evidence mismatch")
 
     raw_blocks_path = project_root / result["raw_blocks"]
-    with raw_blocks_path.open(newline="", encoding="utf-8") as source:
+    with open_evidence_text(raw_blocks_path, newline="") as source:
         block_rows = list(csv.DictReader(source))
     expected_file_config = result["file_config"]
     blocks: list[tuple[int, int, int]] = []
@@ -857,7 +1094,7 @@ def validated_timeout_filtered_block_result(
         blocks.append((block_number, transaction_count, block_bytes))
 
     raw_transactions_path = project_root / result["raw_transactions"]
-    with raw_transactions_path.open(newline="", encoding="utf-8") as source:
+    with open_evidence_text(raw_transactions_path, newline="") as source:
         reader = csv.DictReader(source)
         if reader.fieldnames == EXACT_TRANSACTION_EVIDENCE_FIELDS:
             accounting_source = "direct_common_envelope_payload_plus_signature"
@@ -865,7 +1102,11 @@ def validated_timeout_filtered_block_result(
             legacy_source = LEGACY_BLOCK_ACCOUNTING_SOURCES.get(config)
             if legacy_source is None or (
                 result["namespace"] != legacy_source["namespace"]
-                or result["raw_transactions"] != legacy_source["raw_transactions"]
+                or not same_evidence_reference(
+                    project_root,
+                    result["raw_transactions"],
+                    legacy_source["raw_transactions"],
+                )
             ):
                 raise ValueError(
                     f"{raw_transactions_path}: legacy block-cutter accounting is "
@@ -1072,12 +1313,12 @@ def validate_supporting_signcert_evidence(project_root: Path) -> None:
 
     for display_config, provenance in measurements.items():
         evidence_path = project_root / provenance["source"]
-        if not evidence_path.is_file():
+        if not evidence_exists(evidence_path):
             raise ValueError(f"missing {display_config} identity evidence: {evidence_path}")
         if sha256_file(evidence_path) != provenance["sha256"]:
             raise ValueError(f"{evidence_path}: SHA-256 does not match meta.json")
 
-        with evidence_path.open(newline="", encoding="utf-8") as source:
+        with open_evidence_text(evidence_path, newline="") as source:
             reader = csv.DictReader(source)
             if reader.fieldnames != IDENTITY_FIELDS:
                 raise ValueError(f"{evidence_path}: unexpected identity schema")
@@ -1100,7 +1341,7 @@ def validate_supporting_signcert_evidence(project_root: Path) -> None:
 
         if "generation_log" in provenance:
             log_path = project_root / provenance["generation_log"]
-            if not log_path.is_file():
+            if not evidence_exists(log_path):
                 raise ValueError(f"missing {display_config} identity log: {log_path}")
             if sha256_file(log_path) != provenance["generation_log_sha256"]:
                 raise ValueError(f"{log_path}: SHA-256 does not match meta.json")
@@ -1140,11 +1381,11 @@ def validated_public_key_rows(project_root: Path) -> list[dict[str, str]]:
 
         if "generation_log" in measurement:
             log_path = project_root / measurement["generation_log"]
-            if not log_path.is_file() or sha256_file(log_path) != measurement["generation_log_sha256"]:
+            if not evidence_exists(log_path) or sha256_file(log_path) != measurement["generation_log_sha256"]:
                 raise ValueError(f"{config}: public-key generation-log provenance mismatch")
             matches = [
                 int(value)
-                for value in re.findall(r"public_key_bytes=(\d+)", log_path.read_text(encoding="utf-8"))
+                for value in re.findall(r"public_key_bytes=(\d+)", read_evidence_text(log_path))
             ]
             if matches != values:
                 raise ValueError(f"{log_path}: public-key sizes do not match meta.json")
@@ -1518,7 +1759,7 @@ def build_clean_fixed_profile_rows(
 
 
 def clean_round_block_count(heights_path: Path, round_label: str) -> int:
-    with heights_path.open(newline="", encoding="utf-8") as source:
+    with open_evidence_text(heights_path, newline="") as source:
         rows = {row["marker"]: int(row["height"]) for row in csv.DictReader(source)}
     before = rows[f"before_{round_label}"]
     after = rows[f"after_{round_label}"]
@@ -1611,7 +1852,7 @@ def build_clean_latency_professor_review_rows(
 
 
 def load_e2e_samples(path: Path) -> list[dict[str, float | str]]:
-    with path.open(newline="", encoding="utf-8") as source:
+    with open_evidence_text(path, newline="") as source:
         reader = csv.DictReader(source)
         if reader.fieldnames != E2E_FIELDS:
             raise ValueError(f"{path}: unexpected end-to-end timing schema")
@@ -1656,7 +1897,9 @@ def validate_namespaced_run_provenance(
     metadata = json.loads((project_root / "meta.json").read_text(encoding="utf-8"))
     block = metadata["e1_benchmark"]["fabric_block_parameters"]
 
-    log_text = log_path.read_text(encoding="utf-8", errors="strict")
+    log_path = resolve_evidence_path(log_path)
+    heights_path = resolve_evidence_path(heights_path)
+    log_text = read_evidence_text(log_path)
     patch_match = re.search(
         r"^\[E1\] fabric_pq_patch_sha256=([0-9a-f]{64})$", log_text, re.MULTILINE
     )
@@ -1752,7 +1995,7 @@ def validate_namespaced_run_provenance(
     ) is None:
         raise ValueError(f"{log_path}: missing start/finish timestamps")
 
-    with heights_path.open(newline="", encoding="utf-8") as source:
+    with open_evidence_text(heights_path, newline="") as source:
         reader = csv.DictReader(source)
         if reader.fieldnames != ["marker", "height"]:
             raise ValueError(f"{heights_path}: unexpected height-marker schema")
@@ -1804,11 +2047,13 @@ def build_sustainability_rows(
     config = config_from_run_namespace(run_namespace)
     raw_dir = project_root / "raw" / "e1"
     log_path = raw_dir / f"{run_namespace}_caliper_run.log"
-    e2e_paths = sorted(raw_dir.glob(f"{run_namespace}_e2e_*-tps_worker0_*.csv"))
+    e2e_paths = evidence_glob(
+        raw_dir, f"{run_namespace}_e2e_*-tps_worker0_*.csv"
+    )
     by_round: dict[str, Path] = {}
     for path in e2e_paths:
         match = re.fullmatch(
-            rf"{re.escape(run_namespace)}_e2e_((?:sphincs|sustained)-(\d+)-tps)_worker0_\d+\.csv",
+            rf"{re.escape(run_namespace)}_e2e_((?:sphincs|sustained)-(\d+)-tps)_worker0_\d+\.csv(?:\.gz)?",
             path.name,
         )
         if match is None or match.group(1) in by_round:
@@ -1826,9 +2071,11 @@ def build_sustainability_rows(
             project_root, run_namespace, config, round_labels
         )
         for sample_type in ("endorse", "commit"):
-            if list(raw_dir.glob(f"{run_namespace}_{sample_type}_warmup_worker0_*.csv")):
+            if evidence_glob(
+                raw_dir, f"{run_namespace}_{sample_type}_warmup_worker0_*.csv"
+            ):
                 raise ValueError(f"{raw_dir}: warm-up {sample_type} samples must not be retained")
-        if list(raw_dir.glob(f"{run_namespace}_e2e_warmup_worker0_*.csv")):
+        if evidence_glob(raw_dir, f"{run_namespace}_e2e_warmup_worker0_*.csv"):
             raise ValueError(f"{raw_dir}: warm-up end-to-end samples must not be retained")
         configured_rates = {
             round_label: configured_sustainability_rate(
@@ -2011,10 +2258,10 @@ def build_sustainability_rows(
         rows.append(row)
 
     if validate_all_raw:
-        namespace_paths = set(raw_dir.glob(f"{run_namespace}_*"))
+        namespace_paths = set(evidence_glob(raw_dir, f"{run_namespace}_*"))
         supplemental_block_evidence = set(
-            raw_dir.glob(f"{run_namespace}_blocks_*.csv")
-        ) | set(raw_dir.glob(f"{run_namespace}_transactions_*.csv"))
+            evidence_glob(raw_dir, f"{run_namespace}_blocks_*.csv")
+        ) | set(evidence_glob(raw_dir, f"{run_namespace}_transactions_*.csv"))
         namespace_paths -= supplemental_block_evidence
         if namespace_paths != validated_paths:
             unexpected = sorted(str(path.name) for path in namespace_paths - validated_paths)
@@ -2055,11 +2302,11 @@ def validate_transaction_summary(project_root: Path, summary_argument: str) -> l
         raise ValueError(f"{summary_path}: summary predates serialized transaction evidence")
 
     raw_blocks_path = (project_root / summary["raw_blocks_file"]).resolve()
-    if not raw_blocks_path.is_relative_to(project_root) or not raw_blocks_path.is_file():
+    if not raw_blocks_path.is_relative_to(project_root) or not evidence_exists(raw_blocks_path):
         raise ValueError(f"{summary_path}: invalid block evidence path")
     if sha256_file(raw_blocks_path) != summary["raw_blocks_sha256"]:
         raise ValueError(f"{raw_blocks_path}: SHA-256 does not match summary")
-    with raw_blocks_path.open(newline="", encoding="utf-8") as source:
+    with open_evidence_text(raw_blocks_path, newline="") as source:
         reader = csv.DictReader(source)
         required_block_fields = {
             "config", "run_label", "benchmark_label", "block_number", "block_bytes",
@@ -2132,12 +2379,12 @@ def validate_transaction_summary(project_root: Path, summary_argument: str) -> l
             raise ValueError(f"{summary_path}: {field} does not regenerate from blocks")
 
     transaction_path = (project_root / summary["raw_transactions_file"]).resolve()
-    if not transaction_path.is_relative_to(project_root) or not transaction_path.is_file():
+    if not transaction_path.is_relative_to(project_root) or not evidence_exists(transaction_path):
         raise ValueError(f"{summary_path}: invalid transaction evidence path")
     if sha256_file(transaction_path) != summary["raw_transactions_sha256"]:
         raise ValueError(f"{transaction_path}: SHA-256 does not match summary")
 
-    with transaction_path.open(newline="", encoding="utf-8") as source:
+    with open_evidence_text(transaction_path, newline="") as source:
         reader = csv.DictReader(source)
         if reader.fieldnames == EXACT_TRANSACTION_EVIDENCE_FIELDS:
             has_exact_orderer_message_bytes = True

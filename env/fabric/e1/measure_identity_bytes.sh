@@ -58,8 +58,8 @@ fi
 
 OUTPUT_FILE="$RAW_DIR/${RUN_NAMESPACE}_public_key_bytes.csv"
 
-if [[ -e "$OUTPUT_FILE" ]]; then
-    echo "ERROR: Refusing to overwrite existing identity measurement: $OUTPUT_FILE"
+if [[ -e "$OUTPUT_FILE" || -e "${OUTPUT_FILE}.gz" ]]; then
+    echo "ERROR: Refusing to overwrite existing or frozen identity measurement: $OUTPUT_FILE"
     exit 1
 fi
 
