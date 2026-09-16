@@ -393,28 +393,22 @@ def validated_sustainability_probe_metadata(
     probes: list[dict[str, object]],
     expected_config: str,
 ) -> dict[str, dict[str, str]]:
-    """Validate recorded derived rows and every raw source they reference."""
+    """Regenerate each boundary row directly from retained raw evidence."""
     rows_by_namespace = {}
     for probe in probes:
         run_namespace = str(probe["run_namespace"])
         if run_namespace in rows_by_namespace:
             raise ValueError(f"duplicate sustainability namespace: {run_namespace}")
-        result_path = project_root / str(probe["result_summary"])
-        fieldnames, recorded = one_csv_row(result_path)
-        if sha256_file(result_path) != probe["result_summary_sha256"]:
-            raise ValueError(f"{result_path}: derived sustainability hash mismatch")
         regenerated = build_sustainability_rows(project_root, run_namespace)[0]
-        if fieldnames != list(regenerated) or recorded != regenerated:
-            raise ValueError(
-                f"{result_path}: derived sustainability row does not regenerate exactly"
-            )
         if (
-            recorded["config"] != expected_config
-            or recorded["offered_tps"] != str(probe["offered_tps"])
-            or (recorded["sustainable"] == "true") != probe["sustainable"]
+            regenerated["config"] != expected_config
+            or regenerated["offered_tps"] != str(probe["offered_tps"])
+            or (regenerated["sustainable"] == "true") != probe["sustainable"]
         ):
-            raise ValueError(f"{result_path}: sustainability metadata does not match row")
-        rows_by_namespace[run_namespace] = recorded
+            raise ValueError(
+                f"{run_namespace}: sustainability metadata does not match raw evidence"
+            )
+        rows_by_namespace[run_namespace] = regenerated
     return rows_by_namespace
 
 

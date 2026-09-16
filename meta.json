@@ -197,8 +197,6 @@
         "status": "validated_functional_evidence_not_performance_measurement",
         "trace": "one successful oqs.Signature.Verify trace from the orderer and all four peers per PQ configuration",
         "performance_trace_state": "disabled",
-        "derived_summary": "data/e1_pq_verification_audits.csv",
-        "derived_summary_sha256": "84410ae5660c74c9deaddcb66d27e0194b0af00395f7bb5bea7a63f34c8303c5",
         "audits": {
           "ML-DSA-44": {
             "namespace": "pq-verify-v1_ml-dsa-44",
@@ -317,8 +315,6 @@
         "status": "complete",
         "fresh_ledger_start_height": 7,
         "pq_verify_trace": 0,
-        "derived_summary": "data/e1_latency_clean_professor_review.csv",
-        "derived_summary_sha256": "6148b1df5e53ad3c9e018029e463f514244f32dde45c07af318fdce14d9ba9c1",
         "runs": {
           "ECDSA": {
             "namespace": "latency-common-clean-v1_ecdsa",
@@ -422,27 +418,19 @@
         "duration_seconds_per_rate": 60,
         "status": "complete",
         "run_namespace": "sphincs-lowrate-v1_sphincs",
-        "result_summary": "data/e1_sphincs_sustainability.csv",
-        "result_summary_sha256": "3ecb1492db69d2cbc2b866a2b495de7d59809c1a489b0c10ae6c47901a92ea02",
         "run_log": "raw/e1/sphincs-lowrate-v1_sphincs_caliper_run.log",
         "run_log_sha256": "affc7bf4f8d71bcad4d9aa0a66375592792c3c4f68f4521417303b13d2aec342",
         "transaction_evidence_20_tps": {
           "status": "transaction evidence valid; block utilisation timeout-driven and diagnostic only",
           "raw_summary": "raw/e1/sphincs-lowrate-v1_sphincs_blocks_sphincs-20-tps_summary.csv",
-          "raw_summary_sha256": "8fc34c40fd11f03a7fefc20c83863a9f17225cf58666d0f5a25496f023727e5d",
-          "derived_summary": "data/e1_sphincs_transaction_evidence.csv",
-          "derived_summary_sha256": "2c6292a07e9dcd9480b391729c102251011b6b10f3e350519a44509570ffe87a"
+          "raw_summary_sha256": "8fc34c40fd11f03a7fefc20c83863a9f17225cf58666d0f5a25496f023727e5d"
         },
         "boundary_22_tps_result": {
           "namespace": "sphincs-boundary-22-v1_sphincs",
-          "result_summary": "data/e1_sphincs_boundary_22.csv",
-          "result_summary_sha256": "45179bfd4b08685f3f2ab401a90ade982e110729480e61ec64bff1290ab90f5d",
           "sustainable": true
         },
         "boundary_23_tps_result": {
           "namespace": "sphincs-boundary-23-v1_sphincs",
-          "result_summary": "data/e1_sphincs_boundary_23.csv",
-          "result_summary_sha256": "43af9b9e8345450877b63c520c3749afa7ffd8f9a194099e4ebc9105b54c1a76",
           "sustainable": false
         },
         "integer_boundary_search": {
@@ -458,16 +446,12 @@
             {
               "offered_tps": 228,
               "run_namespace": "sustained-228-v1_ecdsa",
-              "sustainable": true,
-              "result_summary": "data/e1_ecdsa_sustainability_228.csv",
-              "result_summary_sha256": "29edc6c3e47c7f00043f06fd21d734e43e84ce0d45919a3e49ba419e1b5864c6"
+              "sustainable": true
             },
             {
               "offered_tps": 229,
               "run_namespace": "sustained-229-v1_ecdsa",
-              "sustainable": false,
-              "result_summary": "data/e1_ecdsa_sustainability_229.csv",
-              "result_summary_sha256": "970c0b9d7d6b8d2ea1e1169ca6e8bbbdd30444690d0fd4bb1b53e3e5ceca9631"
+              "sustainable": false
             }
           ],
           "highest_sustainable_integer_tps": 228,
@@ -482,16 +466,12 @@
             {
               "offered_tps": 356,
               "run_namespace": "sustained-356-v1_ml-dsa-44",
-              "sustainable": true,
-              "result_summary": "data/e1_sustained_356_ml_dsa_44.csv",
-              "result_summary_sha256": "642488119c20fd22cd0a2f827dc6cacb749c5496b23f4326ea585ffe0fda4e1a"
+              "sustainable": true
             },
             {
               "offered_tps": 357,
               "run_namespace": "sustained-357-v1_ml-dsa-44",
-              "sustainable": false,
-              "result_summary": "data/e1_sustained_357_ml_dsa_44.csv",
-              "result_summary_sha256": "72eee40342c94a70683428e2490e765a2b5ebbc4bd6572aaa2cac1b8809d812e"
+              "sustainable": false
             }
           ],
           "highest_sustainable_integer_tps": 356,
@@ -506,16 +486,12 @@
             {
               "offered_tps": 344,
               "run_namespace": "sustained-344-v2_ml-dsa-65",
-              "sustainable": true,
-              "result_summary": "data/e1_sustained_344_ml_dsa_65.csv",
-              "result_summary_sha256": "05368d99da3396352ab16af52a5069b38e49ec27a43f3a76e5bf20927536b51a"
+              "sustainable": true
             },
             {
               "offered_tps": 345,
               "run_namespace": "sustained-345-v1_ml-dsa-65",
-              "sustainable": false,
-              "result_summary": "data/e1_sustained_345_ml_dsa_65.csv",
-              "result_summary_sha256": "89ccbb482d18f1cd67ac9f86dc60324431708ce91dc86c3ad8070b7a445e8023"
+              "sustainable": false
             }
           ],
           "highest_sustainable_integer_tps": 344,
@@ -555,24 +531,18 @@
       },
       "ecdsa_transaction_evidence": {
         "raw_summary": "raw/e1/tx-evidence-50-v1_ecdsa_blocks_50-tps_summary.csv",
-        "derived_summary": "data/e1_ecdsa_transaction_evidence.csv",
-        "derived_summary_sha256": "445d02b9b83234288013f1b610e38eddd268429ec1324b10e8f17303d9999b3a",
         "ordinary_transaction_count": 6001,
         "tx_bytes_mean": "3929.301450",
         "endorsements_per_tx": "2.000000"
       },
       "ml_dsa_44_transaction_evidence": {
         "raw_summary": "raw/e1/tx-evidence-50-v1_ml-dsa-44_blocks_50-tps_summary.csv",
-        "derived_summary": "data/e1_ml_dsa_44_transaction_evidence.csv",
-        "derived_summary_sha256": "6e6b307d21c8bfe41e755f06eba28c079f89c9993d38a2f2f21420867cd1cb71",
         "ordinary_transaction_count": 6001,
         "tx_bytes_mean": "12288.617897",
         "endorsements_per_tx": "2.000000"
       },
       "ml_dsa_65_transaction_evidence": {
         "raw_summary": "raw/e1/tx-evidence-50-v1_ml-dsa-65_blocks_50-tps_summary.csv",
-        "derived_summary": "data/e1_ml_dsa_65_transaction_evidence.csv",
-        "derived_summary_sha256": "b08aa2cea843038243a30400a73667dbedfeab6a3969d0026202d8ea6be09f16",
         "ordinary_transaction_count": 6001,
         "tx_bytes_mean": "15803.491918",
         "endorsements_per_tx": "2.000000"

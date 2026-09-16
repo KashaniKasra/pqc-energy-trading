@@ -931,13 +931,26 @@ class MetadataCleanlinessTests(unittest.TestCase):
                 "status",
                 "fresh_ledger_start_height",
                 "pq_verify_trace",
-                "derived_summary",
-                "derived_summary_sha256",
                 "runs",
                 "results_200_tps",
                 "sphincs_50_tps_saturation",
             },
         )
+
+        referenced_e1_data = set()
+
+        def collect_paths(value: object) -> None:
+            if isinstance(value, dict):
+                for nested in value.values():
+                    collect_paths(nested)
+            elif isinstance(value, list):
+                for nested in value:
+                    collect_paths(nested)
+            elif isinstance(value, str) and value.startswith("data/e1_"):
+                referenced_e1_data.add(value)
+
+        collect_paths(metadata)
+        self.assertEqual(referenced_e1_data, {"data/e1_fabric.csv"})
 
 
 if __name__ == "__main__":
