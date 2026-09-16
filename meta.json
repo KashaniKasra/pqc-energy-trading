@@ -108,7 +108,7 @@
     "license": null
   },
   "e1_benchmark": {
-    "status": "complete_except_ml_dsa_44_ml_dsa_65_sphincs_block_utilisation",
+    "status": "complete_except_sphincs_block_utilisation",
     "platform": "server",
     "server_environment": {
       "os": "Ubuntu 24.04.3 LTS",
@@ -528,9 +528,10 @@
     },
     "block_utilisation": {
       "definition": "mean(actual ordinary-transaction block bytes) / effective PreferredMaxBytes",
-      "population_rule": "exclude genesis, config, and other nonordinary blocks; retain terminal ordinary blocks",
+      "population_rule": "exclude genesis, config, and other nonordinary blocks; exclude ordinary blocks cut prematurely by BatchTimeout; retain traffic-volume-filled ordinary blocks; retain a terminal ordinary partial block unless evidence establishes BatchTimeout closure",
       "traffic_volume_requirement": "blocks should fill by traffic volume rather than close prematurely because of BatchTimeout",
-      "mixed_population_treatment": "pending professor clarification for populations containing both volume-filled and periodic BatchTimeout residual blocks",
+      "mixed_population_treatment": "resolved by direct professor clarification: exclude periodic BatchTimeout residual blocks from block_bytes_mean and block_utilisation",
+      "timeout_classification_method": "For the retained ML-DSA runs, reconstruct Fabric block-cutter message bytes as serialized common.Envelope bytes minus five protobuf framing bytes. Retain a block when MaxMessageCount is reached or when even the minimum observed workload message cannot fit within PreferredMaxBytes. The remaining underfilled ordinary blocks occur exactly 30 times, matching 60 seconds / BatchTimeout 2 seconds, and are excluded as periodic BatchTimeout residuals.",
       "transaction_size_method": "decode each fetched block's Block.Data.Data[i] as the exact serialized common.Envelope; retain its length and embedded endorsement count",
       "transaction_evidence_tool": "env/fabric/e1/measure_block_bytes.sh using src/e1/evidence/cmd/blockinspect",
       "working_result": {
@@ -574,33 +575,63 @@
         "tx_bytes_mean": "15803.491918",
         "endorsements_per_tx": "2.000000"
       },
-      "pending_block_evidence": {
+      "volume_filtered_results": {
         "ML-DSA-44": {
-          "status": "pending_professor_methodology_clarification",
+          "status": "final",
+          "file_config": "ml-dsa-44",
           "namespace": "sustained-200-v1_ml-dsa-44",
+          "run_label": "sustained-200-v1",
+          "benchmark_label": "sustained-200-tps",
           "block_interval": "17-106",
-          "ordinary_blocks": 90,
-          "block_bytes_mean": "1640832.944444",
-          "block_utilisation": "0.782410118",
+          "round_duration_seconds": 60,
+          "batch_timeout_seconds": 2,
+          "ordinary_block_count_total": 90,
+          "retained_volume_filled_block_count": 60,
+          "excluded_timeout_block_count": 30,
+          "volume_filled_transaction_counts": [170],
+          "minimum_orderer_message_bytes": 12276,
+          "max_volume_block_remaining_capacity": 9128,
+          "min_timeout_residual_remaining_capacity": 1310883,
+          "block_bytes_mean": "2091602.116667",
+          "effective_preferred_max_bytes": 2097152,
+          "block_utilisation": "0.997353609",
+          "raw_summary": "raw/e1/sustained-200-v1_ml-dsa-44_blocks_sustained-200-tps_summary.csv",
+          "raw_summary_sha256": "29d9c882d075aa25a2e5da20f32a628f8760a74a9f4bf94b84b309ecb7cab49d",
           "raw_blocks": "raw/e1/sustained-200-v1_ml-dsa-44_blocks_sustained-200-tps.csv",
           "raw_blocks_sha256": "0600a235762027479a8b41ea330be0e52f773577cdea6a04cd1f008f6959dd45",
-          "raw_summary": "raw/e1/sustained-200-v1_ml-dsa-44_blocks_sustained-200-tps_summary.csv",
-          "raw_summary_sha256": "29d9c882d075aa25a2e5da20f32a628f8760a74a9f4bf94b84b309ecb7cab49d"
+          "raw_transactions": "raw/e1/sustained-200-v1_ml-dsa-44_transactions_sustained-200-tps.csv",
+          "raw_transactions_sha256": "ea9a9e1accf934da14e1ce65cf570de1016adf3444b099d821a6afd421ee2f02"
         },
         "ML-DSA-65": {
-          "status": "pending_professor_methodology_clarification",
+          "status": "final",
+          "file_config": "ml-dsa-65",
           "namespace": "sustained-345-v1_ml-dsa-65",
+          "run_label": "sustained-345-v1",
+          "benchmark_label": "sustained-345-tps",
           "block_interval": "17-177",
-          "ordinary_blocks": 161,
-          "block_bytes_mean": "1917454.229814",
-          "block_utilisation": "0.914313426",
+          "round_duration_seconds": 60,
+          "batch_timeout_seconds": 2,
+          "ordinary_block_count_total": 161,
+          "retained_volume_filled_block_count": 131,
+          "excluded_timeout_block_count": 30,
+          "volume_filled_transaction_counts": [132],
+          "minimum_orderer_message_bytes": 15784,
+          "max_volume_block_remaining_capacity": 12809,
+          "min_timeout_residual_remaining_capacity": 27424,
+          "block_bytes_mean": "2087381.732824",
+          "effective_preferred_max_bytes": 2097152,
+          "block_utilisation": "0.995341174",
+          "raw_summary": "raw/e1/sustained-345-v1_ml-dsa-65_blocks_sustained-345-tps_summary.csv",
+          "raw_summary_sha256": "76eef37ba535749df2a72981cfaf1251839685a6c7e26461447d7e1ec9bd9246",
           "raw_blocks": "raw/e1/sustained-345-v1_ml-dsa-65_blocks_sustained-345-tps.csv",
           "raw_blocks_sha256": "5cb3a0d6074bddc39a1a71b388acb9fcbd850ed30e0f941fcc41002222b3cfa5",
-          "raw_summary": "raw/e1/sustained-345-v1_ml-dsa-65_blocks_sustained-345-tps_summary.csv",
-          "raw_summary_sha256": "76eef37ba535749df2a72981cfaf1251839685a6c7e26461447d7e1ec9bd9246"
-        },
+          "raw_transactions": "raw/e1/sustained-345-v1_ml-dsa-65_transactions_sustained-345-tps.csv",
+          "raw_transactions_sha256": "75e4fa179d2d8fb9297fb78cd7e4768a3e9803790e229b69152d102e061a9aee"
+        }
+      },
+      "pending_block_evidence": {
         "SPHINCS+-SHA2-128s-simple": {
-          "status": "pending_professor_methodology_clarification; retained 20-TPS population is timeout-driven and diagnostic only",
+          "status": "pending_separate_volume_filling_run; retained 20-TPS population is timeout-driven and diagnostic only",
           "namespace": "sphincs-lowrate-v1_sphincs",
           "raw_summary": "raw/e1/sphincs-lowrate-v1_sphincs_blocks_sphincs-20-tps_summary.csv",
           "raw_summary_sha256": "8fc34c40fd11f03a7fefc20c83863a9f17225cf58666d0f5a25496f023727e5d"
@@ -658,7 +689,7 @@
         "block_utilisation"
       ],
       "final_summary": "data/e1_fabric.csv",
-      "final_summary_status": "pending_block_methodology",
+      "final_summary_status": "pending_sphincs_volume_filling_block_run",
       "raw_sources": "raw/e1/"
     }
   },

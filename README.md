@@ -11,7 +11,7 @@ results and failed requests are evidence and must not be tuned away.
 | --- | --- |
 | E0 primitives, server | Server measurement complete; specification-referenced sanity checker unavailable |
 | E0 primitives, meter/SBC | Pending hardware measurement |
-| E1 Fabric | Complete except final block-utilisation treatment for ML-DSA-44, ML-DSA-65, and SPHINCS+ |
+| E1 Fabric | Complete except SPHINCS+ volume-filling block measurement |
 | E2, E5, E7, E8, E9 | Not yet completed |
 
 `data/e1_fabric.csv` is intentionally absent until E1 is complete. The
@@ -30,8 +30,8 @@ raw/       retained raw measurements
 figures/   generated final PDFs
 ```
 
-Raw E1 evidence remains uncompressed while the pending block methodology is
-resolved. It must not be deleted or overwritten. `meta.json` contains the
+Raw E1 evidence remains uncompressed while the SPHINCS+ block measurement is
+pending. It must not be deleted or overwritten. `meta.json` contains the
 authoritative machine-readable provenance.
 
 ## Pinned environment
@@ -182,19 +182,29 @@ block_utilisation = mean(actual fetched ordinary-transaction block bytes)
 ```
 
 Genesis, config, and other nonordinary blocks are excluded; terminal ordinary
-blocks are retained. The professor requires blocks to fill by traffic volume
-rather than close prematurely because of `BatchTimeout`. Treatment of mixed
-populations containing both volume-filled and periodic `BatchTimeout` residual
-blocks remains pending professor clarification.
+blocks are retained unless evidence establishes `BatchTimeout` closure. Under
+the professor's final rule, ordinary blocks cut prematurely by `BatchTimeout`
+are excluded; traffic-volume-filled ordinary blocks are retained.
 
 ECDSA final evidence is `blockutil-300_ecdsa`, blocks 17-48: 32 ordinary
 blocks, `block_bytes_mean=1952347.156250`, and
 `block_utilisation=0.930951670`. Blocks 17-47 reached 500 transactions; block
 48 is the retained terminal 386-transaction block.
 
-ML-DSA-44, ML-DSA-65, and SPHINCS+ block treatment remains pending professor
-clarification. Their retained candidate/diagnostic block evidence must not be
-promoted or deleted in the meantime.
+For the retained ML-DSA runs, Fabric block-cutter message bytes are reconstructed
+from the exact serialized envelopes. Capacity-filled blocks cannot admit even
+the smallest observed workload message; the remaining 30 underfilled blocks in
+each 60-second population match the 30 two-second `BatchTimeout` periods and are
+excluded reproducibly:
+
+| Configuration | Total ordinary | Retained volume-filled | Excluded timeout | `block_bytes_mean` | `block_utilisation` |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| ML-DSA-44 | 90 | 60 | 30 | 2091602.116667 | 0.997353609 |
+| ML-DSA-65 | 161 | 131 | 30 | 2087381.732824 | 0.995341174 |
+
+The retained SPHINCS+ 20-TPS population is entirely timeout-driven and remains
+diagnostic only. A separate volume-filling SPHINCS+ run is required; no final
+SPHINCS+ block-utilisation value is claimed.
 
 ## Reproduction and deterministic analysis
 
@@ -247,10 +257,10 @@ bash env/caliper/e1/test_run_policy.sh
 ./src/e1/analyze_timings.py --working-e1
 ```
 
-`--working-e1` is stdout-only and leaves unresolved block fields empty; it
-cannot be mistaken for `data/e1_fabric.csv`. Raw CSV/log evidence will be
-gzip-compressed only after the E1 KEEP set and pending block methodology are
-frozen, with provenance hashes and readers updated together.
+`--working-e1` is stdout-only and leaves the unresolved SPHINCS+ block fields
+empty; it cannot be mistaken for `data/e1_fabric.csv`. Raw CSV/log evidence
+will be gzip-compressed only after the E1 KEEP set and SPHINCS+ block evidence
+are frozen, with provenance hashes and readers updated together.
 
 Falcon-512 in liboqs 0.15.0 is the round-3 implementation and must not be
 described as final FIPS 206.

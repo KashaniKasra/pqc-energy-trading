@@ -448,6 +448,53 @@ class TransactionEvidenceTests(unittest.TestCase):
             self.assertEqual(rows[0]["endorsements_per_tx"], "2.000000")
 
 
+class BlockUtilisationTests(unittest.TestCase):
+    def test_batch_timeout_residuals_are_excluded(self) -> None:
+        blocks = [
+            (10, 3, 900),
+            (11, 1, 250),
+            (12, 3, 920),
+        ]
+        envelope_bytes_by_block = {
+            10: [300, 300, 300],
+            11: [300],
+            12: [300, 300, 300],
+        }
+
+        classified = ANALYZER.classify_traffic_volume_blocks(
+            blocks,
+            envelope_bytes_by_block,
+            preferred_max_bytes=1000,
+            max_message_count=500,
+            expected_timeout_residuals=1,
+        )
+
+        self.assertEqual(
+            [block[0] for block in classified["retained"]], [10, 12]
+        )
+        self.assertEqual(
+            [block[0] for block in classified["timeout_residuals"]], [11]
+        )
+        retained_bytes = [block[2] for block in classified["retained"]]
+        self.assertEqual(f"{sum(retained_bytes) / len(retained_bytes):.6f}", "910.000000")
+        self.assertEqual(
+            f"{(sum(retained_bytes) / len(retained_bytes)) / 1000:.9f}",
+            "0.910000000",
+        )
+
+    def test_timeout_count_must_match_retained_periodicity(self) -> None:
+        blocks = [(10, 3, 900), (11, 1, 250)]
+        envelope_bytes_by_block = {10: [300, 300, 300], 11: [300]}
+        with self.assertRaisesRegex(ValueError, "periodic BatchTimeout evidence"):
+            ANALYZER.classify_traffic_volume_blocks(
+                blocks,
+                envelope_bytes_by_block,
+                preferred_max_bytes=1000,
+                max_message_count=500,
+                expected_timeout_residuals=0,
+            )
+
+
 class CleanFixedProfileTests(unittest.TestCase):
     def write_fixture(self, root: Path, config: str = "ecdsa", fail_200: int = 0) -> str:
         raw = root / "raw" / "e1"

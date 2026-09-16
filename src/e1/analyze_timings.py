@@ -148,6 +148,7 @@ PQ_VERIFICATION_FIELDS = [
     "config", "algorithm", "container", "implementation", "function",
     "result", "trace_line_sha256",
 ]
+FABRIC_ENVELOPE_FRAMING_BYTES = 5
 
 
 def sha256_file(path: Path) -> str:
@@ -679,6 +680,191 @@ def validated_ecdsa_block_result(project_root: Path) -> tuple[str, str]:
     return mean_text, utilisation_text
 
 
+def classify_traffic_volume_blocks(
+    blocks: list[tuple[int, int, int]],
+    envelope_bytes_by_block: dict[int, list[int]],
+    preferred_max_bytes: int,
+    max_message_count: int,
+    expected_timeout_residuals: int,
+) -> dict[str, object]:
+    """Separate capacity-filled blocks from periodic BatchTimeout residuals.
+
+    Fabric v2.5.16 block cutting accounts for ``len(Payload)+len(Signature)``.
+    In these retained runs, each serialized ``common.Envelope`` adds exactly
+    five protobuf framing bytes: two field tags, a two-byte payload-length
+    varint, and a one-byte ECDSA client-signature-length varint.
+    """
+    if preferred_max_bytes <= 0 or max_message_count <= 0:
+        raise ValueError("Fabric block-capacity parameters must be positive")
+    if not blocks or expected_timeout_residuals < 0:
+        raise ValueError("block population or timeout-residual count is invalid")
+
+    message_bytes_by_block: dict[int, list[int]] = {}
+    for block_number, transaction_count, _ in blocks:
+        envelope_sizes = envelope_bytes_by_block.get(block_number)
+        if envelope_sizes is None or len(envelope_sizes) != transaction_count:
+            raise ValueError(
+                f"block {block_number} transaction evidence does not reconcile"
+            )
+        if any(size <= FABRIC_ENVELOPE_FRAMING_BYTES for size in envelope_sizes):
+            raise ValueError(f"block {block_number} has an invalid envelope size")
+        message_bytes_by_block[block_number] = [
+            size - FABRIC_ENVELOPE_FRAMING_BYTES for size in envelope_sizes
+        ]
+    if set(message_bytes_by_block) != set(envelope_bytes_by_block):
+        raise ValueError("transaction evidence contains an unexpected block")
+
+    minimum_message_bytes = min(
+        size for sizes in message_bytes_by_block.values() for size in sizes
+    )
+    retained: list[tuple[int, int, int]] = []
+    timeout_residuals: list[tuple[int, int, int]] = []
+    retained_remaining_capacity: list[int] = []
+    timeout_remaining_capacity: list[int] = []
+    for block_number, transaction_count, block_bytes in blocks:
+        pending_bytes = sum(message_bytes_by_block[block_number])
+        if pending_bytes > preferred_max_bytes:
+            raise ValueError(
+                f"block {block_number} exceeds effective PreferredMaxBytes"
+            )
+        remaining_capacity = preferred_max_bytes - pending_bytes
+        filled_by_count = transaction_count >= max_message_count
+        filled_by_bytes = remaining_capacity < minimum_message_bytes
+        if filled_by_count or filled_by_bytes:
+            retained.append((block_number, transaction_count, block_bytes))
+            retained_remaining_capacity.append(remaining_capacity)
+        else:
+            timeout_residuals.append((block_number, transaction_count, block_bytes))
+            timeout_remaining_capacity.append(remaining_capacity)
+
+    if len(timeout_residuals) != expected_timeout_residuals:
+        raise ValueError(
+            "underfilled ordinary-block count does not match the periodic "
+            "BatchTimeout evidence"
+        )
+    if not retained:
+        raise ValueError("no traffic-volume-filled ordinary blocks remain")
+    return {
+        "retained": retained,
+        "timeout_residuals": timeout_residuals,
+        "minimum_message_bytes": minimum_message_bytes,
+        "max_retained_remaining_capacity": max(retained_remaining_capacity),
+        "min_timeout_remaining_capacity": min(timeout_remaining_capacity),
+    }
+
+
+def validated_timeout_filtered_block_result(
+    project_root: Path, config: str
+) -> tuple[str, str]:
+    metadata_path = project_root / "meta.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    block_metadata = metadata["e1_benchmark"]["block_utilisation"]
+    result = block_metadata["volume_filtered_results"][config]
+    block_parameters = metadata["e1_benchmark"]["fabric_block_parameters"]
+
+    if result["status"] != "final":
+        raise ValueError(f"{metadata_path}: {config} block result is not final")
+    original = validate_transaction_summary(project_root, result["raw_summary"])[0]
+    if original["summary_sha256"] != result["raw_summary_sha256"]:
+        raise ValueError(f"{metadata_path}: {config} raw summary hash mismatch")
+    if (
+        original["raw_blocks_file"] != result["raw_blocks"]
+        or original["raw_blocks_sha256"] != result["raw_blocks_sha256"]
+        or original["raw_transactions_file"] != result["raw_transactions"]
+        or original["raw_transactions_sha256"] != result["raw_transactions_sha256"]
+    ):
+        raise ValueError(f"{metadata_path}: {config} raw evidence mismatch")
+
+    raw_blocks_path = project_root / result["raw_blocks"]
+    with raw_blocks_path.open(newline="", encoding="utf-8") as source:
+        block_rows = list(csv.DictReader(source))
+    expected_file_config = result["file_config"]
+    blocks: list[tuple[int, int, int]] = []
+    for row in block_rows:
+        if (
+            row["config"] != expected_file_config
+            or row["run_label"] != result["run_label"]
+            or row["benchmark_label"] != result["benchmark_label"]
+            or row["classification"] != "ordinary_transaction"
+            or row["accepted_for_mean"] != "true"
+        ):
+            raise ValueError(f"{raw_blocks_path}: unexpected block provenance")
+        block_number = parse_uint(raw_blocks_path, "block_number", row["block_number"])
+        transaction_count = parse_uint(
+            raw_blocks_path, "transaction_count", row["transaction_count"]
+        )
+        block_bytes = parse_uint(raw_blocks_path, "block_bytes", row["block_bytes"])
+        blocks.append((block_number, transaction_count, block_bytes))
+
+    raw_transactions_path = project_root / result["raw_transactions"]
+    with raw_transactions_path.open(newline="", encoding="utf-8") as source:
+        reader = csv.DictReader(source)
+        if reader.fieldnames != TRANSACTION_EVIDENCE_FIELDS:
+            raise ValueError(
+                f"{raw_transactions_path}: unexpected transaction evidence schema"
+            )
+        transaction_rows = list(reader)
+    envelope_bytes_by_block: dict[int, list[int]] = {}
+    for row in transaction_rows:
+        if (
+            row["config"] != expected_file_config
+            or row["run_label"] != result["run_label"]
+            or row["benchmark_label"] != result["benchmark_label"]
+            or row["channel_header_type"] != "3"
+            or row["block_classification"] != "ordinary_transaction"
+            or row["accepted_for_tx_mean"] != "true"
+        ):
+            raise ValueError(f"{raw_transactions_path}: unexpected transaction provenance")
+        block_number = parse_uint(
+            raw_transactions_path, "block_number", row["block_number"]
+        )
+        envelope_bytes_by_block.setdefault(block_number, []).append(
+            parse_uint(raw_transactions_path, "envelope_bytes", row["envelope_bytes"])
+        )
+
+    preferred = block_parameters["PreferredMaxBytes_effective_bytes"]
+    max_message_count = block_parameters["MaxMessageCount"]
+    if block_parameters["BatchTimeout"] != "2s":
+        raise ValueError(f"{metadata_path}: unsupported BatchTimeout provenance")
+    duration_seconds = result["round_duration_seconds"]
+    batch_timeout_seconds = result["batch_timeout_seconds"]
+    if batch_timeout_seconds != 2 or duration_seconds % batch_timeout_seconds != 0:
+        raise ValueError(f"{metadata_path}: invalid timeout-period provenance")
+    expected_timeout_residuals = duration_seconds // batch_timeout_seconds
+    classified = classify_traffic_volume_blocks(
+        blocks,
+        envelope_bytes_by_block,
+        preferred,
+        max_message_count,
+        expected_timeout_residuals,
+    )
+    retained = classified["retained"]
+    timeout_residuals = classified["timeout_residuals"]
+    retained_bytes = [block[2] for block in retained]
+    mean_text = f"{sum(retained_bytes) / len(retained_bytes):.6f}"
+    utilisation_text = f"{(sum(retained_bytes) / len(retained_bytes)) / preferred:.9f}"
+    retained_transaction_counts = sorted({block[1] for block in retained})
+    expected_interval = f"{blocks[0][0]}-{blocks[-1][0]}"
+    if (
+        result["block_interval"] != expected_interval
+        or result["ordinary_block_count_total"] != len(blocks)
+        or result["retained_volume_filled_block_count"] != len(retained)
+        or result["excluded_timeout_block_count"] != len(timeout_residuals)
+        or result["volume_filled_transaction_counts"] != retained_transaction_counts
+        or result["minimum_orderer_message_bytes"]
+        != classified["minimum_message_bytes"]
+        or result["max_volume_block_remaining_capacity"]
+        != classified["max_retained_remaining_capacity"]
+        or result["min_timeout_residual_remaining_capacity"]
+        != classified["min_timeout_remaining_capacity"]
+        or result["effective_preferred_max_bytes"] != preferred
+        or result["block_bytes_mean"] != mean_text
+        or result["block_utilisation"] != utilisation_text
+    ):
+        raise ValueError(f"{metadata_path}: {config} filtered block result mismatch")
+    return mean_text, utilisation_text
+
+
 def validate_supporting_signcert_evidence(project_root: Path) -> None:
     metadata_path = project_root / "meta.json"
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
@@ -822,7 +1008,15 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
     validate_supporting_signcert_evidence(project_root)
     public_key_rows = validated_public_key_rows(project_root)
     validated_endorsement_policy(project_root)
-    block_mean, block_utilisation = validated_ecdsa_block_result(project_root)
+    ecdsa_block_mean, ecdsa_block_utilisation = validated_ecdsa_block_result(
+        project_root
+    )
+    ml_dsa_44_block_mean, ml_dsa_44_block_utilisation = (
+        validated_timeout_filtered_block_result(project_root, "ML-DSA-44")
+    )
+    ml_dsa_65_block_mean, ml_dsa_65_block_utilisation = (
+        validated_timeout_filtered_block_result(project_root, "ML-DSA-65")
+    )
     metadata = json.loads((project_root / "meta.json").read_text(encoding="utf-8"))
     ecdsa_transaction_summary = metadata["e1_benchmark"]["block_utilisation"][
         "ecdsa_transaction_evidence"
@@ -879,14 +1073,18 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
             row["endorse_median_ms"] = outcome["endorse_median_ms"]
             row["endorse_p95_ms"] = outcome["endorse_p95_ms"]
             row["commit_median_ms"] = outcome["commit_median_ms"]
-    rows[0]["block_bytes_mean"] = block_mean
-    rows[0]["block_utilisation"] = block_utilisation
+    rows[0]["block_bytes_mean"] = ecdsa_block_mean
+    rows[0]["block_utilisation"] = ecdsa_block_utilisation
     rows[0]["tx_bytes_mean"] = ecdsa_transaction["tx_bytes_mean"]
     rows[0]["endorsements_per_tx"] = ecdsa_transaction["endorsements_per_tx"]
     rows[1]["tx_bytes_mean"] = ml_dsa_44_transaction["tx_bytes_mean"]
     rows[1]["endorsements_per_tx"] = ml_dsa_44_transaction["endorsements_per_tx"]
+    rows[1]["block_bytes_mean"] = ml_dsa_44_block_mean
+    rows[1]["block_utilisation"] = ml_dsa_44_block_utilisation
     rows[2]["tx_bytes_mean"] = ml_dsa_65_transaction["tx_bytes_mean"]
     rows[2]["endorsements_per_tx"] = ml_dsa_65_transaction["endorsements_per_tx"]
+    rows[2]["block_bytes_mean"] = ml_dsa_65_block_mean
+    rows[2]["block_utilisation"] = ml_dsa_65_block_utilisation
     rows[3]["tx_bytes_mean"] = sphincs_transaction["tx_bytes_mean"]
     rows[3]["endorsements_per_tx"] = sphincs_transaction["endorsements_per_tx"]
     integer_boundaries = metadata["e1_benchmark"]["caliper"][
