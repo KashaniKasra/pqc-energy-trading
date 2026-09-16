@@ -1,8 +1,7 @@
 {
   "project": {
     "name": "Layer-Aware Post-Quantum Cryptography for Blockchain-Based Energy Trading",
-    "implementation_authority": "docs/student_spec(1).pdf",
-    "measurement_principle": "Measure and retain what the system actually does; do not tune results to an expected model."
+    "implementation_authority": "docs/student_spec(1).pdf"
   },
   "server_hardware": {
     "architecture": "x86_64",
@@ -53,20 +52,16 @@
     "server_environment": {
       "os": "Ubuntu 24.04.3 LTS",
       "kernel": "6.14.0-37-generic",
-      "docker": "28.2.2",
       "openssl_package": "3.0.13-0ubuntu3.12",
       "go": "1.22.2"
     },
     "methodology": {
-      "platform": "server",
       "liboqs_api": "direct library API",
       "oqs_provider_used": false,
       "ecdsa_backend": "OpenSSL libcrypto",
       "ecdsa_hash": "SHA-256",
       "ecdsa_hashing_inside_timed_region": false,
       "signature_message": "SHA-256 of UTF-8 string pqc-energy-trading-e0-message-v1",
-      "signature_message_bytes": 32,
-      "kem_message": null,
       "warmup_iterations": 100,
       "measured_iterations": 10000,
       "gomaxprocs": 1,
@@ -88,7 +83,6 @@
       "summary": "data/e0_primitives.csv",
       "summary_sha256": "b8656403f78a0845eceaf15df9803b4aea7282ed7960137a920773a9733b4936",
       "raw_samples": "raw/e0/",
-      "raw_samples_compressed": true,
       "run_log": "raw/e0/e0_server_run.log",
       "run_log_sha256": "5a67af85eac9fdb4c0d7c53528790051a8bf875b8cd7ffca0cccfcf8014c09dd"
     }
@@ -108,8 +102,7 @@
     "license": null
   },
   "e1_benchmark": {
-    "status": "complete_except_sphincs_block_utilisation",
-    "platform": "server",
+    "status": "complete",
     "server_environment": {
       "os": "Ubuntu 24.04.3 LTS",
       "kernel": "7.0.0-30-generic",
@@ -131,16 +124,13 @@
     "installed_images_at_metadata_update": {
       "peer": "sha256:3d71da5ac46b179c981527b69ac832cb7905bd3bc428ee6b2620bc580e3c944e",
       "orderer": "sha256:4ec6f0287e3fda35a874357bfe9c9f2ef8b9fbb427a42457de3b6b1b98290058",
-      "fabric_pq_patch_sha256": "5268f9f67656233d7e7b9ac7c449f20f05fc8a8257fb91eb0de63698a72d1293",
-      "fabric_commit_label": "f871cf92a026aba7b12e6f06d71ded3e6e659d71",
-      "liboqs_commit_label": "97f6b86b1b6d109cfd43cf276ae39c2e776aed80"
+      "fabric_pq_patch_sha256": "5268f9f67656233d7e7b9ac7c449f20f05fc8a8257fb91eb0de63698a72d1293"
     },
     "superseded_installed_images": [
       {
         "peer": "sha256:6fe74f12e91ab73a07b13d4a7d2954df8a2ad5a6e00ea2665cfffed7f34f5448",
         "orderer": "sha256:b56ec95ae9168725b8c8e1dc4bc4126f30f2b661e3dc99dd72225dc87b1f3d1f",
-        "fabric_pq_patch_sha256": "2eeee5582fabd90bb9e675e98bce3daf94a087d2d6848ccfa720f7216e23550f",
-        "status": "retained only to validate canonical evidence whose run logs record this image set"
+        "fabric_pq_patch_sha256": "2eeee5582fabd90bb9e675e98bce3daf94a087d2d6848ccfa720f7216e23550f"
       }
     ],
     "cpu_control": {
@@ -158,9 +148,7 @@
     "fabric_block_parameters": {
       "BatchTimeout": "2s",
       "MaxMessageCount": 500,
-      "PreferredMaxBytes": "2 MB",
       "PreferredMaxBytes_effective_bytes": 2097152,
-      "AbsoluteMaxBytes": "10 MB",
       "AbsoluteMaxBytes_effective_bytes": 10485760,
       "effective_value_source": "decoded generated Fabric channel configuration"
     },
@@ -234,17 +222,27 @@
       "measurements": {
         "ECDSA": {
           "representation": "DER-encoded X.509 SubjectPublicKeyInfo returned by Fabric ecdsaPublicKey.Bytes()",
-          "per_peer_bytes": [91, 91, 91, 91],
-        "mean_bytes": "91.000000",
-        "min_bytes": 91,
-        "max_bytes": 91,
-        "dispersion_percent": "0.000000",
-        "provenance": "The 91-byte value is derived and cross-checked from the DER-encoded P-256 SubjectPublicKeyInfo returned by Fabric v2.5.16 ecdsaPublicKey.Bytes() in bccsp/sw/ecdsakey.go. Four ECDSA peer certificates and their hashes are retained in raw/e1/blockutil-300_ecdsa_identity_bytes.csv.gz as supporting certificate evidence only; that file is not a public-key-byte measurement CSV.",
-        "dedicated_per_peer_public_key_extraction_csv": null
+          "per_peer_bytes": [
+            91,
+            91,
+            91,
+            91
+          ],
+          "mean_bytes": "91.000000",
+          "min_bytes": 91,
+          "max_bytes": 91,
+          "dispersion_percent": "0.000000",
+          "provenance": "The 91-byte value is derived and cross-checked from the DER-encoded P-256 SubjectPublicKeyInfo returned by Fabric v2.5.16 ecdsaPublicKey.Bytes() in bccsp/sw/ecdsakey.go. Four ECDSA peer certificates and their hashes are retained in raw/e1/blockutil-300_ecdsa_identity_bytes.csv.gz as supporting certificate evidence only; that file is not a public-key-byte measurement CSV.",
+          "dedicated_per_peer_public_key_extraction_csv": null
         },
         "ML-DSA-44": {
           "representation": "raw liboqs public key returned by pqPublicKey.Bytes()",
-          "per_peer_bytes": [1312, 1312, 1312, 1312],
+          "per_peer_bytes": [
+            1312,
+            1312,
+            1312,
+            1312
+          ],
           "mean_bytes": "1312.000000",
           "min_bytes": 1312,
           "max_bytes": 1312,
@@ -255,7 +253,12 @@
         },
         "ML-DSA-65": {
           "representation": "raw liboqs public key returned by pqPublicKey.Bytes()",
-          "per_peer_bytes": [1952, 1952, 1952, 1952],
+          "per_peer_bytes": [
+            1952,
+            1952,
+            1952,
+            1952
+          ],
           "mean_bytes": "1952.000000",
           "min_bytes": 1952,
           "max_bytes": 1952,
@@ -266,7 +269,12 @@
         },
         "SLH-DSA": {
           "representation": "raw liboqs SPHINCS+-SHA2-128s-simple public key returned by pqPublicKey.Bytes()",
-          "per_peer_bytes": [32, 32, 32, 32],
+          "per_peer_bytes": [
+            32,
+            32,
+            32,
+            32
+          ],
           "mean_bytes": "32.000000",
           "min_bytes": 32,
           "max_bytes": 32,
@@ -278,7 +286,6 @@
       }
     },
     "caliper": {
-      "version": "0.7.1",
       "profile_file": "env/caliper/e1/benchmark.yaml",
       "profile_sha256": "5ae8aa973467a7828237fbc097c8e3936d5a05196de3cfd2881f550b8afd6e1a",
       "fixed_profile": [
@@ -301,8 +308,6 @@
           "role": "professor_selected_final_latency"
         }
       ],
-      "workers": 1,
-      "rate_controller": "fixed-rate",
       "timing_clock": "process.hrtime.bigint()",
       "timing_unit": "milliseconds",
       "endorsement_timing_boundary": "immediately before proposal.endorse() until its promise resolves",
@@ -414,7 +419,13 @@
       "sphincs_low_rate_sweep": {
         "profile_file": "env/caliper/e1/benchmark_sphincs_sweep.yaml",
         "profile_sha256": "726401c382e08051cbaf6dd5820de28f1ebaa1e6c56eb1d8ce99889e1053d1be",
-        "rates_tps": [1, 2, 5, 10, 20],
+        "rates_tps": [
+          1,
+          2,
+          5,
+          10,
+          20
+        ],
         "duration_seconds_per_rate": 60,
         "status": "complete",
         "run_namespace": "sphincs-lowrate-v1_sphincs",
@@ -562,7 +573,9 @@
           "ordinary_block_count_total": 90,
           "retained_volume_filled_block_count": 60,
           "excluded_timeout_block_count": 30,
-          "volume_filled_transaction_counts": [170],
+          "volume_filled_transaction_counts": [
+            170
+          ],
           "minimum_orderer_message_bytes": 12276,
           "max_volume_block_remaining_capacity": 9128,
           "min_timeout_residual_remaining_capacity": 1310883,
@@ -590,7 +603,9 @@
           "ordinary_block_count_total": 161,
           "retained_volume_filled_block_count": 131,
           "excluded_timeout_block_count": 30,
-          "volume_filled_transaction_counts": [132],
+          "volume_filled_transaction_counts": [
+            132
+          ],
           "minimum_orderer_message_bytes": 15784,
           "max_volume_block_remaining_capacity": 12809,
           "min_timeout_residual_remaining_capacity": 27424,
@@ -644,7 +659,9 @@
             "nominal_timeout_period_count_reference": 30,
             "timeout_corroboration": "The 29 underfilled candidates are near the nominal 30 two-second periods in the 60-second send window. This count is informational only, not a bound or classifier; per-block close timestamps are not retained and classification comes from exact block-cutter capacity accounting.",
             "max_message_count_block_count": 0,
-            "volume_filled_transaction_counts": [106],
+            "volume_filled_transaction_counts": [
+              106
+            ],
             "retained_blocks": [
               {
                 "block_number": 43,
@@ -698,7 +715,9 @@
             "nominal_timeout_period_count_reference": 30,
             "timeout_corroboration": "The nominal send window does not bound ledger drain time; the Caliper round drained outstanding work for 76.639 seconds. Candidate count is informational only and classification comes from exact non-fill evidence.",
             "max_message_count_block_count": 0,
-            "volume_filled_transaction_counts": [106],
+            "volume_filled_transaction_counts": [
+              106
+            ],
             "retained_blocks": [
               {
                 "block_number": 46,
@@ -776,7 +795,10 @@
           },
           "final_result": {
             "retained_block_count": 2,
-            "retained_block_bytes": [2091254, 2091698],
+            "retained_block_bytes": [
+              2091254,
+              2091698
+            ],
             "block_bytes_mean": "2091476.000000",
             "effective_preferred_max_bytes": 2097152,
             "block_utilisation": "0.997293472",
@@ -855,10 +877,8 @@
       ],
       "final_summary": "data/e1_fabric.csv",
       "final_summary_sha256": "c0d595fdf9eaf24b33692659079bc35d106a19265a0d24d0312bb2e4f278b71a",
-      "final_summary_status": "complete_from_validated_retained_evidence",
       "final_summary_generator": "src/e1/analyze_timings.py --final-e1",
-      "sphincs_latency_fields": "empty because the professor-selected 200-TPS common-profile population saturated and is not a valid normal-latency population; tx_success_rate and tx_error_rate remain reported",
-      "raw_sources": "raw/e1/"
+      "sphincs_latency_fields": "empty because the professor-selected 200-TPS common-profile population saturated and is not a valid normal-latency population; tx_success_rate and tx_error_rate remain reported"
     }
   },
   "notes": {
