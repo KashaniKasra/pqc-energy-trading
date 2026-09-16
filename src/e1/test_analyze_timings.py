@@ -491,7 +491,7 @@ class BlockUtilisationTests(unittest.TestCase):
             envelope_bytes_by_block,
             preferred_max_bytes=1000,
             max_message_count=500,
-            expected_timeout_residuals=2,
+            timeout_residual_upper_bound=3,
         )
 
         self.assertEqual(
@@ -500,6 +500,8 @@ class BlockUtilisationTests(unittest.TestCase):
         self.assertEqual(
             [block[0] for block in classified["timeout_residuals"]], [11, 13]
         )
+        self.assertEqual(classified["timeout_residual_upper_bound"], 3)
+        self.assertEqual(classified["terminal_underfilled_candidate_count"], 1)
         retained_bytes = [block[2] for block in classified["retained"]]
         self.assertEqual(f"{sum(retained_bytes) / len(retained_bytes):.6f}", "910.000000")
         self.assertEqual(
@@ -507,16 +509,16 @@ class BlockUtilisationTests(unittest.TestCase):
             "0.910000000",
         )
 
-    def test_timeout_count_must_match_retained_periodicity(self) -> None:
+    def test_timeout_candidates_cannot_exceed_all_timeout_upper_bound(self) -> None:
         blocks = [(10, 3, 900), (11, 1, 250)]
         envelope_bytes_by_block = {10: [300, 300, 300], 11: [300]}
-        with self.assertRaisesRegex(ValueError, "periodic BatchTimeout evidence"):
+        with self.assertRaisesRegex(ValueError, "all-timeout BatchTimeout upper bound"):
             ANALYZER.classify_traffic_volume_blocks(
                 blocks,
                 envelope_bytes_by_block,
                 preferred_max_bytes=1000,
                 max_message_count=500,
-                expected_timeout_residuals=0,
+                timeout_residual_upper_bound=0,
             )
 
     def test_sphincs_is_not_final_when_thirty_candidates_leave_no_retained_blocks(self) -> None:
@@ -530,8 +532,40 @@ class BlockUtilisationTests(unittest.TestCase):
                 message_bytes_by_block,
                 preferred_max_bytes=1000,
                 max_message_count=500,
-                expected_timeout_residuals=30,
+                timeout_residual_upper_bound=30,
             )
+
+    def test_sphincs_mixed_population_accepts_fewer_than_timeout_upper_bound(self) -> None:
+        blocks = [(number, 1, 250) for number in range(1, 29)]
+        blocks.extend([(29, 3, 900), (30, 1, 250)])
+        message_bytes_by_block = {number: [100] for number in range(1, 29)}
+        message_bytes_by_block[29] = [300, 300, 350]
+        message_bytes_by_block[30] = [100]
+
+        classified = ANALYZER.classify_traffic_volume_blocks(
+            blocks,
+            message_bytes_by_block,
+            preferred_max_bytes=1000,
+            max_message_count=500,
+            timeout_residual_upper_bound=30,
+        )
+
+        self.assertEqual(len(classified["retained"]), 1)
+        self.assertEqual(len(classified["timeout_residuals"]), 29)
+
+    def test_retained_sphincs_diagnostic_is_validated_but_not_final(self) -> None:
+        project_root = Path(__file__).resolve().parents[2]
+        self.assertEqual(
+            ANALYZER.validated_sphincs_block_diagnostic(project_root),
+            ("2091254.000000", "0.997187614"),
+        )
+        sphincs_row = next(
+            row
+            for row in ANALYZER.build_working_e1_rows(project_root)
+            if row["config"] == "SLH-DSA"
+        )
+        self.assertEqual(sphincs_row["block_bytes_mean"], "")
+        self.assertEqual(sphincs_row["block_utilisation"], "")
 
     def test_legacy_ml_dsa_block_results_remain_reproducible(self) -> None:
         project_root = Path(__file__).resolve().parents[2]

@@ -733,7 +733,7 @@ def classify_traffic_volume_blocks(
     orderer_message_bytes_by_block: dict[int, list[int]],
     preferred_max_bytes: int,
     max_message_count: int,
-    expected_timeout_residuals: int,
+    timeout_residual_upper_bound: int,
 ) -> dict[str, object]:
     """Separate capacity-filled blocks from periodic BatchTimeout residuals.
 
@@ -743,7 +743,7 @@ def classify_traffic_volume_blocks(
     """
     if preferred_max_bytes <= 0 or max_message_count <= 0:
         raise ValueError("Fabric block-capacity parameters must be positive")
-    if not blocks or expected_timeout_residuals < 0:
+    if not blocks or timeout_residual_upper_bound < 0:
         raise ValueError("block population or timeout-residual count is invalid")
 
     for block_number, transaction_count, _ in blocks:
@@ -764,6 +764,7 @@ def classify_traffic_volume_blocks(
     underfilled_candidates: list[tuple[int, int, int]] = []
     retained_remaining_capacity: list[int] = []
     timeout_remaining_capacity: list[int] = []
+    terminal_underfilled_candidate_count = 0
     for block_index, (block_number, transaction_count, block_bytes) in enumerate(blocks):
         pending_bytes = sum(orderer_message_bytes_by_block[block_number])
         if pending_bytes > preferred_max_bytes:
@@ -786,11 +787,13 @@ def classify_traffic_volume_blocks(
         else:
             underfilled_candidates.append((block_number, transaction_count, block_bytes))
             timeout_remaining_capacity.append(remaining_capacity)
+            if block_index == len(blocks) - 1:
+                terminal_underfilled_candidate_count += 1
 
-    if len(underfilled_candidates) != expected_timeout_residuals:
+    if len(underfilled_candidates) > timeout_residual_upper_bound:
         raise ValueError(
-            "underfilled ordinary-block count does not match the periodic "
-            "BatchTimeout evidence"
+            "underfilled ordinary-block count exceeds the all-timeout "
+            "BatchTimeout upper bound"
         )
     if not retained:
         raise ValueError("no traffic-volume-filled ordinary blocks remain")
@@ -799,21 +802,34 @@ def classify_traffic_volume_blocks(
         "timeout_residuals": underfilled_candidates,
         "minimum_message_bytes": minimum_message_bytes,
         "max_retained_remaining_capacity": max(retained_remaining_capacity),
-        "min_timeout_remaining_capacity": min(timeout_remaining_capacity),
+        "min_timeout_remaining_capacity": (
+            min(timeout_remaining_capacity) if timeout_remaining_capacity else None
+        ),
+        "terminal_underfilled_candidate_count": terminal_underfilled_candidate_count,
+        "timeout_residual_upper_bound": timeout_residual_upper_bound,
     }
 
 
 def validated_timeout_filtered_block_result(
-    project_root: Path, config: str
+    project_root: Path,
+    config: str,
+    result_override: dict[str, object] | None = None,
+    required_status: str = "final",
 ) -> tuple[str, str]:
     metadata_path = project_root / "meta.json"
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     block_metadata = metadata["e1_benchmark"]["block_utilisation"]
-    result = block_metadata["volume_filtered_results"][config]
+    result = (
+        result_override
+        if result_override is not None
+        else block_metadata["volume_filtered_results"][config]
+    )
     block_parameters = metadata["e1_benchmark"]["fabric_block_parameters"]
 
-    if result["status"] != "final":
-        raise ValueError(f"{metadata_path}: {config} block result is not final")
+    if result["status"] != required_status:
+        raise ValueError(
+            f"{metadata_path}: {config} block result status is not {required_status}"
+        )
     original = validate_transaction_summary(project_root, result["raw_summary"])[0]
     if original["summary_sha256"] != result["raw_summary_sha256"]:
         raise ValueError(f"{metadata_path}: {config} raw summary hash mismatch")
@@ -904,13 +920,13 @@ def validated_timeout_filtered_block_result(
     batch_timeout_seconds = result["batch_timeout_seconds"]
     if batch_timeout_seconds != 2 or duration_seconds % batch_timeout_seconds != 0:
         raise ValueError(f"{metadata_path}: invalid timeout-period provenance")
-    expected_timeout_residuals = duration_seconds // batch_timeout_seconds
+    timeout_residual_upper_bound = duration_seconds // batch_timeout_seconds
     classified = classify_traffic_volume_blocks(
         blocks,
         orderer_message_bytes_by_block,
         preferred,
         max_message_count,
-        expected_timeout_residuals,
+        timeout_residual_upper_bound,
     )
     retained = classified["retained"]
     timeout_residuals = classified["timeout_residuals"]
@@ -924,6 +940,8 @@ def validated_timeout_filtered_block_result(
         or result["ordinary_block_count_total"] != len(blocks)
         or result["retained_volume_filled_block_count"] != len(retained)
         or result["excluded_timeout_block_count"] != len(timeout_residuals)
+        or result["timeout_residual_upper_bound"]
+        != classified["timeout_residual_upper_bound"]
         or result["volume_filled_transaction_counts"] != retained_transaction_counts
         or result["minimum_orderer_message_bytes"]
         != classified["minimum_message_bytes"]
@@ -931,12 +949,33 @@ def validated_timeout_filtered_block_result(
         != classified["max_retained_remaining_capacity"]
         or result["min_timeout_residual_remaining_capacity"]
         != classified["min_timeout_remaining_capacity"]
+        or (
+            "terminal_underfilled_candidate_count" in result
+            and result["terminal_underfilled_candidate_count"]
+            != classified["terminal_underfilled_candidate_count"]
+        )
         or result["effective_preferred_max_bytes"] != preferred
         or result["block_bytes_mean"] != mean_text
         or result["block_utilisation"] != utilisation_text
     ):
         raise ValueError(f"{metadata_path}: {config} filtered block result mismatch")
     return mean_text, utilisation_text
+
+
+def validated_sphincs_block_diagnostic(project_root: Path) -> tuple[str, str]:
+    metadata = json.loads((project_root / "meta.json").read_text(encoding="utf-8"))
+    pending = metadata["e1_benchmark"]["block_utilisation"][
+        "pending_block_evidence"
+    ][SPHINCS_BLOCK_CONFIG]
+    result = pending["diagnostic_volume_fill_evidence"]
+    if result.get("ambiguous_block_count") != 0:
+        raise ValueError("SPHINCS diagnostic contains unresolved ambiguous blocks")
+    return validated_timeout_filtered_block_result(
+        project_root,
+        SPHINCS_BLOCK_CONFIG,
+        result_override=result,
+        required_status="valid_diagnostic_final_pending_larger_population",
+    )
 
 
 def validate_supporting_signcert_evidence(project_root: Path) -> None:
@@ -1092,16 +1131,9 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
         validated_timeout_filtered_block_result(project_root, "ML-DSA-65")
     )
     metadata = json.loads((project_root / "meta.json").read_text(encoding="utf-8"))
-    sphincs_block_result: tuple[str, str] | None = None
-    sphincs_block_metadata = metadata["e1_benchmark"]["block_utilisation"][
-        "volume_filtered_results"
-    ].get(SPHINCS_BLOCK_CONFIG)
-    if sphincs_block_metadata is not None:
-        if sphincs_block_metadata.get("status") != "final":
-            raise ValueError("registered SPHINCS block evidence is not final")
-        sphincs_block_result = validated_timeout_filtered_block_result(
-            project_root, SPHINCS_BLOCK_CONFIG
-        )
+    # Validate the retained SPHINCS volume-fill diagnostic but deliberately do
+    # not populate final block fields from its one-block retained population.
+    validated_sphincs_block_diagnostic(project_root)
     ecdsa_transaction_summary = metadata["e1_benchmark"]["block_utilisation"][
         "ecdsa_transaction_evidence"
     ]["raw_summary"]
@@ -1171,9 +1203,6 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
     rows[2]["block_utilisation"] = ml_dsa_65_block_utilisation
     rows[3]["tx_bytes_mean"] = sphincs_transaction["tx_bytes_mean"]
     rows[3]["endorsements_per_tx"] = sphincs_transaction["endorsements_per_tx"]
-    if sphincs_block_result is not None:
-        rows[3]["block_bytes_mean"] = sphincs_block_result[0]
-        rows[3]["block_utilisation"] = sphincs_block_result[1]
     integer_boundaries = metadata["e1_benchmark"]["caliper"][
         "integer_sustainability_boundaries"
     ]

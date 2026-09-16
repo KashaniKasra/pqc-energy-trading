@@ -206,10 +206,14 @@ primary classifier:
 | ML-DSA-65 | 161 | 131 | 30 | 2087381.732824 | 0.995341174 |
 
 The retained SPHINCS+ 20-TPS population is entirely timeout-driven and remains
-diagnostic only. A separate volume-filling SPHINCS+ run is required; no final
-SPHINCS+ block-utilisation value is claimed. Its prepared 54-TPS profile is only
-a first diagnostic offered rate: ordered/committed traffic and exact retained
-block evidence determine whether a valid volume-filled population exists.
+diagnostic only. The 54-TPS diagnostic produced 30 ordinary blocks. Exact
+block-cutter accounting retains one 106-transaction size-filled block
+(`block_bytes_mean=2091254.000000`, `block_utilisation=0.997187614`) and excludes
+29 underfilled timeout candidates. This one-block population is valid diagnostic
+evidence but is too small to become the final SPHINCS+ block-utilisation result.
+The nominal `duration / BatchTimeout` count is only an all-timeout upper and
+corroborating expectation because every size cut resets the next timeout cadence.
+A larger volume-filled population is still required.
 
 ## Reproduction and deterministic analysis
 
