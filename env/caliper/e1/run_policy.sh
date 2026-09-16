@@ -80,6 +80,13 @@ validate_e1_run_policy() {
                 return 1
             fi
             ;;
+        benchmark_sphincs_blockutil_60.yaml)
+            require_e1_run_label "$run_label" || return 1
+            if [[ "$config" != "sphincs" || "$run_type" != "diagnostic" ]]; then
+                echo "ERROR: The SPHINCS+ 60-TPS block diagnostic requires config=sphincs and E1_RUN_TYPE=diagnostic."
+                return 1
+            fi
+            ;;
         *)
             echo "ERROR: Benchmark profile is not in the E1 scientific allowlist: $benchmark_basename"
             return 1

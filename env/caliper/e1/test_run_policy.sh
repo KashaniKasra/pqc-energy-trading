@@ -58,6 +58,9 @@ expected = {
     "benchmark_sphincs_blockutil_54.yaml": [
         ("warmup", 20, 1), ("blockutil-54-tps", 60, 54),
     ],
+    "benchmark_sphincs_blockutil_60.yaml": [
+        ("warmup", 20, 1), ("blockutil-60-tps", 60, 60),
+    ],
 }
 
 for filename, wanted in expected.items():
@@ -118,6 +121,7 @@ validate_e1_run_policy ml-dsa-44 benchmark_ml_dsa_sustained_357.yaml sustainabil
 validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_344.yaml sustainability sustained-344-v2
 validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_65_sustained_345.yaml sustainability sustained-345-v1
 validate_e1_run_policy sphincs benchmark_sphincs_blockutil_54.yaml diagnostic blockutil-54-v1
+validate_e1_run_policy sphincs benchmark_sphincs_blockutil_60.yaml diagnostic blockutil-60-v1
 
 for profile in benchmark_ecdsa_sustained_228.yaml benchmark_ecdsa_sustained_229.yaml; do
     expect_rejected validate_e1_run_policy ml-dsa-44 "$profile" sustainability bad
@@ -137,6 +141,9 @@ done
 expect_rejected validate_e1_run_policy ml-dsa-65 benchmark_ml_dsa_sustained_200.yaml sustainability bad
 expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_sphincs_blockutil_54.yaml diagnostic bad
 expect_rejected validate_e1_run_policy sphincs benchmark_sphincs_blockutil_54.yaml sustainability bad
+expect_rejected validate_e1_run_policy ml-dsa-44 benchmark_sphincs_blockutil_60.yaml diagnostic bad
+expect_rejected validate_e1_run_policy sphincs benchmark_sphincs_blockutil_60.yaml sustainability bad
+expect_rejected validate_e1_run_policy sphincs benchmark_sphincs_blockutil_60.yaml diagnostic ""
 expect_rejected validate_e1_run_policy ecdsa unreviewed.yaml diagnostic bad
 
 TEST_DIR="$(mktemp -d)"
