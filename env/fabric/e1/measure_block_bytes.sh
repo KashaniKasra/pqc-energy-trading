@@ -197,7 +197,7 @@ printf '%s\n' \
     > "$TEMP_RAW_BLOCKS"
 
 printf '%s\n' \
-    'config,run_label,benchmark_label,block_number,tx_index,channel_header_type,tx_id,envelope_bytes,envelope_sha256,validation_code,validation_name,endorsements,block_classification,accepted_for_tx_mean' \
+    'config,run_label,benchmark_label,block_number,tx_index,channel_header_type,tx_id,envelope_bytes,envelope_sha256,validation_code,validation_name,endorsements,block_classification,accepted_for_tx_mean,orderer_message_bytes' \
     > "$TEMP_TRANSACTIONS"
 
 ordinary_count=0
@@ -273,14 +273,18 @@ for (( block=START_BLOCK; block<=END_BLOCK; block++ )); do
         "$accepted_for_mean" \
         >> "$TEMP_RAW_BLOCKS"
 
-    while IFS=, read -r tx_index header_type tx_id envelope_bytes envelope_sha256 validation_code validation_name endorsements; do
+    while IFS=, read -r tx_index header_type tx_id envelope_bytes envelope_sha256 validation_code validation_name endorsements orderer_message_bytes; do
         if [[ "$tx_index" == "tx_index" ]]; then
             continue
         fi
         accepted_for_tx_mean="false"
         if [[ "$classification" == "ordinary_transaction" ]]; then
-            if [[ "$header_type" != "3" || ! "$envelope_bytes" =~ ^[0-9]+$ || ! "$endorsements" =~ ^[0-9]+$ ]]; then
+            if [[ "$header_type" != "3" || ! "$envelope_bytes" =~ ^[0-9]+$ || ! "$endorsements" =~ ^[0-9]+$ || ! "$orderer_message_bytes" =~ ^[0-9]+$ ]]; then
                 echo "ERROR: Block $block contains malformed ordinary-transaction evidence."
+                exit 1
+            fi
+            if (( orderer_message_bytes == 0 || orderer_message_bytes > envelope_bytes )); then
+                echo "ERROR: Block $block contains invalid exact orderer message-byte evidence."
                 exit 1
             fi
             accepted_for_tx_mean="true"
@@ -302,7 +306,7 @@ for (( block=START_BLOCK; block<=END_BLOCK; block++ )); do
             fi
         fi
 
-        printf '%s,%s,%s,%d,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
+        printf '%s,%s,%s,%d,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
             "$CONFIG" \
             "$RUN_LABEL" \
             "$BENCHMARK_LABEL" \
@@ -317,6 +321,7 @@ for (( block=START_BLOCK; block<=END_BLOCK; block++ )); do
             "$endorsements" \
             "$classification" \
             "$accepted_for_tx_mean" \
+            "$orderer_message_bytes" \
             >> "$TEMP_TRANSACTIONS"
     done < "$transaction_metadata"
 

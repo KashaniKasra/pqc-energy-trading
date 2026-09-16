@@ -531,7 +531,9 @@
       "population_rule": "exclude genesis, config, and other nonordinary blocks; exclude ordinary blocks cut prematurely by BatchTimeout; retain traffic-volume-filled ordinary blocks; retain a terminal ordinary partial block unless evidence establishes BatchTimeout closure",
       "traffic_volume_requirement": "blocks should fill by traffic volume rather than close prematurely because of BatchTimeout",
       "mixed_population_treatment": "resolved by direct professor clarification: exclude periodic BatchTimeout residual blocks from block_bytes_mean and block_utilisation",
-      "timeout_classification_method": "For the retained ML-DSA runs, reconstruct Fabric block-cutter message bytes as serialized common.Envelope bytes minus five protobuf framing bytes. Retain a block when MaxMessageCount is reached or when even the minimum observed workload message cannot fit within PreferredMaxBytes. The remaining underfilled ordinary blocks occur exactly 30 times, matching 60 seconds / BatchTimeout 2 seconds, and are excluded as periodic BatchTimeout residuals.",
+      "timeout_classification_method": "Retain a block when MaxMessageCount is reached or when exact accumulated block-cutter bytes show that the next observed workload message could not fit within PreferredMaxBytes. Remaining underfilled blocks are timeout candidates; the expected 60-second / 2-second periodicity is a consistency check and cannot create a retained population.",
+      "new_evidence_message_accounting": "direct len(common.Envelope.Payload) + len(common.Envelope.Signature) recorded per transaction as orderer_message_bytes",
+      "legacy_message_accounting_scope": "Only the retained sustained-200-v1_ml-dsa-44 and sustained-345-v1_ml-dsa-65 evidence predates orderer_message_bytes; those already-validated datasets retain their dataset-specific five-byte protobuf-framing reconstruction.",
       "transaction_size_method": "decode each fetched block's Block.Data.Data[i] as the exact serialized common.Envelope; retain its length and embedded endorsement count",
       "transaction_evidence_tool": "env/fabric/e1/measure_block_bytes.sh using src/e1/evidence/cmd/blockinspect",
       "working_result": {
@@ -585,6 +587,7 @@
           "block_interval": "17-106",
           "round_duration_seconds": 60,
           "batch_timeout_seconds": 2,
+          "orderer_message_bytes_source": "legacy_envelope_minus_five_bytes",
           "ordinary_block_count_total": 90,
           "retained_volume_filled_block_count": 60,
           "excluded_timeout_block_count": 30,
@@ -611,6 +614,7 @@
           "block_interval": "17-177",
           "round_duration_seconds": 60,
           "batch_timeout_seconds": 2,
+          "orderer_message_bytes_source": "legacy_envelope_minus_five_bytes",
           "ordinary_block_count_total": 161,
           "retained_volume_filled_block_count": 131,
           "excluded_timeout_block_count": 30,
@@ -634,7 +638,13 @@
           "status": "pending_separate_volume_filling_run; retained 20-TPS population is timeout-driven and diagnostic only",
           "namespace": "sphincs-lowrate-v1_sphincs",
           "raw_summary": "raw/e1/sphincs-lowrate-v1_sphincs_blocks_sphincs-20-tps_summary.csv",
-          "raw_summary_sha256": "8fc34c40fd11f03a7fefc20c83863a9f17225cf58666d0f5a25496f023727e5d"
+          "raw_summary_sha256": "8fc34c40fd11f03a7fefc20c83863a9f17225cf58666d0f5a25496f023727e5d",
+          "planned_namespace": "blockutil-54-v1_sphincs",
+          "planned_benchmark": "env/caliper/e1/benchmark_sphincs_blockutil_54.yaml",
+          "planned_offered_tps": 54,
+          "planning_tx_bytes_mean": "19711.570358",
+          "required_message_accounting": "direct_common_envelope_payload_plus_signature",
+          "planning_caveat": "54 TPS is a first diagnostic offered rate; offered TPS is not ordered or committed TPS, and no final value exists until retained ledger blocks pass exact volume-fill and timeout-residual validation."
         }
       }
     },

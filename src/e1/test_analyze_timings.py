@@ -449,16 +449,41 @@ class TransactionEvidenceTests(unittest.TestCase):
 
 
 class BlockUtilisationTests(unittest.TestCase):
+    def test_exact_orderer_message_bytes_are_preferred_over_envelope_framing(self) -> None:
+        source = Path("new-exact-transaction-evidence.csv")
+        row = {
+            "envelope_bytes": "1000",
+            "orderer_message_bytes": "300",
+        }
+        self.assertEqual(
+            ANALYZER.orderer_message_bytes_from_transaction_row(
+                source,
+                row,
+                "direct_common_envelope_payload_plus_signature",
+            ),
+            300,
+        )
+        self.assertEqual(
+            ANALYZER.orderer_message_bytes_from_transaction_row(
+                source,
+                row,
+                "legacy_envelope_minus_five_bytes",
+            ),
+            995,
+        )
+
     def test_batch_timeout_residuals_are_excluded(self) -> None:
         blocks = [
             (10, 3, 900),
             (11, 1, 250),
             (12, 3, 920),
+            (13, 1, 250),
         ]
         envelope_bytes_by_block = {
             10: [300, 300, 300],
             11: [300],
             12: [300, 300, 300],
+            13: [300],
         }
 
         classified = ANALYZER.classify_traffic_volume_blocks(
@@ -466,14 +491,14 @@ class BlockUtilisationTests(unittest.TestCase):
             envelope_bytes_by_block,
             preferred_max_bytes=1000,
             max_message_count=500,
-            expected_timeout_residuals=1,
+            expected_timeout_residuals=2,
         )
 
         self.assertEqual(
             [block[0] for block in classified["retained"]], [10, 12]
         )
         self.assertEqual(
-            [block[0] for block in classified["timeout_residuals"]], [11]
+            [block[0] for block in classified["timeout_residuals"]], [11, 13]
         )
         retained_bytes = [block[2] for block in classified["retained"]]
         self.assertEqual(f"{sum(retained_bytes) / len(retained_bytes):.6f}", "910.000000")
@@ -493,6 +518,35 @@ class BlockUtilisationTests(unittest.TestCase):
                 max_message_count=500,
                 expected_timeout_residuals=0,
             )
+
+    def test_sphincs_is_not_final_when_thirty_candidates_leave_no_retained_blocks(self) -> None:
+        blocks = [(number, 1, 250) for number in range(1, 31)]
+        message_bytes_by_block = {number: [100] for number in range(1, 31)}
+        with self.assertRaisesRegex(
+            ValueError, "no traffic-volume-filled ordinary blocks remain"
+        ):
+            ANALYZER.classify_traffic_volume_blocks(
+                blocks,
+                message_bytes_by_block,
+                preferred_max_bytes=1000,
+                max_message_count=500,
+                expected_timeout_residuals=30,
+            )
+
+    def test_legacy_ml_dsa_block_results_remain_reproducible(self) -> None:
+        project_root = Path(__file__).resolve().parents[2]
+        self.assertEqual(
+            ANALYZER.validated_timeout_filtered_block_result(
+                project_root, "ML-DSA-44"
+            ),
+            ("2091602.116667", "0.997353609"),
+        )
+        self.assertEqual(
+            ANALYZER.validated_timeout_filtered_block_result(
+                project_root, "ML-DSA-65"
+            ),
+            ("2087381.732824", "0.995341174"),
+        )
 
 
 class CleanFixedProfileTests(unittest.TestCase):

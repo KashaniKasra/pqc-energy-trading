@@ -16,14 +16,15 @@ import (
 )
 
 type transactionEvidence struct {
-	index            int
-	headerType       int32
-	transactionID    string
-	envelopeBytes    int
-	envelopeSHA256   string
-	validationCode   int32
-	validationName   string
-	endorsementCount int
+	index               int
+	headerType          int32
+	transactionID       string
+	envelopeBytes       int
+	envelopeSHA256      string
+	validationCode      int32
+	validationName      string
+	endorsementCount    int
+	ordererMessageBytes int
 }
 
 func inspectBlock(raw []byte) ([]transactionEvidence, error) {
@@ -91,14 +92,15 @@ func inspectBlock(raw []byte) ([]transactionEvidence, error) {
 		}
 		digest := sha256.Sum256(rawEnvelope)
 		rows = append(rows, transactionEvidence{
-			index:            index,
-			headerType:       channelHeader.Type,
-			transactionID:    channelHeader.TxId,
-			envelopeBytes:    len(rawEnvelope),
-			envelopeSHA256:   hex.EncodeToString(digest[:]),
-			validationCode:   validationCode,
-			validationName:   validationName,
-			endorsementCount: endorsementCount,
+			index:               index,
+			headerType:          channelHeader.Type,
+			transactionID:       channelHeader.TxId,
+			envelopeBytes:       len(rawEnvelope),
+			envelopeSHA256:      hex.EncodeToString(digest[:]),
+			validationCode:      validationCode,
+			validationName:      validationName,
+			endorsementCount:    endorsementCount,
+			ordererMessageBytes: len(envelope.Payload) + len(envelope.Signature),
 		})
 	}
 	return rows, nil
@@ -123,6 +125,7 @@ func run() error {
 	if err := writer.Write([]string{
 		"tx_index", "channel_header_type", "tx_id", "envelope_bytes",
 		"envelope_sha256", "validation_code", "validation_name", "endorsements",
+		"orderer_message_bytes",
 	}); err != nil {
 		return err
 	}
@@ -136,6 +139,7 @@ func run() error {
 			strconv.FormatInt(int64(row.validationCode), 10),
 			row.validationName,
 			strconv.Itoa(row.endorsementCount),
+			strconv.Itoa(row.ordererMessageBytes),
 		}); err != nil {
 			return err
 		}

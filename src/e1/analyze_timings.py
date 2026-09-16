@@ -124,12 +124,18 @@ CLEAN_FIXED_PROFILE_SPEC = {
     "run_type": "fixed-profile",
     "require_image_labels": "true",
 }
-TRANSACTION_EVIDENCE_FIELDS = [
+LEGACY_TRANSACTION_EVIDENCE_FIELDS = [
     "config", "run_label", "benchmark_label", "block_number", "tx_index",
     "channel_header_type", "tx_id", "envelope_bytes", "envelope_sha256",
     "validation_code", "validation_name", "endorsements",
     "block_classification", "accepted_for_tx_mean",
 ]
+EXACT_TRANSACTION_EVIDENCE_FIELDS = [
+    *LEGACY_TRANSACTION_EVIDENCE_FIELDS,
+    "orderer_message_bytes",
+]
+# Retained callers/tests use this name for the historical transaction schema.
+TRANSACTION_EVIDENCE_FIELDS = LEGACY_TRANSACTION_EVIDENCE_FIELDS
 PQ_VERIFICATION_AUDITS = {
     "ml-dsa-44": {
         "algorithm": "ML-DSA-44",
@@ -148,7 +154,25 @@ PQ_VERIFICATION_FIELDS = [
     "config", "algorithm", "container", "implementation", "function",
     "result", "trace_line_sha256",
 ]
-FABRIC_ENVELOPE_FRAMING_BYTES = 5
+LEGACY_FABRIC_ENVELOPE_FRAMING_BYTES = 5
+LEGACY_BLOCK_ACCOUNTING_SOURCES = {
+    "ML-DSA-44": {
+        "namespace": "sustained-200-v1_ml-dsa-44",
+        "raw_transactions": (
+            "raw/e1/sustained-200-v1_ml-dsa-44_"
+            "transactions_sustained-200-tps.csv"
+        ),
+    },
+    "ML-DSA-65": {
+        "namespace": "sustained-345-v1_ml-dsa-65",
+        "raw_transactions": (
+            "raw/e1/sustained-345-v1_ml-dsa-65_"
+            "transactions_sustained-345-tps.csv"
+        ),
+    },
+}
+SPHINCS_BLOCK_CONFIG = "SPHINCS+-SHA2-128s-simple"
+SPHINCS_BLOCK_NAMESPACE = "blockutil-54-v1_sphincs"
 
 
 def sha256_file(path: Path) -> str:
@@ -680,9 +704,33 @@ def validated_ecdsa_block_result(project_root: Path) -> tuple[str, str]:
     return mean_text, utilisation_text
 
 
+def orderer_message_bytes_from_transaction_row(
+    source_path: Path,
+    row: dict[str, str],
+    accounting_source: str,
+) -> int:
+    envelope_bytes = parse_uint(
+        source_path, "envelope_bytes", row["envelope_bytes"]
+    )
+    if accounting_source == "direct_common_envelope_payload_plus_signature":
+        orderer_message_bytes = parse_uint(
+            source_path,
+            "orderer_message_bytes",
+            row["orderer_message_bytes"],
+        )
+        if orderer_message_bytes == 0 or orderer_message_bytes > envelope_bytes:
+            raise ValueError(f"{source_path}: invalid exact orderer message bytes")
+        return orderer_message_bytes
+    if accounting_source == "legacy_envelope_minus_five_bytes":
+        if envelope_bytes <= LEGACY_FABRIC_ENVELOPE_FRAMING_BYTES:
+            raise ValueError(f"{source_path}: invalid legacy envelope size")
+        return envelope_bytes - LEGACY_FABRIC_ENVELOPE_FRAMING_BYTES
+    raise ValueError(f"{source_path}: unsupported orderer message-byte source")
+
+
 def classify_traffic_volume_blocks(
     blocks: list[tuple[int, int, int]],
-    envelope_bytes_by_block: dict[int, list[int]],
+    orderer_message_bytes_by_block: dict[int, list[int]],
     preferred_max_bytes: int,
     max_message_count: int,
     expected_timeout_residuals: int,
@@ -690,54 +738,56 @@ def classify_traffic_volume_blocks(
     """Separate capacity-filled blocks from periodic BatchTimeout residuals.
 
     Fabric v2.5.16 block cutting accounts for ``len(Payload)+len(Signature)``.
-    In these retained runs, each serialized ``common.Envelope`` adds exactly
-    five protobuf framing bytes: two field tags, a two-byte payload-length
-    varint, and a one-byte ECDSA client-signature-length varint.
+    The caller must provide that exact quantity, except for the separately
+    allowlisted legacy ML-DSA evidence handled before this function is called.
     """
     if preferred_max_bytes <= 0 or max_message_count <= 0:
         raise ValueError("Fabric block-capacity parameters must be positive")
     if not blocks or expected_timeout_residuals < 0:
         raise ValueError("block population or timeout-residual count is invalid")
 
-    message_bytes_by_block: dict[int, list[int]] = {}
     for block_number, transaction_count, _ in blocks:
-        envelope_sizes = envelope_bytes_by_block.get(block_number)
-        if envelope_sizes is None or len(envelope_sizes) != transaction_count:
+        message_sizes = orderer_message_bytes_by_block.get(block_number)
+        if message_sizes is None or len(message_sizes) != transaction_count:
             raise ValueError(
                 f"block {block_number} transaction evidence does not reconcile"
             )
-        if any(size <= FABRIC_ENVELOPE_FRAMING_BYTES for size in envelope_sizes):
-            raise ValueError(f"block {block_number} has an invalid envelope size")
-        message_bytes_by_block[block_number] = [
-            size - FABRIC_ENVELOPE_FRAMING_BYTES for size in envelope_sizes
-        ]
-    if set(message_bytes_by_block) != set(envelope_bytes_by_block):
+        if any(size <= 0 for size in message_sizes):
+            raise ValueError(f"block {block_number} has an invalid orderer message size")
+    if set(block[0] for block in blocks) != set(orderer_message_bytes_by_block):
         raise ValueError("transaction evidence contains an unexpected block")
 
     minimum_message_bytes = min(
-        size for sizes in message_bytes_by_block.values() for size in sizes
+        size for sizes in orderer_message_bytes_by_block.values() for size in sizes
     )
     retained: list[tuple[int, int, int]] = []
-    timeout_residuals: list[tuple[int, int, int]] = []
+    underfilled_candidates: list[tuple[int, int, int]] = []
     retained_remaining_capacity: list[int] = []
     timeout_remaining_capacity: list[int] = []
-    for block_number, transaction_count, block_bytes in blocks:
-        pending_bytes = sum(message_bytes_by_block[block_number])
+    for block_index, (block_number, transaction_count, block_bytes) in enumerate(blocks):
+        pending_bytes = sum(orderer_message_bytes_by_block[block_number])
         if pending_bytes > preferred_max_bytes:
             raise ValueError(
                 f"block {block_number} exceeds effective PreferredMaxBytes"
             )
         remaining_capacity = preferred_max_bytes - pending_bytes
         filled_by_count = transaction_count >= max_message_count
-        filled_by_bytes = remaining_capacity < minimum_message_bytes
+        next_message_bytes = None
+        if block_index + 1 < len(blocks):
+            next_block_number = blocks[block_index + 1][0]
+            next_message_bytes = orderer_message_bytes_by_block[next_block_number][0]
+        filled_by_bytes = (
+            next_message_bytes is not None
+            and remaining_capacity < next_message_bytes
+        )
         if filled_by_count or filled_by_bytes:
             retained.append((block_number, transaction_count, block_bytes))
             retained_remaining_capacity.append(remaining_capacity)
         else:
-            timeout_residuals.append((block_number, transaction_count, block_bytes))
+            underfilled_candidates.append((block_number, transaction_count, block_bytes))
             timeout_remaining_capacity.append(remaining_capacity)
 
-    if len(timeout_residuals) != expected_timeout_residuals:
+    if len(underfilled_candidates) != expected_timeout_residuals:
         raise ValueError(
             "underfilled ordinary-block count does not match the periodic "
             "BatchTimeout evidence"
@@ -746,7 +796,7 @@ def classify_traffic_volume_blocks(
         raise ValueError("no traffic-volume-filled ordinary blocks remain")
     return {
         "retained": retained,
-        "timeout_residuals": timeout_residuals,
+        "timeout_residuals": underfilled_candidates,
         "minimum_message_bytes": minimum_message_bytes,
         "max_retained_remaining_capacity": max(retained_remaining_capacity),
         "min_timeout_remaining_capacity": min(timeout_remaining_capacity),
@@ -799,12 +849,33 @@ def validated_timeout_filtered_block_result(
     raw_transactions_path = project_root / result["raw_transactions"]
     with raw_transactions_path.open(newline="", encoding="utf-8") as source:
         reader = csv.DictReader(source)
-        if reader.fieldnames != TRANSACTION_EVIDENCE_FIELDS:
+        if reader.fieldnames == EXACT_TRANSACTION_EVIDENCE_FIELDS:
+            accounting_source = "direct_common_envelope_payload_plus_signature"
+        elif reader.fieldnames == LEGACY_TRANSACTION_EVIDENCE_FIELDS:
+            legacy_source = LEGACY_BLOCK_ACCOUNTING_SOURCES.get(config)
+            if legacy_source is None or (
+                result["namespace"] != legacy_source["namespace"]
+                or result["raw_transactions"] != legacy_source["raw_transactions"]
+            ):
+                raise ValueError(
+                    f"{raw_transactions_path}: legacy block-cutter accounting is "
+                    "not allowed for this evidence"
+                )
+            accounting_source = "legacy_envelope_minus_five_bytes"
+        else:
             raise ValueError(
                 f"{raw_transactions_path}: unexpected transaction evidence schema"
             )
         transaction_rows = list(reader)
-    envelope_bytes_by_block: dict[int, list[int]] = {}
+    if result.get("orderer_message_bytes_source") != accounting_source:
+        raise ValueError(f"{metadata_path}: {config} message-byte provenance mismatch")
+    if config == SPHINCS_BLOCK_CONFIG:
+        if result["namespace"] != SPHINCS_BLOCK_NAMESPACE:
+            raise ValueError(f"{metadata_path}: unexpected SPHINCS block namespace")
+        if accounting_source != "direct_common_envelope_payload_plus_signature":
+            raise ValueError("SPHINCS block evidence requires exact orderer message bytes")
+
+    orderer_message_bytes_by_block: dict[int, list[int]] = {}
     for row in transaction_rows:
         if (
             row["config"] != expected_file_config
@@ -818,8 +889,11 @@ def validated_timeout_filtered_block_result(
         block_number = parse_uint(
             raw_transactions_path, "block_number", row["block_number"]
         )
-        envelope_bytes_by_block.setdefault(block_number, []).append(
-            parse_uint(raw_transactions_path, "envelope_bytes", row["envelope_bytes"])
+        orderer_message_bytes = orderer_message_bytes_from_transaction_row(
+            raw_transactions_path, row, accounting_source
+        )
+        orderer_message_bytes_by_block.setdefault(block_number, []).append(
+            orderer_message_bytes
         )
 
     preferred = block_parameters["PreferredMaxBytes_effective_bytes"]
@@ -833,7 +907,7 @@ def validated_timeout_filtered_block_result(
     expected_timeout_residuals = duration_seconds // batch_timeout_seconds
     classified = classify_traffic_volume_blocks(
         blocks,
-        envelope_bytes_by_block,
+        orderer_message_bytes_by_block,
         preferred,
         max_message_count,
         expected_timeout_residuals,
@@ -1018,6 +1092,16 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
         validated_timeout_filtered_block_result(project_root, "ML-DSA-65")
     )
     metadata = json.loads((project_root / "meta.json").read_text(encoding="utf-8"))
+    sphincs_block_result: tuple[str, str] | None = None
+    sphincs_block_metadata = metadata["e1_benchmark"]["block_utilisation"][
+        "volume_filtered_results"
+    ].get(SPHINCS_BLOCK_CONFIG)
+    if sphincs_block_metadata is not None:
+        if sphincs_block_metadata.get("status") != "final":
+            raise ValueError("registered SPHINCS block evidence is not final")
+        sphincs_block_result = validated_timeout_filtered_block_result(
+            project_root, SPHINCS_BLOCK_CONFIG
+        )
     ecdsa_transaction_summary = metadata["e1_benchmark"]["block_utilisation"][
         "ecdsa_transaction_evidence"
     ]["raw_summary"]
@@ -1087,6 +1171,9 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
     rows[2]["block_utilisation"] = ml_dsa_65_block_utilisation
     rows[3]["tx_bytes_mean"] = sphincs_transaction["tx_bytes_mean"]
     rows[3]["endorsements_per_tx"] = sphincs_transaction["endorsements_per_tx"]
+    if sphincs_block_result is not None:
+        rows[3]["block_bytes_mean"] = sphincs_block_result[0]
+        rows[3]["block_utilisation"] = sphincs_block_result[1]
     integer_boundaries = metadata["e1_benchmark"]["caliper"][
         "integer_sustainability_boundaries"
     ]
@@ -1914,7 +2001,11 @@ def validate_transaction_summary(project_root: Path, summary_argument: str) -> l
 
     with transaction_path.open(newline="", encoding="utf-8") as source:
         reader = csv.DictReader(source)
-        if reader.fieldnames != TRANSACTION_EVIDENCE_FIELDS:
+        if reader.fieldnames == EXACT_TRANSACTION_EVIDENCE_FIELDS:
+            has_exact_orderer_message_bytes = True
+        elif reader.fieldnames == LEGACY_TRANSACTION_EVIDENCE_FIELDS:
+            has_exact_orderer_message_bytes = False
+        else:
             raise ValueError(f"{transaction_path}: unexpected transaction evidence schema")
         rows = list(reader)
 
@@ -1942,6 +2033,16 @@ def validate_transaction_summary(project_root: Path, summary_argument: str) -> l
         endorsement_count = parse_uint(transaction_path, "endorsements", row["endorsements"])
         if envelope_bytes == 0 or re.fullmatch(r"[0-9a-f]{64}", row["envelope_sha256"]) is None:
             raise ValueError(f"{transaction_path}: invalid serialized-envelope evidence")
+        if has_exact_orderer_message_bytes:
+            orderer_message_bytes = parse_uint(
+                transaction_path,
+                "orderer_message_bytes",
+                row["orderer_message_bytes"],
+            )
+            if orderer_message_bytes == 0 or orderer_message_bytes > envelope_bytes:
+                raise ValueError(
+                    f"{transaction_path}: invalid exact orderer message-byte evidence"
+                )
         accepted_bytes.append(envelope_bytes)
         endorsements.append(endorsement_count)
         block_number = parse_uint(transaction_path, "block_number", row["block_number"])

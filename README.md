@@ -191,11 +191,14 @@ blocks, `block_bytes_mean=1952347.156250`, and
 `block_utilisation=0.930951670`. Blocks 17-47 reached 500 transactions; block
 48 is the retained terminal 386-transaction block.
 
-For the retained ML-DSA runs, Fabric block-cutter message bytes are reconstructed
-from the exact serialized envelopes. Capacity-filled blocks cannot admit even
-the smallest observed workload message; the remaining 30 underfilled blocks in
-each 60-second population match the 30 two-second `BatchTimeout` periods and are
-excluded reproducibly:
+For new evidence, the block inspector records Fabric's exact block-cutter message
+size, `len(common.Envelope.Payload) + len(common.Envelope.Signature)`, directly
+from each decoded envelope as `orderer_message_bytes`. A block is size-filled
+when the next observed workload message could not fit. The two retained
+ML-DSA datasets predate that field and retain their already-validated,
+dataset-specific five-byte framing reconstruction. Their 30 underfilled blocks
+match the 30 two-second `BatchTimeout` periods as a consistency check, not as the
+primary classifier:
 
 | Configuration | Total ordinary | Retained volume-filled | Excluded timeout | `block_bytes_mean` | `block_utilisation` |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -204,7 +207,9 @@ excluded reproducibly:
 
 The retained SPHINCS+ 20-TPS population is entirely timeout-driven and remains
 diagnostic only. A separate volume-filling SPHINCS+ run is required; no final
-SPHINCS+ block-utilisation value is claimed.
+SPHINCS+ block-utilisation value is claimed. Its prepared 54-TPS profile is only
+a first diagnostic offered rate: ordered/committed traffic and exact retained
+block evidence determine whether a valid volume-filled population exists.
 
 ## Reproduction and deterministic analysis
 
