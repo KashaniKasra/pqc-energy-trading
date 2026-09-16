@@ -601,19 +601,40 @@ class BlockUtilisationTests(unittest.TestCase):
                 observed = sum(retained_bytes) / len(retained_bytes) / 2097152
                 self.assertEqual(f"{observed:.9f}", utilisation)
 
-    def test_retained_sphincs_diagnostic_is_validated_but_not_final(self) -> None:
+    def test_pooled_sphincs_block_result_is_final_and_latency_remains_na(self) -> None:
         project_root = Path(__file__).resolve().parents[2]
         self.assertEqual(
-            ANALYZER.validated_sphincs_block_diagnostic(project_root),
-            ("2091254.000000", "0.997187614"),
+            ANALYZER.validated_sphincs_pooled_block_result(project_root),
+            ("2091476.000000", "0.997293472"),
         )
         sphincs_row = next(
             row
-            for row in ANALYZER.build_working_e1_rows(project_root)
+            for row in ANALYZER.build_final_e1_rows(project_root)
             if row["config"] == "SLH-DSA"
         )
-        self.assertEqual(sphincs_row["block_bytes_mean"], "")
-        self.assertEqual(sphincs_row["block_utilisation"], "")
+        self.assertEqual(sphincs_row["endorse_median_ms"], "")
+        self.assertEqual(sphincs_row["endorse_p95_ms"], "")
+        self.assertEqual(sphincs_row["commit_median_ms"], "")
+        self.assertEqual(sphincs_row["block_bytes_mean"], "2091476.000000")
+        self.assertEqual(sphincs_row["block_utilisation"], "0.997293472")
+
+    def test_final_e1_rows_have_only_documented_sphincs_latency_blanks(self) -> None:
+        project_root = Path(__file__).resolve().parents[2]
+        rows = ANALYZER.build_final_e1_rows(project_root)
+        empty_fields = {
+            (row["config"], field)
+            for row in rows
+            for field in ANALYZER.FINAL_FIELDS
+            if row[field] == ""
+        }
+        self.assertEqual(
+            empty_fields,
+            {
+                ("SLH-DSA", "endorse_median_ms"),
+                ("SLH-DSA", "endorse_p95_ms"),
+                ("SLH-DSA", "commit_median_ms"),
+            },
+        )
 
     def test_legacy_ml_dsa_block_results_remain_reproducible(self) -> None:
         project_root = Path(__file__).resolve().parents[2]

@@ -635,21 +635,31 @@
           "raw_transactions_sha256": "75e4fa179d2d8fb9297fb78cd7e4768a3e9803790e229b69152d102e061a9aee"
         }
       },
-      "pending_block_evidence": {
+      "sphincs_final_block_result": {
         "SPHINCS+-SHA2-128s-simple": {
-          "status": "pending_larger_volume_filled_population",
+          "status": "final_pooled_qualifying_ordinary_blocks",
+          "statistical_unit": "retained qualifying ordinary block",
+          "aggregation_rule": "Pool retained qualifying ordinary blocks across independent runs only when crypto configuration, Fabric parameters, workload/profile, offered rate, and block classification rule are identical.",
+          "contributing_run_namespaces": [
+            "blockutil-54-v1_sphincs",
+            "blockutil-54-v2_sphincs"
+          ],
+          "excluded_run_namespaces": [
+            "blockutil-60-v1_sphincs"
+          ],
           "prior_timeout_driven_evidence": {
             "namespace": "sphincs-lowrate-v1_sphincs",
             "raw_summary": "raw/e1/sphincs-lowrate-v1_sphincs_blocks_sphincs-20-tps_summary.csv",
             "raw_summary_sha256": "8fc34c40fd11f03a7fefc20c83863a9f17225cf58666d0f5a25496f023727e5d"
           },
-          "diagnostic_volume_fill_evidence": {
-            "status": "valid_diagnostic_final_pending_larger_population",
+          "contributing_run_54_v1": {
+            "status": "qualifying_pool_contributor",
             "file_config": "sphincs",
             "namespace": "blockutil-54-v1_sphincs",
             "run_label": "blockutil-54-v1",
             "benchmark_label": "blockutil-54-tps",
             "benchmark": "env/caliper/e1/benchmark_sphincs_blockutil_54.yaml",
+            "benchmark_sha256": "a2a785f7ca2304bd44ff76f17782c056bc85ef6d9a5a5d43c8a8d3c17066dc25",
             "offered_tps": 54,
             "block_interval": "15-44",
             "round_duration_seconds": 60,
@@ -661,8 +671,8 @@
             "ambiguous_block_count": 0,
             "terminal_underfilled_candidate_count": 1,
             "terminal_treatment": "The last ordinary block was underfilled and is excluded; no next observed message proves a size cut, so it is not silently retained as an end-of-run partial block.",
-            "timeout_residual_upper_bound": 30,
-            "timeout_corroboration": "The 29 underfilled candidates do not exceed the 30-block all-timeout upper expectation for 60 seconds at BatchTimeout=2s. Per-block close timestamps are not retained, so this is count corroboration only; classification comes from exact block-cutter capacity accounting.",
+            "nominal_timeout_period_count_reference": 30,
+            "timeout_corroboration": "The 29 underfilled candidates are near the nominal 30 two-second periods in the 60-second send window. This count is informational only, not a bound or classifier; per-block close timestamps are not retained and classification comes from exact block-cutter capacity accounting.",
             "max_message_count_block_count": 0,
             "volume_filled_transaction_counts": [106],
             "retained_blocks": [
@@ -694,7 +704,61 @@
             "caliper_success": 537,
             "caliper_fail": 2704,
             "ledger_transaction_count": 756,
-            "interpretation": "One block is directly proven size-filled; 29 underfilled blocks are excluded. This one-block retained population is diagnostic and does not populate final SPHINCS block fields."
+            "interpretation": "One block is directly proven size-filled; 29 underfilled blocks are excluded. This qualifying block contributes to the pooled final SPHINCS statistic."
+          },
+          "contributing_run_54_v2": {
+            "status": "qualifying_pool_contributor",
+            "file_config": "sphincs",
+            "namespace": "blockutil-54-v2_sphincs",
+            "run_label": "blockutil-54-v2",
+            "benchmark_label": "blockutil-54-tps",
+            "benchmark": "env/caliper/e1/benchmark_sphincs_blockutil_54.yaml",
+            "benchmark_sha256": "a2a785f7ca2304bd44ff76f17782c056bc85ef6d9a5a5d43c8a8d3c17066dc25",
+            "offered_tps": 54,
+            "block_interval": "16-47",
+            "round_duration_seconds": 60,
+            "batch_timeout_seconds": 2,
+            "orderer_message_bytes_source": "direct_common_envelope_payload_plus_signature",
+            "ordinary_block_count_total": 32,
+            "retained_volume_filled_block_count": 1,
+            "excluded_timeout_block_count": 31,
+            "ambiguous_block_count": 0,
+            "terminal_underfilled_candidate_count": 1,
+            "terminal_treatment": "The last ordinary block was underfilled and is excluded because no direct evidence establishes a size cut.",
+            "nominal_timeout_period_count_reference": 30,
+            "timeout_corroboration": "The nominal send window does not bound ledger drain time; the Caliper round drained outstanding work for 76.639 seconds. Candidate count is informational only and classification comes from exact non-fill evidence.",
+            "max_message_count_block_count": 0,
+            "volume_filled_transaction_counts": [106],
+            "retained_blocks": [
+              {
+                "block_number": 46,
+                "transaction_count": 106,
+                "accumulated_orderer_message_bytes": 2089610,
+                "remaining_preferred_max_bytes_capacity": 7542,
+                "next_observed_orderer_message_bytes": 19714,
+                "fetched_block_bytes": 2091698
+              }
+            ],
+            "minimum_orderer_message_bytes": 19696,
+            "max_volume_block_remaining_capacity": 7542,
+            "min_timeout_residual_remaining_capacity": 461304,
+            "block_bytes_mean": "2091698.000000",
+            "effective_preferred_max_bytes": 2097152,
+            "block_utilisation": "0.997399330",
+            "raw_summary": "raw/e1/blockutil-54-v2_sphincs_blocks_blockutil-54-tps_summary.csv",
+            "raw_summary_sha256": "2713264bc905f5e238da38264bb0d2dc3944794afdb33b003acccbdcece0d65f",
+            "raw_blocks": "raw/e1/blockutil-54-v2_sphincs_blocks_blockutil-54-tps.csv",
+            "raw_blocks_sha256": "dbc65df5c305a91ed837a06696ccfc8d61ecd155e9abef2acdfa10e1341d53ed",
+            "raw_transactions": "raw/e1/blockutil-54-v2_sphincs_transactions_blockutil-54-tps.csv",
+            "raw_transactions_sha256": "2f7eaecaaf8fa68340fdb337ab01b5cef8fc438adddd3ee13a90e5dd0754892f",
+            "block_heights": "raw/e1/blockutil-54-v2_sphincs_block_heights.csv",
+            "block_heights_sha256": "0690f445008ab431a3bb28feb67773afbc6cf149ccbbe94cd2885cae97c84a53",
+            "run_log": "raw/e1/blockutil-54-v2_sphincs_caliper_run.log",
+            "run_log_sha256": "6f480fbc68b3a889befa0961c40eee4df7b8a525866cfeacd89401b79955d54b",
+            "caliper_success": 768,
+            "caliper_fail": 2473,
+            "ledger_transaction_count": 945,
+            "interpretation": "One block is directly proven size-filled; 31 underfilled blocks are excluded. This qualifying block contributes to the pooled final SPHINCS statistic."
           },
           "diagnostic_no_retained_population_evidence": {
             "status": "insufficient_diagnostic_no_volume_filled_population",
@@ -738,8 +802,17 @@
           "cross_diagnostic_interpretation": {
             "ledger_transaction_change_54_to_60": "756 to 524",
             "retained_size_filled_block_change_54_to_60": "1 to 0",
-            "conclusion": "Increasing offered load worsened saturation; higher offered rates are not currently justified.",
-            "next_controlled_diagnostic": "Independent repeat at 54 TPS to assess repeatability of the size-filled regime; this is not selective repetition to obtain a desired outcome."
+            "conclusion": "Increasing offered load worsened saturation; the 60-TPS run contributes no retained block to the final statistic."
+          },
+          "final_result": {
+            "retained_block_count": 2,
+            "retained_block_bytes": [2091254, 2091698],
+            "block_bytes_mean": "2091476.000000",
+            "effective_preferred_max_bytes": 2097152,
+            "block_utilisation": "0.997293472",
+            "max_message_count_block_count": 0,
+            "excluded_population": "All underfilled timeout candidates, including terminal underfilled candidates, are excluded.",
+            "limitation": "The final statistic is based on only two qualifying blocks from two independent identical 54-TPS runs and is not a large-sample estimate."
           }
         }
       }
@@ -795,7 +868,10 @@
         "block_utilisation"
       ],
       "final_summary": "data/e1_fabric.csv",
-      "final_summary_status": "pending_sphincs_volume_filling_block_run",
+      "final_summary_sha256": "c0d595fdf9eaf24b33692659079bc35d106a19265a0d24d0312bb2e4f278b71a",
+      "final_summary_status": "complete_from_validated_retained_evidence",
+      "final_summary_generator": "src/e1/analyze_timings.py --final-e1",
+      "sphincs_latency_fields": "empty because the professor-selected 200-TPS common-profile population saturated and is not a valid normal-latency population; tx_success_rate and tx_error_rate remain reported",
       "raw_sources": "raw/e1/"
     }
   },

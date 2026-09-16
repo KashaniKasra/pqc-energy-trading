@@ -11,12 +11,12 @@ results and failed requests are evidence and must not be tuned away.
 | --- | --- |
 | E0 primitives, server | Server measurement complete; specification-referenced sanity checker unavailable |
 | E0 primitives, meter/SBC | Pending hardware measurement |
-| E1 Fabric | Complete except SPHINCS+ volume-filling block measurement |
+| E1 Fabric | Complete; final CSV generated from validated retained evidence |
 | E2, E5, E7, E8, E9 | Not yet completed |
 
-`data/e1_fabric.csv` is intentionally absent until E1 is complete. The
-specification refers to a supplied `make_figures.py` sanity checker, but that
-source and its plausible bands are absent; no replacement is fabricated.
+The final E1 deliverable is `data/e1_fabric.csv`. The specification refers to
+a supplied `make_figures.py` sanity checker, but that source and its plausible
+bands are absent; no replacement is fabricated.
 
 ## Repository layout
 
@@ -30,8 +30,8 @@ raw/       retained raw measurements
 figures/   generated final PDFs
 ```
 
-Raw E1 evidence remains uncompressed while the SPHINCS+ block measurement is
-pending. It must not be deleted or overwritten. `meta.json` contains the
+Raw E1 evidence remains uncompressed pending the evidence-freeze/compression
+step. It must not be deleted or overwritten. `meta.json` contains the
 authoritative machine-readable provenance.
 
 ## Pinned environment
@@ -211,25 +211,27 @@ The retained SPHINCS+ 20-TPS population is entirely timeout-driven. Dedicated
 | Offered rate | Namespace | Ordinary blocks | Ledger transactions | Retained size-filled | Excluded underfilled | Terminal underfilled |
 | ---: | --- | ---: | ---: | ---: | ---: | ---: |
 | 54 TPS | `blockutil-54-v1_sphincs` | 30 | 756 | 1 | 29 | 1 |
+| 54 TPS | `blockutil-54-v2_sphincs` | 32 | 945 | 1 | 31 | 1 |
 | 60 TPS | `blockutil-60-v1_sphincs` | 24 | 524 | 0 | 24 | 1 |
 
-At 54 TPS, block 43 contained 106 transactions and 2,089,162 exact block-cutter
-message bytes. Its remaining 7,990-byte capacity could not fit the next observed
-19,710-byte message. Its fetched size was 2,091,254 bytes, giving the one-block
-diagnostic population `block_bytes_mean=2091254.000000` and
-`block_utilisation=0.997187614`. This is supporting diagnostic evidence only
-because `n=1`.
+The two independent, otherwise identical 54-TPS runs each produced one
+qualifying size-filled ordinary block. Their fetched sizes are 2,091,254 and
+2,091,698 bytes. The adopted statistical unit is the retained qualifying block,
+so the pooled final SPHINCS+ population has `n=2`,
+`block_bytes_mean=2091476.000000`, and
+`block_utilisation=0.997293472`. All underfilled timeout candidates remain
+excluded, and no block reached `MaxMessageCount`. This two-block result is a
+small-population estimate, not a large-sample estimate.
 
 At 60 TPS no block reached `MaxMessageCount` or satisfied the exact size-fill
 test. The immediate all-block mean, 431,483.708333 bytes, and utilisation,
 0.205747465, include underfilled blocks and are not professor-defined final
-statistics. Increasing offered load reduced ledger transactions from 756 to 524
-and retained size-filled blocks from one to zero, so higher offered rates are not
-currently justified. The next controlled diagnostic is an independent 54-TPS
-repeat to assess repeatability, not selective repetition to obtain a desired
-outcome. Final SPHINCS+ `block_bytes_mean` and `block_utilisation` remain
-unresolved. `duration / BatchTimeout` remains corroborating only, not an exact
-mixed-population invariant, because size cuts reset the timeout cadence.
+statistics. Increasing offered load reduced ledger transactions from the first
+54-TPS run's 756 to 524 and retained size-filled blocks from one to zero. The
+60-TPS run therefore remains supporting saturation evidence and contributes no
+block to the pooled final statistic. `duration / BatchTimeout` remains
+corroborating only, not an exact mixed-population invariant, because size cuts
+reset the timeout cadence and the ledger may drain after the send window.
 
 ## Reproduction and deterministic analysis
 
@@ -280,12 +282,14 @@ bash env/caliper/e1/test_run_policy.sh
 ./src/e1/analyze_timings.py --pq-verification-audits
 ./src/e1/analyze_timings.py --clean-latency-professor-review
 ./src/e1/analyze_timings.py --working-e1
+./src/e1/analyze_timings.py --final-e1 --output data/e1_fabric.csv --replace
 ```
 
-`--working-e1` is stdout-only and leaves the unresolved SPHINCS+ block fields
-empty; it cannot be mistaken for `data/e1_fabric.csv`. Raw CSV/log evidence
-will be gzip-compressed only after the E1 KEEP set and SPHINCS+ block evidence
-are frozen, with provenance hashes and readers updated together.
+SPHINCS+ latency fields are empty in the final CSV because the selected 200-TPS
+common-profile population saturated and is not a valid normal-latency
+population; its success/error rates remain reported. Raw CSV/log evidence will
+be gzip-compressed only after the E1 KEEP set is frozen, with provenance hashes
+and readers updated together.
 
 Falcon-512 in liboqs 0.15.0 is the round-3 implementation and must not be
 described as final FIPS 206.

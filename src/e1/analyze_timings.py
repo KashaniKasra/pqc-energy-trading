@@ -5,11 +5,10 @@ The clean common-profile modes preserve separate 50-TPS and 200-TPS
 populations. SPHINCS+ latency fields remain empty because its common-profile
 run saturated and is not a valid normal-latency population.
 
-``--working-e1`` emits the exact final E1 schema to stdout, but leaves unresolved
-or unmeasured fields empty. It populates only values supported by retained
-evidence or the verified Fabric endorsement policy. This mode cannot write an
-output file, so it cannot be mistaken for the completed
-``data/e1_fabric.csv`` deliverable.
+``--working-e1`` emits the exact final E1 schema to stdout. SPHINCS+ latency
+fields remain intentionally empty because the professor-selected 200-TPS
+population saturated and is not a valid latency population. ``--final-e1``
+performs the same evidence validation and writes the final deliverable.
 
 ``--pq-verification-audits`` validates the three retained one-shot runtime
 trace audits, including trace-line hashes, process/organization coverage, and
@@ -20,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+from decimal import Decimal
 import hashlib
 import json
 import math
@@ -172,7 +172,10 @@ LEGACY_BLOCK_ACCOUNTING_SOURCES = {
     },
 }
 SPHINCS_BLOCK_CONFIG = "SPHINCS+-SHA2-128s-simple"
-SPHINCS_BLOCK_NAMESPACE = "blockutil-54-v1_sphincs"
+SPHINCS_BLOCK_NAMESPACES = frozenset({
+    "blockutil-54-v1_sphincs",
+    "blockutil-54-v2_sphincs",
+})
 
 
 def sha256_file(path: Path) -> str:
@@ -883,7 +886,7 @@ def validated_timeout_filtered_block_result(
     if result.get("orderer_message_bytes_source") != accounting_source:
         raise ValueError(f"{metadata_path}: {config} message-byte provenance mismatch")
     if config == SPHINCS_BLOCK_CONFIG:
-        if result["namespace"] != SPHINCS_BLOCK_NAMESPACE:
+        if result["namespace"] not in SPHINCS_BLOCK_NAMESPACES:
             raise ValueError(f"{metadata_path}: unexpected SPHINCS block namespace")
         if accounting_source != "direct_common_envelope_payload_plus_signature":
             raise ValueError("SPHINCS block evidence requires exact orderer message bytes")
@@ -938,7 +941,11 @@ def validated_timeout_filtered_block_result(
         or result["ordinary_block_count_total"] != len(blocks)
         or result["retained_volume_filled_block_count"] != len(retained)
         or result["excluded_timeout_block_count"] != len(timeout_residuals)
-        or result["timeout_residual_upper_bound"] != nominal_timeout_period_count
+        or result.get(
+            "nominal_timeout_period_count_reference",
+            result.get("timeout_residual_upper_bound"),
+        )
+        != nominal_timeout_period_count
         or result["volume_filled_transaction_counts"] != retained_transaction_counts
         or result["minimum_orderer_message_bytes"]
         != classified["minimum_message_bytes"]
@@ -959,20 +966,105 @@ def validated_timeout_filtered_block_result(
     return mean_text, utilisation_text
 
 
-def validated_sphincs_block_diagnostic(project_root: Path) -> tuple[str, str]:
-    metadata = json.loads((project_root / "meta.json").read_text(encoding="utf-8"))
-    pending = metadata["e1_benchmark"]["block_utilisation"][
-        "pending_block_evidence"
+def validated_sphincs_pooled_block_result(project_root: Path) -> tuple[str, str]:
+    metadata_path = project_root / "meta.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    result = metadata["e1_benchmark"]["block_utilisation"][
+        "sphincs_final_block_result"
     ][SPHINCS_BLOCK_CONFIG]
-    result = pending["diagnostic_volume_fill_evidence"]
-    if result.get("ambiguous_block_count") != 0:
-        raise ValueError("SPHINCS diagnostic contains unresolved ambiguous blocks")
-    return validated_timeout_filtered_block_result(
-        project_root,
-        SPHINCS_BLOCK_CONFIG,
-        result_override=result,
-        required_status="valid_diagnostic_final_pending_larger_population",
-    )
+    if result.get("status") != "final_pooled_qualifying_ordinary_blocks":
+        raise ValueError(f"{metadata_path}: SPHINCS pooled block result is not final")
+    if result.get("statistical_unit") != "retained qualifying ordinary block":
+        raise ValueError(f"{metadata_path}: unexpected SPHINCS statistical unit")
+
+    contributors = [
+        result["contributing_run_54_v1"],
+        result["contributing_run_54_v2"],
+    ]
+    namespaces = [contributor["namespace"] for contributor in contributors]
+    if (
+        namespaces != result["contributing_run_namespaces"]
+        or set(namespaces) != SPHINCS_BLOCK_NAMESPACES
+        or len(set(namespaces)) != len(namespaces)
+    ):
+        raise ValueError(f"{metadata_path}: SPHINCS contributor set is inconsistent")
+
+    benchmark_path = project_root / "env/caliper/e1/benchmark_sphincs_blockutil_54.yaml"
+    benchmark_hash = sha256_file(benchmark_path)
+    retained_count = 0
+    retained_byte_total = Decimal(0)
+    for contributor in contributors:
+        if (
+            contributor["status"] != "qualifying_pool_contributor"
+            or contributor["file_config"] != "sphincs"
+            or contributor["benchmark_label"] != "blockutil-54-tps"
+            or contributor["benchmark"]
+            != "env/caliper/e1/benchmark_sphincs_blockutil_54.yaml"
+            or contributor["benchmark_sha256"] != benchmark_hash
+            or contributor["offered_tps"] != 54
+            or contributor["orderer_message_bytes_source"]
+            != "direct_common_envelope_payload_plus_signature"
+            or contributor["ambiguous_block_count"] != 0
+        ):
+            raise ValueError(
+                f"{metadata_path}: incompatible SPHINCS pooled contributor"
+            )
+        for path_key, hash_key in (
+            ("block_heights", "block_heights_sha256"),
+            ("run_log", "run_log_sha256"),
+        ):
+            source_path = project_root / contributor[path_key]
+            if sha256_file(source_path) != contributor[hash_key]:
+                raise ValueError(
+                    f"{metadata_path}: {contributor['namespace']} {path_key} hash mismatch"
+                )
+        mean_text, _ = validated_timeout_filtered_block_result(
+            project_root,
+            SPHINCS_BLOCK_CONFIG,
+            result_override=contributor,
+            required_status="qualifying_pool_contributor",
+        )
+        count = contributor["retained_volume_filled_block_count"]
+        retained_count += count
+        retained_byte_total += Decimal(mean_text) * count
+
+    final = result["final_result"]
+    if retained_count == 0:
+        raise ValueError("SPHINCS pooled retained population is empty")
+    pooled_mean = retained_byte_total / retained_count
+    preferred = Decimal(final["effective_preferred_max_bytes"])
+    mean_text = f"{pooled_mean:.6f}"
+    utilisation_text = f"{pooled_mean / preferred:.9f}"
+    if (
+        final["retained_block_count"] != retained_count
+        or final["block_bytes_mean"] != mean_text
+        or final["block_utilisation"] != utilisation_text
+        or final["retained_block_bytes"]
+        != [
+            block["fetched_block_bytes"]
+            for contributor in contributors
+            for block in contributor["retained_blocks"]
+        ]
+    ):
+        raise ValueError(f"{metadata_path}: SPHINCS pooled result does not regenerate")
+
+    excluded = result["diagnostic_no_retained_population_evidence"]
+    if (
+        excluded["namespace"] not in result["excluded_run_namespaces"]
+        or excluded["retained_volume_filled_block_count"] != 0
+    ):
+        raise ValueError(f"{metadata_path}: invalid excluded SPHINCS diagnostic")
+    for path_key, hash_key in (
+        ("raw_summary", "raw_summary_sha256"),
+        ("raw_blocks", "raw_blocks_sha256"),
+        ("raw_transactions", "raw_transactions_sha256"),
+        ("block_heights", "block_heights_sha256"),
+        ("run_log", "run_log_sha256"),
+    ):
+        source_path = project_root / excluded[path_key]
+        if sha256_file(source_path) != excluded[hash_key]:
+            raise ValueError(f"{metadata_path}: excluded SPHINCS evidence hash mismatch")
+    return mean_text, utilisation_text
 
 
 def validate_supporting_signcert_evidence(project_root: Path) -> None:
@@ -1114,7 +1206,7 @@ def validated_endorsement_policy(project_root: Path) -> list[dict[str, str]]:
 
 
 def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
-    """Build an explicitly incomplete E1-schema view from supported evidence."""
+    """Build the E1-schema view from validated retained evidence."""
     validate_supporting_signcert_evidence(project_root)
     public_key_rows = validated_public_key_rows(project_root)
     validated_endorsement_policy(project_root)
@@ -1128,9 +1220,9 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
         validated_timeout_filtered_block_result(project_root, "ML-DSA-65")
     )
     metadata = json.loads((project_root / "meta.json").read_text(encoding="utf-8"))
-    # Validate the retained SPHINCS volume-fill diagnostic but deliberately do
-    # not populate final block fields from its one-block retained population.
-    validated_sphincs_block_diagnostic(project_root)
+    sphincs_block_mean, sphincs_block_utilisation = (
+        validated_sphincs_pooled_block_result(project_root)
+    )
     ecdsa_transaction_summary = metadata["e1_benchmark"]["block_utilisation"][
         "ecdsa_transaction_evidence"
     ]["raw_summary"]
@@ -1200,6 +1292,8 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
     rows[2]["block_utilisation"] = ml_dsa_65_block_utilisation
     rows[3]["tx_bytes_mean"] = sphincs_transaction["tx_bytes_mean"]
     rows[3]["endorsements_per_tx"] = sphincs_transaction["endorsements_per_tx"]
+    rows[3]["block_bytes_mean"] = sphincs_block_mean
+    rows[3]["block_utilisation"] = sphincs_block_utilisation
     integer_boundaries = metadata["e1_benchmark"]["caliper"][
         "integer_sustainability_boundaries"
     ]
@@ -1284,6 +1378,30 @@ def build_working_e1_rows(project_root: Path) -> list[dict[str, str]]:
     if boundary["status"] != "complete":
         raise ValueError("SPHINCS+ integer sustained-TPS boundary is not complete")
     rows[3]["tps_sustained"] = str(boundary["highest_tested_sustainable_tps"])
+    return rows
+
+
+def build_final_e1_rows(project_root: Path) -> list[dict[str, str]]:
+    """Build the final E1 deliverable, allowing only documented SPHINCS latency N/A."""
+    rows = build_working_e1_rows(project_root)
+    allowed_empty = {
+        ("SLH-DSA", "endorse_median_ms"),
+        ("SLH-DSA", "endorse_p95_ms"),
+        ("SLH-DSA", "commit_median_ms"),
+    }
+    for row in rows:
+        for field in FINAL_FIELDS:
+            if row[field] == "" and (row["config"], field) not in allowed_empty:
+                raise ValueError(
+                    f"final E1 field is unresolved: {row['config']} {field}"
+                )
+    if {
+        (row["config"], field)
+        for row in rows
+        for field in FINAL_FIELDS
+        if row[field] == ""
+    } != allowed_empty:
+        raise ValueError("final E1 empty-field policy is inconsistent")
     return rows
 
 
@@ -2151,8 +2269,16 @@ def main() -> int:
         "--working-e1",
         action="store_true",
         help=(
-            "print the exact final E1 schema with supported working values and "
-            "unresolved fields left empty; cannot be written with --output"
+            "print the exact final E1 schema from validated retained evidence; "
+            "SPHINCS saturation latency fields are intentionally empty"
+        ),
+    )
+    mode.add_argument(
+        "--final-e1",
+        action="store_true",
+        help=(
+            "validate all final E1 evidence and emit the final schema; SPHINCS "
+            "saturation latency fields are intentionally empty"
         ),
     )
     mode.add_argument(
@@ -2211,14 +2337,19 @@ def main() -> int:
     project_root = Path(__file__).resolve().parents[2]
     if args.working_e1 and args.output is not None:
         print(
-            "ERROR: --working-e1 is intentionally stdout-only while E1 fields remain "
-            "unresolved",
+            "ERROR: --working-e1 is stdout-only; use --final-e1 to write the "
+            "validated deliverable",
             file=sys.stderr,
         )
+        return 1
+    if args.final_e1 and args.output is None:
+        print("ERROR: --final-e1 requires --output", file=sys.stderr)
         return 1
     try:
         if args.working_e1:
             rows = build_working_e1_rows(project_root)
+        elif args.final_e1:
+            rows = build_final_e1_rows(project_root)
         elif args.clean_latency_professor_review:
             rows = build_clean_latency_professor_review_rows(project_root)
         elif args.clean_fixed_profile:
@@ -2242,7 +2373,9 @@ def main() -> int:
         print(f"ERROR: {error}", file=sys.stderr)
         return 1
 
-    fieldnames = list(FINAL_FIELDS) if args.working_e1 else list(rows[0])
+    fieldnames = (
+        list(FINAL_FIELDS) if args.working_e1 or args.final_e1 else list(rows[0])
+    )
     if args.output is None:
         writer = csv.DictWriter(sys.stdout, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
