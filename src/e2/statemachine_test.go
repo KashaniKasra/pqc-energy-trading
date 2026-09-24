@@ -318,7 +318,7 @@ func TestRawMeasurementRecordSupportsWarmupAndMeasuredSamples(t *testing.T) {
 		Config: ConfigurationClassical, Transition: TransitionFunding,
 		Iteration: 0, Phase: SampleMeasured, MessageBytes: 123, RTTMS: 1.1, Success: true,
 	}
-	if warmup.Phase == measured.Phase || len(RawMeasurementFields) != 7 {
+	if warmup.Phase == measured.Phase || len(RawMeasurementFields) != 9 {
 		t.Fatalf("measurement record does not distinguish phases")
 	}
 	wantFinalFields := []string{"config", "transition", "message_bytes", "rtt_median_ms", "rtt_p95_ms"}

@@ -511,9 +511,11 @@ type RawMeasurementRecord struct {
 	Transition   TransitionType
 	Iteration    uint64
 	Phase        SamplePhase
+	Scientific   bool
 	MessageBytes int
 	RTTMS        float64
 	Success      bool
+	ErrorMessage string
 }
 
 var RawMeasurementFields = []string{
@@ -521,9 +523,11 @@ var RawMeasurementFields = []string{
 	"transition",
 	"iteration",
 	"phase",
+	"scientific",
 	"message_bytes",
 	"rtt_ms",
 	"success",
+	"error",
 }
 
 // FinalCSVFields is the professor-defined E2 deliverable schema. This package
