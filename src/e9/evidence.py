@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 from typing import Mapping, Sequence
 
+from .environment import validate_scientific_environment
 from .network import (
     MESSAGE_BYTES_BY_CONFIG,
     PingVerificationRecord,
@@ -21,7 +22,8 @@ from .network import (
 )
 
 
-MANIFEST_SCHEMA = "pqc-energy-trading.e9-condition-evidence.v1"
+MANIFEST_SCHEMA = "pqc-energy-trading.e9-condition-evidence.v2"
+LEGACY_MANIFEST_SCHEMA = "pqc-energy-trading.e9-condition-evidence.v1"
 
 
 def condition_stem(config: str, rtt_ms: int, hops: int) -> str:
@@ -52,7 +54,7 @@ def persist_condition_evidence(
     verification: PingVerificationRecord,
     options: RunOptions,
     message_bytes: int,
-    environment: Mapping[str, str],
+    environment: Mapping[str, object],
 ) -> Path:
     """Persist one scientific condition without overwriting prior evidence."""
     if not options.scientific:
@@ -66,6 +68,10 @@ def persist_condition_evidence(
     expected_key = (verification.config, condition.configured_rtt_ms, condition.hops)
     if message_bytes != MESSAGE_BYTES_BY_CONFIG[verification.config]:
         raise ValueError("prepared message size does not match authoritative E2-derived policy")
+    timing_environment = environment.get("timing")
+    if not isinstance(timing_environment, Mapping):
+        raise ValueError("scientific E9 evidence requires timing-environment provenance")
+    validate_scientific_environment(timing_environment)
     if any(
         (record.config, record.configured_rtt_ms, record.hops) != expected_key
         for record in records
@@ -115,7 +121,7 @@ def persist_condition_evidence(
             "bytes": len(completion_content),
             "row_count": len(records),
         },
-        "environment": dict(sorted(environment.items())),
+        "environment": dict(environment),
     }
     manifest_content = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
@@ -137,8 +143,17 @@ def persist_condition_evidence(
 
 def validate_condition_manifest(manifest_path: Path) -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("schema") != MANIFEST_SCHEMA or manifest.get("scientific") is not True:
+    if manifest.get("schema") not in (MANIFEST_SCHEMA, LEGACY_MANIFEST_SCHEMA) or manifest.get(
+        "scientific"
+    ) is not True:
         raise ValueError("invalid E9 evidence manifest identity")
+    if manifest.get("schema") == MANIFEST_SCHEMA:
+        environment = manifest.get("environment")
+        if not isinstance(environment, Mapping) or not isinstance(
+            environment.get("timing"), Mapping
+        ):
+            raise ValueError("E9 v2 manifest lacks timing-environment provenance")
+        validate_scientific_environment(environment["timing"])
     for section_name in ("ping_verification", "completion_samples"):
         section = manifest[section_name]
         path = manifest_path.parent / section["filename"]

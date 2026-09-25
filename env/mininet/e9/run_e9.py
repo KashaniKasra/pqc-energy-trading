@@ -21,6 +21,10 @@ if str(REPO_ROOT) not in sys.path:
 
 from env.mininet.e9.topology import E9LinearTopology  # noqa: E402
 from src.e9.evidence import persist_condition_evidence  # noqa: E402
+from src.e9.environment import (  # noqa: E402
+    collect_timing_environment,
+    validate_scientific_environment,
+)
 from src.e9.network import (  # noqa: E402
     DEFAULT_SCIENTIFIC_WARMUP_ITERATIONS,
     MESSAGE_BYTES_BY_CONFIG,
@@ -69,7 +73,7 @@ def _command_version(command: list[str]) -> str:
     return text[0] if text else f"exit {result.returncode}"
 
 
-def collect_environment() -> dict[str, str]:
+def collect_environment() -> dict[str, object]:
     commit = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=REPO_ROOT,
@@ -87,12 +91,15 @@ def collect_environment() -> dict[str, str]:
         ).stdout
     )
     return {
-        "git_commit": commit,
-        "git_dirty": str(dirty).lower(),
-        "kernel": platform.release(),
-        "mininet": _command_version(["mn", "--version"]),
-        "python": platform.python_version(),
-        "tc": _command_version(["tc", "-V"]),
+        "software": {
+            "git_commit": commit,
+            "git_dirty": dirty,
+            "kernel": platform.release(),
+            "mininet": _command_version(["mn", "--version"]),
+            "python": platform.python_version(),
+            "tc": _command_version(["tc", "-V"]),
+        },
+        "timing": collect_timing_environment(),
     }
 
 
@@ -138,8 +145,10 @@ def run_one_condition(args: argparse.Namespace) -> None:
     if shutil.which("mn") is None or shutil.which("ping") is None or shutil.which("tc") is None:
         raise RuntimeError("E9 requires installed mn, ping, and tc commands")
     environment = collect_environment()
-    if args.scientific and environment["git_dirty"] != "false":
-        raise RuntimeError("scientific E9 runs require a clean Git worktree")
+    if args.scientific:
+        if environment["software"]["git_dirty"] is not False:
+            raise RuntimeError("scientific E9 runs require a clean Git worktree")
+        validate_scientific_environment(environment["timing"])
 
     # Imported lazily so unit tests never require privileged Mininet execution.
     from mininet.link import TCLink

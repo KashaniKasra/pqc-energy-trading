@@ -41,6 +41,62 @@ def ping_output(value):
     return f"64 bytes from receiver: icmp_seq=1 ttl=64 time={value} ms\n"
 
 
+def valid_environment_provenance():
+    policies = {"policy0": "test-driver", "policy1": "test-driver"}
+    performance = {"policy0": "performance", "policy1": "performance"}
+    frequency = {"policy0": "3000000", "policy1": "3000000"}
+    return {
+        "software": {"python": "test", "git_commit": "test", "git_dirty": False},
+        "timing": {
+            "cpu": {
+                "model": {"status": "available", "value": "Test CPU"},
+                "online": {
+                    "status": "available",
+                    "cpu_list": "0-3",
+                    "cpus": [0, 1, 2, 3],
+                    "count": 4,
+                },
+                "policy_names": ["policy0", "policy1"],
+                "scaling_driver": {
+                    "status": "available",
+                    "values_by_policy": policies,
+                    "missing_policies": [],
+                },
+                "governor": {
+                    "status": "available",
+                    "values_by_policy": performance,
+                    "missing_policies": [],
+                },
+                "energy_performance_preference": {
+                    "status": "available",
+                    "values_by_policy": performance,
+                    "missing_policies": [],
+                },
+                "scaling_min_freq_khz": {
+                    "status": "available",
+                    "values_by_policy": frequency,
+                    "missing_policies": [],
+                },
+                "scaling_max_freq_khz": {
+                    "status": "available",
+                    "values_by_policy": frequency,
+                    "missing_policies": [],
+                },
+                "boost": {
+                    "status": "available",
+                    "path": "/fake/boost",
+                    "value": "0",
+                    "enabled": False,
+                },
+                "process_affinity": {"status": "available", "cpus": [2, 4, 6]},
+            },
+            "power": {
+                "ac_online": {"status": "available", "sources": {"AC0": 1}, "online": True}
+            },
+        },
+    }
+
+
 class ChunkSocket:
     def __init__(self, content, chunk_size=1):
         self.content = content
@@ -226,10 +282,11 @@ class EvidenceAndCLITests(unittest.TestCase):
                 verification,
                 RunOptions(0, MINIMUM_SCIENTIFIC_ITERATIONS, True),
                 MESSAGE_BYTES_BY_CONFIG["classical"],
-                {"python": "test", "git_commit": "test", "git_dirty": "false"},
+                valid_environment_provenance(),
             )
             validate_condition_manifest(manifest_path)
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["schema"], "pqc-energy-trading.e9-condition-evidence.v2")
             for section in ("ping_verification", "completion_samples"):
                 item = manifest[section]
                 content = (root / item["filename"]).read_bytes()
@@ -239,6 +296,10 @@ class EvidenceAndCLITests(unittest.TestCase):
                 verification.raw_output,
             )
             self.assertEqual(manifest["condition"]["prepared_message_bytes"], 222)
+            timing = manifest["environment"]["timing"]
+            self.assertEqual(timing["cpu"]["model"]["value"], "Test CPU")
+            self.assertEqual(timing["cpu"]["process_affinity"]["cpus"], [2, 4, 6])
+            self.assertEqual(timing["power"]["ac_online"]["online"], True)
             with self.assertRaises(FileExistsError):
                 persist_condition_evidence(
                     root,
@@ -246,7 +307,7 @@ class EvidenceAndCLITests(unittest.TestCase):
                     verification,
                     RunOptions(0, MINIMUM_SCIENTIFIC_ITERATIONS, True),
                     222,
-                    {},
+                    valid_environment_provenance(),
                 )
             retained_root = root
         self.assertFalse(retained_root.exists())
