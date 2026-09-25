@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+from types import SimpleNamespace
 import tempfile
 import unittest
 
@@ -60,6 +61,46 @@ def write_raw(path, *, scientific, warmup, measured, failure=False):
 
 
 class E2RunnerTests(unittest.TestCase):
+    def test_mininet_version_captures_stderr_and_rejects_empty_or_failed(self):
+        def completed(returncode=0, stdout="", stderr=""):
+            return SimpleNamespace(
+                returncode=returncode,
+                stdout=stdout,
+                stderr=stderr,
+            )
+
+        self.assertEqual(
+            runner.detect_mininet_version(
+                lambda *args, **kwargs: completed(stderr="2.3.0\n")
+            ),
+            "2.3.0",
+        )
+        self.assertEqual(
+            runner.detect_mininet_version(
+                lambda *args, **kwargs: completed(stdout="Mininet 2.4.1\n")
+            ),
+            "2.4.1",
+        )
+        with self.assertRaisesRegex(RuntimeError, "was empty"):
+            runner.detect_mininet_version(
+                lambda *args, **kwargs: completed()
+            )
+        with self.assertRaisesRegex(RuntimeError, "exited 1"):
+            runner.detect_mininet_version(
+                lambda *args, **kwargs: completed(returncode=1, stderr="failed")
+            )
+
+    def test_scientific_provenance_rejects_empty_mininet_version(self):
+        runner.validate_scientific_software_provenance(
+            {"software": {"mininet": "2.3.0"}}
+        )
+        for value in ("", "   ", None):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(RuntimeError, "Mininet version"):
+                    runner.validate_scientific_software_provenance(
+                        {"software": {"mininet": value}}
+                    )
+
     def test_topology_is_one_direct_twenty_ms_link(self):
         topology = runner.E2RTTTopology()
         self.assertCountEqual(topology.hosts(), ["a", "b"])
@@ -133,6 +174,13 @@ class E2RunnerTests(unittest.TestCase):
             audit = runner._audit_raw(raw, args)
             ping_text = ping_output(20)
             ping = runner.verify_ping(ping_text, 3)
+            detected_mininet = runner.detect_mininet_version(
+                lambda *args, **kwargs: SimpleNamespace(
+                    returncode=0,
+                    stdout="",
+                    stderr="2.3.0\n",
+                )
+            )
             manifest_path = runner._persist(
                 Path(args.output_root),
                 args,
@@ -140,10 +188,16 @@ class E2RunnerTests(unittest.TestCase):
                 ping,
                 raw,
                 audit,
-                {"software": {"git_commit": "test"}},
+                {
+                    "software": {
+                        "git_commit": "test",
+                        "mininet": detected_mininet,
+                    }
+                },
                 binary,
             )
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["environment"]["software"]["mininet"], "2.3.0")
             ping_path = manifest_path.parent / manifest["ping_verification"]["filename"]
             raw_path = manifest_path.parent / manifest["samples"]["filename"]
             self.assertEqual(ping_path.read_text(encoding="utf-8"), ping_text)

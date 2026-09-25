@@ -44,6 +44,7 @@ TRANSITIONS = (
 MINIMUM_SCIENTIFIC_ITERATIONS = 1000
 DEFAULT_WARMUP_ITERATIONS = 100
 PING_RE = re.compile(r"\btime=([0-9]+(?:\.[0-9]+)?)\s*ms\b")
+MININET_VERSION_RE = re.compile(r"\b\d+\.\d+(?:\.\d+)?(?:[-+~.A-Za-z0-9]*)?\b")
 RAW_FIELDS = (
     "config",
     "transition",
@@ -112,6 +113,33 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def detect_mininet_version(run_command=subprocess.run) -> str:
+    """Return mn's reported version, including installations that use stderr."""
+    completed = run_command(
+        ["mn", "--version"],
+        text=True,
+        capture_output=True,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(
+            f"cannot determine Mininet version: mn --version exited {completed.returncode}"
+        )
+    combined = "\n".join((completed.stdout or "", completed.stderr or ""))
+    matches = MININET_VERSION_RE.findall(combined)
+    if not matches:
+        raise RuntimeError("cannot determine Mininet version: mn --version was empty")
+    return matches[-1]
+
+
+def validate_scientific_software_provenance(environment: dict[str, object]) -> None:
+    software = environment.get("software")
+    if not isinstance(software, dict):
+        raise RuntimeError("scientific E2 software provenance is missing")
+    mininet_version = software.get("mininet")
+    if not isinstance(mininet_version, str) or not mininet_version.strip():
+        raise RuntimeError("scientific E2 requires a detected Mininet version")
+
+
 def _environment() -> dict[str, object]:
     commit = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, check=True, text=True,
@@ -127,7 +155,7 @@ def _environment() -> dict[str, object]:
             "git_dirty": dirty,
             "go": subprocess.run(["go", "version"], check=True, text=True, capture_output=True).stdout.strip(),
             "kernel": platform.release(),
-            "mininet": subprocess.run(["mn", "--version"], check=True, text=True, capture_output=True).stdout.strip(),
+            "mininet": detect_mininet_version(),
             "python": platform.python_version(),
             "tc": subprocess.run(["tc", "-V"], check=True, text=True, capture_output=True).stdout.strip(),
         },
@@ -268,6 +296,7 @@ def run(args: argparse.Namespace) -> None:
     if args.scientific:
         if environment["software"]["git_dirty"] is not False:
             raise RuntimeError("scientific E2 requires a clean Git worktree")
+        validate_scientific_software_provenance(environment)
         validate_scientific_environment(environment["timing"])
 
     from mininet.link import TCLink
