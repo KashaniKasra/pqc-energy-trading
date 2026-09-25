@@ -286,7 +286,7 @@ class EvidenceAndCLITests(unittest.TestCase):
             )
             validate_condition_manifest(manifest_path)
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            self.assertEqual(manifest["schema"], "pqc-energy-trading.e9-condition-evidence.v3")
+            self.assertEqual(manifest["schema"], "pqc-energy-trading.e9-condition-evidence.v4")
             for section in ("ping_verification", "completion_samples"):
                 item = manifest[section]
                 content = (root / item["filename"]).read_bytes()
@@ -300,10 +300,10 @@ class EvidenceAndCLITests(unittest.TestCase):
                 manifest["condition"]["configured_per_channel_rtt_ms"], 5
             )
             self.assertEqual(
-                manifest["condition"]["per_channel_rtt_compensation_ms"], 0.5
+                manifest["condition"]["per_channel_rtt_compensation_ms"], 0.75
             )
             self.assertEqual(
-                manifest["condition"]["effective_one_way_tc_delay_ms"], 2.25
+                manifest["condition"]["effective_one_way_tc_delay_ms"], 2.125
             )
             self.assertEqual(manifest["condition"]["expected_end_to_end_rtt_ms"], 5.0)
             timing = manifest["environment"]["timing"]
@@ -326,6 +326,23 @@ class EvidenceAndCLITests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "calibration provenance mismatch"):
                 validate_condition_manifest(manifest_path)
 
+            legacy_v3 = json.loads(json.dumps(current_manifest))
+            legacy_v3["schema"] = "pqc-energy-trading.e9-condition-evidence.v3"
+            legacy_v3["condition"]["per_channel_rtt_compensation_ms"] = 0.5
+            legacy_v3["condition"]["effective_one_way_tc_delay_ms"] = 2.25
+            manifest_path.write_text(
+                json.dumps(legacy_v3, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            validate_condition_manifest(manifest_path)
+
+            invalid_v3 = json.loads(json.dumps(current_manifest))
+            invalid_v3["schema"] = "pqc-energy-trading.e9-condition-evidence.v3"
+            manifest_path.write_text(
+                json.dumps(invalid_v3, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(ValueError, "v3 manifest RTT calibration"):
+                validate_condition_manifest(manifest_path)
+
             legacy_v2 = json.loads(json.dumps(current_manifest))
             legacy_v2["schema"] = "pqc-energy-trading.e9-condition-evidence.v2"
             legacy_v2["condition"].pop("per_channel_rtt_compensation_ms")
@@ -337,6 +354,18 @@ class EvidenceAndCLITests(unittest.TestCase):
             self.assertEqual(
                 json.loads(manifest_path.read_text(encoding="utf-8"))["schema"],
                 "pqc-energy-trading.e9-condition-evidence.v2",
+            )
+
+            legacy_v1 = json.loads(json.dumps(legacy_v2))
+            legacy_v1["schema"] = "pqc-energy-trading.e9-condition-evidence.v1"
+            legacy_v1.pop("environment")
+            manifest_path.write_text(
+                json.dumps(legacy_v1, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            validate_condition_manifest(manifest_path)
+            self.assertEqual(
+                json.loads(manifest_path.read_text(encoding="utf-8"))["schema"],
+                "pqc-energy-trading.e9-condition-evidence.v1",
             )
             with self.assertRaises(FileExistsError):
                 persist_condition_evidence(
