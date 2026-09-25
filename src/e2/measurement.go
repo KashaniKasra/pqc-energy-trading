@@ -112,7 +112,21 @@ func BuildMeasurementScenario(configuration Configuration) (MeasurementScenario,
 // TransitionExecutor supplies the RTT for a future real transition execution.
 // E2 does not emulate network delay or prescribe a transport here.
 type TransitionExecutor interface {
+	Scientific() bool
 	Execute(authorized AuthorizedTransition) (rttMS float64, err error)
+}
+
+type scientificTransitionExecutor interface {
+	TransitionExecutor
+	scientificExecutorMarker()
+}
+
+func isScientificTransitionExecutor(executor TransitionExecutor) bool {
+	if executor == nil || !executor.Scientific() {
+		return false
+	}
+	_, ok := executor.(scientificTransitionExecutor)
+	return ok
 }
 
 type RunOptions struct {
@@ -160,6 +174,12 @@ func RunMeasurements(
 	}
 	if backend.Configuration() != configuration {
 		return nil, errors.New("crypto backend configuration mismatch")
+	}
+	if options.Scientific && !isScientificCryptoBackend(backend) {
+		return nil, ErrNonScientificBackend
+	}
+	if options.Scientific && !isScientificTransitionExecutor(executor) {
+		return nil, ErrNonScientificExecutor
 	}
 
 	total := (options.WarmupIterations + options.MeasuredIterations) * len(finalTransitionOrder)
@@ -344,9 +364,8 @@ func SummarizeMeasurements(records []RawMeasurementRecord, expectedMeasuredItera
 		if !record.Success {
 			continue
 		}
-		// Fixed message size is the current registered assumption. It must be
-		// revisited when the professor-approved serializer and crypto backend are
-		// known; variable sizes must never be silently averaged.
+		// The approved algorithms have fixed-size signatures in the pinned
+		// environment. Variable sizes must never be silently averaged.
 		if group.messageBytes == nil {
 			value := record.MessageBytes
 			group.messageBytes = &value

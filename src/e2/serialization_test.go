@@ -40,8 +40,13 @@ func authorizedWithTestMaterial(t *testing.T, configuration Configuration, trans
 	}
 	materials := make([]CryptoMaterial, count)
 	for index := range materials {
+		signerIndex := index
+		if configuration == ConfigurationClassical {
+			signerIndex = 0
+		}
 		materials[index] = CryptoMaterial{
 			Algorithm: metadata.Name,
+			Signer:    transition.RequiredSigners[signerIndex],
 			Signature: bytes.Repeat([]byte{byte(0x30 + index)}, metadata.SignatureBytes),
 			PublicKey: bytes.Repeat([]byte{byte(0x60 + index)}, metadata.PublicKeyBytes),
 		}
@@ -391,7 +396,7 @@ func TestMalformedCryptoSlotsRejected(t *testing.T) {
 	}
 }
 
-func TestAllTransitionsSerializeAndMessageBytesUseActualBytes(t *testing.T) {
+func TestAllTransitionsSerializeWithIsolatedFixtureMaterial(t *testing.T) {
 	serializer := CanonicalSerializer{}
 	for _, configuration := range Configurations() {
 		for _, transitionType := range finalTransitionOrder {
@@ -400,12 +405,8 @@ func TestAllTransitionsSerializeAndMessageBytesUseActualBytes(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s/%s: %v", configuration, transitionType, err)
 			}
-			messageBytes, err := ScientificMessageBytes(serializer, authorized)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if messageBytes != len(encoded) {
-				t.Fatalf("%s/%s message_bytes = %d, actual serialized length %d", configuration, transitionType, messageBytes, len(encoded))
+			if len(encoded) != expectedSerializedSize(t, configuration, transitionType) {
+				t.Fatalf("%s/%s actual serialized length = %d", configuration, transitionType, len(encoded))
 			}
 		}
 	}

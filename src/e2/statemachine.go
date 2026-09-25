@@ -148,6 +148,8 @@ var (
 	ErrInvalidConfiguration    = errors.New("invalid E2 configuration")
 	ErrInvalidParty            = errors.New("party is not a channel participant")
 	ErrInvalidTransition       = errors.New("invalid channel transition")
+	ErrNonScientificBackend    = errors.New("test backend cannot produce scientific E2 records")
+	ErrNonScientificExecutor   = errors.New("unapproved executor cannot produce scientific E2 RTT records")
 	ErrNonScientificSerializer = errors.New(
 		"test-only serializer cannot produce scientific E2 message_bytes",
 	)
@@ -422,6 +424,7 @@ func uint64Pointer(value uint64) *uint64 {
 // serializer must validate.
 type CryptoMaterial struct {
 	Algorithm string
+	Signer    PartyID
 	Signature []byte
 	PublicKey []byte
 }
@@ -434,15 +437,30 @@ type Authorization struct {
 	Signers       []PartyID
 	Materials     []CryptoMaterial
 	WireMaterial  []byte
+	Scientific    bool
 }
 
 type CryptoBackend interface {
+	Scientific() bool
 	Configuration() Configuration
-	PublicKey(party PartyID) ([]byte, error)
-	Sign(party PartyID, message []byte) ([]byte, error)
-	Verify(party PartyID, message, signature, publicKey []byte) (bool, error)
-	Authorize(message []byte, requiredSigners []PartyID) (Authorization, error)
-	VerifyAuthorization(message []byte, authorization Authorization) (bool, error)
+	PublicKey(party PartyID, transition TransitionType) ([]byte, error)
+	Sign(party PartyID, transition TransitionType, message []byte) ([]byte, error)
+	Verify(party PartyID, transition TransitionType, message, signature, publicKey []byte) (bool, error)
+	Authorize(transition Transition, message []byte) (Authorization, error)
+	VerifyAuthorization(transition Transition, message []byte, authorization Authorization) (bool, error)
+}
+
+type scientificCryptoBackend interface {
+	CryptoBackend
+	scientificBackendMarker()
+}
+
+func isScientificCryptoBackend(backend CryptoBackend) bool {
+	if backend == nil || !backend.Scientific() {
+		return false
+	}
+	_, ok := backend.(scientificCryptoBackend)
+	return ok
 }
 
 type AuthorizedTransition struct {
@@ -466,18 +484,27 @@ func AuthorizeTransition(
 	backend CryptoBackend,
 	transition Transition,
 ) (AuthorizedTransition, error) {
+	if backend == nil {
+		return AuthorizedTransition{}, errors.New("crypto backend is required")
+	}
+	if backend.Scientific() && !isScientificCryptoBackend(backend) {
+		return AuthorizedTransition{}, ErrNonScientificBackend
+	}
 	message, err := serializer.SigningBytes(transition)
 	if err != nil {
 		return AuthorizedTransition{}, err
 	}
-	authorization, err := backend.Authorize(message, transition.RequiredSigners)
+	authorization, err := backend.Authorize(transition, message)
 	if err != nil {
 		return AuthorizedTransition{}, err
 	}
 	if authorization.Configuration != backend.Configuration() {
 		return AuthorizedTransition{}, errors.New("authorization configuration mismatch")
 	}
-	valid, err := backend.VerifyAuthorization(message, authorization)
+	if authorization.Scientific != backend.Scientific() {
+		return AuthorizedTransition{}, errors.New("authorization provenance does not match crypto backend")
+	}
+	valid, err := backend.VerifyAuthorization(transition, message, authorization)
 	if err != nil {
 		return AuthorizedTransition{}, err
 	}
@@ -495,6 +522,9 @@ func ScientificMessageBytes(
 ) (int, error) {
 	if !serializer.Scientific() {
 		return 0, ErrNonScientificSerializer
+	}
+	if !authorized.Authorization.Scientific {
+		return 0, ErrNonScientificBackend
 	}
 	serialized, err := serializer.Serialize(authorized)
 	if err != nil {
@@ -540,8 +570,8 @@ var RawMeasurementFields = []string{
 }
 
 // FinalCSVFields is the professor-defined E2 deliverable schema. This package
-// defines the schema but does not emit final rows until the cryptographic and
-// serialization blockers documented above are resolved.
+// defines the schema but does not emit final rows while RTT semantics remain
+// unresolved.
 var FinalCSVFields = []string{
 	"config",
 	"transition",

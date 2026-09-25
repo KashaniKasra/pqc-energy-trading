@@ -187,6 +187,13 @@ func (serializer CanonicalSerializer) SerializeWithBreakdown(
 		return nil, nil, ByteAccounting{}, err
 	}
 	for index, material := range materials {
+		expectedSigner := authorized.Authorization.Signers[index]
+		if configuration == ConfigurationClassical {
+			expectedSigner = authorized.Authorization.Signers[0]
+		}
+		if material.Signer != expectedSigner {
+			return nil, nil, ByteAccounting{}, fmt.Errorf("material %d signer = %q, want %q", index, material.Signer, expectedSigner)
+		}
 		if material.Algorithm != expectedAlgorithm.Name {
 			return nil, nil, ByteAccounting{}, fmt.Errorf("material %d algorithm = %q, want %q", index, material.Algorithm, expectedAlgorithm.Name)
 		}

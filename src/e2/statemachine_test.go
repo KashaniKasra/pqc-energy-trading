@@ -269,22 +269,25 @@ func (testOnlySerializer) Serialize(authorized AuthorizedTransition) ([]byte, er
 
 type testBackend struct{ configuration Configuration }
 
+func (b testBackend) Scientific() bool             { return false }
 func (b testBackend) Configuration() Configuration { return b.configuration }
-func (b testBackend) PublicKey(party PartyID) ([]byte, error) {
+func (b testBackend) PublicKey(party PartyID, _ TransitionType) ([]byte, error) {
 	return []byte("test-key:" + party), nil
 }
-func (b testBackend) Sign(party PartyID, message []byte) ([]byte, error) {
+func (b testBackend) Sign(party PartyID, _ TransitionType, message []byte) ([]byte, error) {
 	return append([]byte("test-signature:"+string(party)+":"), message...), nil
 }
-func (b testBackend) Verify(_ PartyID, _, _, _ []byte) (bool, error) { return true, nil }
-func (b testBackend) Authorize(message []byte, signers []PartyID) (Authorization, error) {
+func (b testBackend) Verify(_ PartyID, _ TransitionType, _, _, _ []byte) (bool, error) {
+	return true, nil
+}
+func (b testBackend) Authorize(transition Transition, message []byte) (Authorization, error) {
 	return Authorization{
 		Configuration: b.configuration,
-		Signers:       append([]PartyID(nil), signers...),
+		Signers:       append([]PartyID(nil), transition.RequiredSigners...),
 		WireMaterial:  append([]byte("test-authorization:"), message...),
 	}, nil
 }
-func (b testBackend) VerifyAuthorization(_ []byte, authorization Authorization) (bool, error) {
+func (b testBackend) VerifyAuthorization(_ Transition, _ []byte, authorization Authorization) (bool, error) {
 	return authorization.Configuration == b.configuration, nil
 }
 

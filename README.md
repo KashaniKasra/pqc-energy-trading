@@ -150,7 +150,9 @@ E2 uses one deterministic binary envelope for all configurations, in network byt
 
 The crypto section always carries framing for exactly two signature slots and two public-key slots. An unused second slot has a zero length and no payload; it is canonical framing, not a dummy cryptographic object. Actual counts remain one or two and must match contiguous occupied slots.
 
-For a serialized transaction, `T0 = total bytes - signature payload bytes - public-key payload bytes`; both count fields and all four fixed-width element-length prefixes remain in `T0`. Derived from the emitted field table, `T0` is globally constant at 126 bytes. Final `message_bytes` is obtained only as the length of the actual serialized transaction. No final E2 measurement or CSV has yet been produced.
+Scientific E2 authorization uses real Ed25519 and pinned liboqs `0.15.0` (`97f6b86b1b6d109cfd43cf276ae39c2e776aed80`) ML-DSA-65/Falcon-padded-512 keys. Participant keys are generated once per run context and reused; private keys are never serialized. The signing preimage is the canonical 114-byte semantic body; verified signatures and corresponding public keys are then inserted into the canonical transaction envelope. Every bundle is verified before serialization.
+
+For a serialized transaction, `T0 = total bytes - signature payload bytes - public-key payload bytes`; both count fields and all four fixed-width element-length prefixes remain in `T0`. Derived from the emitted field table, `T0` is globally constant at 126 bytes. Final `message_bytes` is obtained only as the length of the actual serialized transaction. E2 RTT transport, acknowledgment, and timer-boundary semantics are not specified by the retained authoritative material, so RTT measurement and the final E2 CSV remain pending rather than being guessed.
 
 ## Reproduction and validation
 

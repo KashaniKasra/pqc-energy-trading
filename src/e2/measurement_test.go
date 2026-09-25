@@ -14,6 +14,8 @@ type deterministicExecutor struct {
 	fail TransitionType
 }
 
+func (deterministicExecutor) Scientific() bool { return false }
+
 func (executor deterministicExecutor) Execute(authorized AuthorizedTransition) (float64, error) {
 	if authorized.Transition.Type == executor.fail {
 		return 7.5, errors.New("deterministic execution failure")
