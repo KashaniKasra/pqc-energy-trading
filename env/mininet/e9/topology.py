@@ -50,7 +50,11 @@ def _endpoint_routes(node_index, hops):
 
 
 class E9LinearTopology(Topo):
-    """A -- I1 -- ... -- B, with one TCLink per payment channel."""
+    """A -- I1 -- ... -- B, with one calibrated TCLink per payment channel.
+
+    ``target_rtt_ms`` remains the logical per-channel RTT; the injected delay
+    subtracts the explicit host/testbed stack calibration in ``src.e9``.
+    """
 
     def build(self, hops=1, target_rtt_ms=5):
         condition = NetworkCondition(int(target_rtt_ms), int(hops))

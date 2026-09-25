@@ -18,6 +18,7 @@ from typing import Protocol, Sequence, TextIO
 RTT_VALUES_MS = (5, 20, 50, 100)
 HOP_VALUES = (1, 2, 3, 4, 5)
 CONFIG_VALUES = ("classical", "uniform_mldsa", "layer_aware")
+E9_PER_CHANNEL_RTT_COMPENSATION_MS = 0.5
 MINIMUM_SCIENTIFIC_ITERATIONS = 1000
 DEFAULT_SCIENTIFIC_WARMUP_ITERATIONS = 100
 MESSAGE_BYTES_BY_CONFIG = {
@@ -94,10 +95,26 @@ def intermediate_node_count(hops: int) -> int:
     return hops - 1
 
 
+def effective_one_way_tc_delay_ms(configured_per_channel_rtt_ms: float) -> float:
+    """Return calibrated TCLink delay, excluding host network-stack overhead.
+
+    The compensation is specific to this E9 host/testbed and is not part of
+    the requested logical per-payment-channel RTT.
+    """
+    if not math.isfinite(configured_per_channel_rtt_ms):
+        raise ValueError("configured per-channel RTT must be finite")
+    delay = (
+        configured_per_channel_rtt_ms - E9_PER_CHANNEL_RTT_COMPENSATION_MS
+    ) / 2.0
+    if delay <= 0:
+        raise ValueError("E9 RTT compensation makes TCLink delay non-positive")
+    return delay
+
+
 def per_channel_one_way_delay_ms(condition: NetworkCondition) -> float:
-    """Return half of the configured per-payment-channel RTT."""
+    """Return the calibrated one-way delay injected on each payment channel."""
     condition.validate()
-    return condition.configured_rtt_ms / 2.0
+    return effective_one_way_tc_delay_ms(condition.configured_rtt_ms)
 
 
 def expected_end_to_end_rtt_ms(condition: NetworkCondition) -> float:

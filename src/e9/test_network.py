@@ -9,6 +9,7 @@ import unittest
 
 from src.e9.network import (
     CONFIG_VALUES,
+    E9_PER_CHANNEL_RTT_COMPENSATION_MS,
     FINAL_FIELDS,
     HOP_VALUES,
     MESSAGE_BYTES_BY_CONFIG,
@@ -24,6 +25,7 @@ from src.e9.network import (
     RunOptions,
     SummaryRow,
     completion_statistics,
+    effective_one_way_tc_delay_ms,
     expected_end_to_end_rtt_ms,
     intermediate_node_count,
     payment_channel_link_count,
@@ -142,22 +144,29 @@ class SweepAndTopologyTests(unittest.TestCase):
             ("a", "i1", "i2", "i3", "i4", "b"),
         )
 
-    def test_delay_distribution_preserves_end_to_end_rtt(self):
+    def test_calibrated_delay_preserves_logical_end_to_end_rtt(self):
+        expected_delays = {5: 2.25, 20: 9.75, 50: 24.75, 100: 49.75}
+        self.assertEqual(E9_PER_CHANNEL_RTT_COMPENSATION_MS, 0.5)
         for condition in sweep_conditions():
             delay = per_channel_one_way_delay_ms(condition)
-            self.assertEqual(delay, condition.configured_rtt_ms / 2)
+            self.assertEqual(delay, expected_delays[condition.configured_rtt_ms])
             self.assertEqual(
                 expected_end_to_end_rtt_ms(condition),
                 condition.configured_rtt_ms * condition.hops,
             )
         examples = (
-            (NetworkCondition(20, 3), 10, 60),
-            (NetworkCondition(5, 5), 2.5, 25),
-            (NetworkCondition(100, 1), 50, 100),
+            (NetworkCondition(20, 3), 9.75, 60),
+            (NetworkCondition(5, 5), 2.25, 25),
+            (NetworkCondition(100, 1), 49.75, 100),
         )
         for condition, delay, expected in examples:
             self.assertEqual(per_channel_one_way_delay_ms(condition), delay)
             self.assertEqual(expected_end_to_end_rtt_ms(condition), expected)
+
+    def test_calibration_rejects_non_positive_effective_delay(self):
+        for configured_rtt in (0.5, 0.0, -1.0):
+            with self.assertRaisesRegex(ValueError, "non-positive"):
+                effective_one_way_tc_delay_ms(configured_rtt)
 
     def test_mininet_topology_object_has_expected_path(self):
         topology_path = Path(__file__).parents[2] / "env/mininet/e9/topology.py"
@@ -175,7 +184,7 @@ class SweepAndTopologyTests(unittest.TestCase):
             self.assertEqual(topology.switches(), [])
             links = topology.links(withInfo=True)
             self.assertEqual(len(links), link_count)
-            self.assertTrue(all(info["delay"] == "10.000000000ms" for _, _, info in links))
+            self.assertTrue(all(info["delay"] == "9.750000000ms" for _, _, info in links))
             self.assertTrue(all(info["cls"].__name__ == "TCLink" for _, _, info in links))
 
 

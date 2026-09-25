@@ -286,7 +286,7 @@ class EvidenceAndCLITests(unittest.TestCase):
             )
             validate_condition_manifest(manifest_path)
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            self.assertEqual(manifest["schema"], "pqc-energy-trading.e9-condition-evidence.v2")
+            self.assertEqual(manifest["schema"], "pqc-energy-trading.e9-condition-evidence.v3")
             for section in ("ping_verification", "completion_samples"):
                 item = manifest[section]
                 content = (root / item["filename"]).read_bytes()
@@ -296,10 +296,48 @@ class EvidenceAndCLITests(unittest.TestCase):
                 verification.raw_output,
             )
             self.assertEqual(manifest["condition"]["prepared_message_bytes"], 222)
+            self.assertEqual(
+                manifest["condition"]["configured_per_channel_rtt_ms"], 5
+            )
+            self.assertEqual(
+                manifest["condition"]["per_channel_rtt_compensation_ms"], 0.5
+            )
+            self.assertEqual(
+                manifest["condition"]["effective_one_way_tc_delay_ms"], 2.25
+            )
+            self.assertEqual(manifest["condition"]["expected_end_to_end_rtt_ms"], 5.0)
             timing = manifest["environment"]["timing"]
             self.assertEqual(timing["cpu"]["model"]["value"], "Test CPU")
             self.assertEqual(timing["cpu"]["process_affinity"]["cpus"], [2, 4, 6])
             self.assertEqual(timing["power"]["ac_online"]["online"], True)
+            current_manifest = json.loads(json.dumps(manifest))
+            del manifest["condition"]["per_channel_rtt_compensation_ms"]
+            manifest_path.write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(ValueError, "calibration provenance mismatch"):
+                validate_condition_manifest(manifest_path)
+
+            tampered = json.loads(json.dumps(current_manifest))
+            tampered["condition"]["effective_one_way_tc_delay_ms"] = 2.5
+            manifest_path.write_text(
+                json.dumps(tampered, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(ValueError, "calibration provenance mismatch"):
+                validate_condition_manifest(manifest_path)
+
+            legacy_v2 = json.loads(json.dumps(current_manifest))
+            legacy_v2["schema"] = "pqc-energy-trading.e9-condition-evidence.v2"
+            legacy_v2["condition"].pop("per_channel_rtt_compensation_ms")
+            legacy_v2["condition"].pop("effective_one_way_tc_delay_ms")
+            manifest_path.write_text(
+                json.dumps(legacy_v2, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            validate_condition_manifest(manifest_path)
+            self.assertEqual(
+                json.loads(manifest_path.read_text(encoding="utf-8"))["schema"],
+                "pqc-energy-trading.e9-condition-evidence.v2",
+            )
             with self.assertRaises(FileExistsError):
                 persist_condition_evidence(
                     root,

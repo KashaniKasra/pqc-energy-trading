@@ -11,19 +11,23 @@ from typing import Mapping, Sequence
 
 from .environment import validate_scientific_environment
 from .network import (
+    E9_PER_CHANNEL_RTT_COMPENSATION_MS,
     MESSAGE_BYTES_BY_CONFIG,
+    NetworkCondition,
     PingVerificationRecord,
     RawCompletionRecord,
     RunOptions,
     expected_end_to_end_rtt_ms,
+    per_channel_one_way_delay_ms,
     validate_config,
     validate_ping_gate,
     write_raw_completion_csv,
 )
 
 
-MANIFEST_SCHEMA = "pqc-energy-trading.e9-condition-evidence.v2"
-LEGACY_MANIFEST_SCHEMA = "pqc-energy-trading.e9-condition-evidence.v1"
+MANIFEST_SCHEMA = "pqc-energy-trading.e9-condition-evidence.v3"
+LEGACY_MANIFEST_SCHEMA_V2 = "pqc-energy-trading.e9-condition-evidence.v2"
+LEGACY_MANIFEST_SCHEMA_V1 = "pqc-energy-trading.e9-condition-evidence.v1"
 
 
 def condition_stem(config: str, rtt_ms: int, hops: int) -> str:
@@ -99,6 +103,8 @@ def persist_condition_evidence(
         "condition": {
             "config": verification.config,
             "configured_per_channel_rtt_ms": condition.configured_rtt_ms,
+            "per_channel_rtt_compensation_ms": E9_PER_CHANNEL_RTT_COMPENSATION_MS,
+            "effective_one_way_tc_delay_ms": per_channel_one_way_delay_ms(condition),
             "hops": condition.hops,
             "expected_end_to_end_rtt_ms": expected_end_to_end_rtt_ms(condition),
             "prepared_message_bytes": message_bytes,
@@ -143,17 +149,38 @@ def persist_condition_evidence(
 
 def validate_condition_manifest(manifest_path: Path) -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("schema") not in (MANIFEST_SCHEMA, LEGACY_MANIFEST_SCHEMA) or manifest.get(
-        "scientific"
-    ) is not True:
+    schema = manifest.get("schema")
+    if schema not in (
+        MANIFEST_SCHEMA,
+        LEGACY_MANIFEST_SCHEMA_V2,
+        LEGACY_MANIFEST_SCHEMA_V1,
+    ) or manifest.get("scientific") is not True:
         raise ValueError("invalid E9 evidence manifest identity")
-    if manifest.get("schema") == MANIFEST_SCHEMA:
+    if schema in (MANIFEST_SCHEMA, LEGACY_MANIFEST_SCHEMA_V2):
         environment = manifest.get("environment")
         if not isinstance(environment, Mapping) or not isinstance(
             environment.get("timing"), Mapping
         ):
-            raise ValueError("E9 v2 manifest lacks timing-environment provenance")
+            raise ValueError(f"E9 {schema.rsplit('.', 1)[-1]} manifest lacks timing-environment provenance")
         validate_scientific_environment(environment["timing"])
+    if schema == MANIFEST_SCHEMA:
+        condition_data = manifest.get("condition")
+        if not isinstance(condition_data, Mapping):
+            raise ValueError("E9 v3 manifest lacks condition provenance")
+        condition = NetworkCondition(
+            int(condition_data.get("configured_per_channel_rtt_ms", 0)),
+            int(condition_data.get("hops", 0)),
+        )
+        condition.validate()
+        if (
+            condition_data.get("per_channel_rtt_compensation_ms")
+            != E9_PER_CHANNEL_RTT_COMPENSATION_MS
+            or condition_data.get("effective_one_way_tc_delay_ms")
+            != per_channel_one_way_delay_ms(condition)
+            or condition_data.get("expected_end_to_end_rtt_ms")
+            != expected_end_to_end_rtt_ms(condition)
+        ):
+            raise ValueError("E9 v3 manifest RTT calibration provenance mismatch")
     for section_name in ("ping_verification", "completion_samples"):
         section = manifest[section_name]
         path = manifest_path.parent / section["filename"]
