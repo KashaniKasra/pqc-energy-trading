@@ -1,0 +1,141 @@
+{
+  "blob_bytes": 5387,
+  "compression": {
+    "command": "LC_ALL=C gzip -9 -n",
+    "deterministic_header": true,
+    "format": "gzip",
+    "level": 9,
+    "original_sha256_semantics": "SHA-256 of decompressed/original scientific evidence bytes",
+    "tracked_sha256_semantics": "SHA-256 of tracked gzip container bytes"
+  },
+  "condition_count": 5,
+  "config": "layer_aware",
+  "entries": [
+    {
+      "compression": "gzip",
+      "evidence_role": "manifest",
+      "n_states": 10,
+      "original_filename": "manifest_layer_aware_n10.json",
+      "original_sha256": "03f8b7dbee4e0afecd735d0b8a4645229114a7e36ef52a56ab9856a8ab4a4c78",
+      "original_size": 5910,
+      "tracked_filename": "raw/e5/manifest_layer_aware_n10.json.gz",
+      "tracked_sha256": "293dd203ccda1e269e2592266a9757ead1d21a3e677cd300b6d09b27f7605b91",
+      "tracked_size": 1501
+    },
+    {
+      "compression": "gzip",
+      "evidence_role": "manifest",
+      "n_states": 100,
+      "original_filename": "manifest_layer_aware_n100.json",
+      "original_sha256": "ddc89e11c4bed8c650db2cffe21286a754d91abe75982385f4ac996ee5272ce9",
+      "original_size": 5916,
+      "tracked_filename": "raw/e5/manifest_layer_aware_n100.json.gz",
+      "tracked_sha256": "9642d1430de7518a7c60d1af906486b3e76f22f349d008924ffd35e93f7d50d8",
+      "tracked_size": 1507
+    },
+    {
+      "compression": "gzip",
+      "evidence_role": "manifest",
+      "n_states": 1000,
+      "original_filename": "manifest_layer_aware_n1000.json",
+      "original_sha256": "b8b5ccc20322c6af859fbd3eb112e99ff6f5677da7b92c25cb391c6ffa47b2e1",
+      "original_size": 5920,
+      "tracked_filename": "raw/e5/manifest_layer_aware_n1000.json.gz",
+      "tracked_sha256": "dbc8b05b55a760962a719617ddfd9d22efdd9c3eb6787399f239aa6c79e31047",
+      "tracked_size": 1510
+    },
+    {
+      "compression": "gzip",
+      "evidence_role": "manifest",
+      "n_states": 10000,
+      "original_filename": "manifest_layer_aware_n10000.json",
+      "original_sha256": "3c7545f7a212386ccac5e9a8f2094c37334a883b52a990b7ec67ea4379dff617",
+      "original_size": 5923,
+      "tracked_filename": "raw/e5/manifest_layer_aware_n10000.json.gz",
+      "tracked_sha256": "38b8f3c871857f1135064f27741e32b9608dc2f2a5cc660ea8c479664105fc9c",
+      "tracked_size": 1511
+    },
+    {
+      "compression": "gzip",
+      "evidence_role": "manifest",
+      "n_states": 100000,
+      "original_filename": "manifest_layer_aware_n100000.json",
+      "original_sha256": "44c5e37a8f80c8ccca766482fa11c186b3d2f6301a06b797479fe8023d78e426",
+      "original_size": 5925,
+      "tracked_filename": "raw/e5/manifest_layer_aware_n100000.json.gz",
+      "tracked_sha256": "105888ff677955bdaa6463b593702764db4f3e5a6beeeb9a0883d1295b7c16a6",
+      "tracked_size": 1512
+    },
+    {
+      "compression": "gzip",
+      "evidence_role": "samples",
+      "n_states": 10,
+      "original_filename": "samples_layer_aware_n10.csv",
+      "original_sha256": "e0eb794fa0cea4a28b77cbe5a3e1cf3c1f6ca2d11a9def91edc66cf3ebffd6f0",
+      "original_size": 54665,
+      "tracked_filename": "raw/e5/samples_layer_aware_n10.csv.gz",
+      "tracked_sha256": "e967ce546afa77a61796b6daadf6702b405cf1b8305afe675e1adc8872a2c893",
+      "tracked_size": 5549
+    },
+    {
+      "compression": "gzip",
+      "evidence_role": "samples",
+      "n_states": 100,
+      "original_filename": "samples_layer_aware_n100.csv",
+      "original_sha256": "3adbe2d87407b10b3743276d1e88f0f3a8213ba86115f380b46cf941c6f86765",
+      "original_size": 56865,
+      "tracked_filename": "raw/e5/samples_layer_aware_n100.csv.gz",
+      "tracked_sha256": "553e8aed325ac470664bb64199bcc5dae64979265c150d5df1252382d5d42243",
+      "tracked_size": 5474
+    },
+    {
+      "compression": "gzip",
+      "evidence_role": "samples",
+      "n_states": 1000,
+      "original_filename": "samples_layer_aware_n1000.csv",
+      "original_sha256": "a901792932103a66191c1b6011c5408fd755d9f4032c4e9796c05c920d38593d",
+      "original_size": 59065,
+      "tracked_filename": "raw/e5/samples_layer_aware_n1000.csv.gz",
+      "tracked_sha256": "a46e5c9c31f8ef1156a9b52d79dc361e8ad7b18c34da93f3f8f9696e8b02066e",
+      "tracked_size": 5336
+    },
+    {
+      "compression": "gzip",
+      "evidence_role": "samples",
+      "n_states": 10000,
+      "original_filename": "samples_layer_aware_n10000.csv",
+      "original_sha256": "c1c714507eaad5a0e74d44f6cc4af114e91b28c18ded0af1c2a5408b2f72e802",
+      "original_size": 61265,
+      "tracked_filename": "raw/e5/samples_layer_aware_n10000.csv.gz",
+      "tracked_sha256": "30b7b771bb78893edc5a6ba99e1dda97a4989bedceeb23068cd72c4d1116602c",
+      "tracked_size": 5510
+    },
+    {
+      "compression": "gzip",
+      "evidence_role": "samples",
+      "n_states": 100000,
+      "original_filename": "samples_layer_aware_n100000.csv",
+      "original_sha256": "36b45bce8826a0a61daaa546eecd77b88d45497ba8abe0a309ff725c121de9a9",
+      "original_size": 63465,
+      "tracked_filename": "raw/e5/samples_layer_aware_n100000.csv.gz",
+      "tracked_sha256": "58ebb33189edf8f920b7a63c4d737ffdbdc32d80a5169db0b0efbe3e0cef9ee8",
+      "tracked_size": 6672
+    }
+  ],
+  "failure_count": 0,
+  "measured_iterations_per_condition": 1000,
+  "measured_rows_total": 5000,
+  "measurement_commit": "34c0a39b4673aae5aa4975b2687a6d147aa41298",
+  "raw_sample_rows_total": 5500,
+  "schema": "pqc-energy-trading.raw-e5-evidence-manifest.v1",
+  "source_file_count": 10,
+  "state_counts": [
+    10,
+    100,
+    1000,
+    10000,
+    100000
+  ],
+  "warmup_iterations_per_condition": 100,
+  "warmup_rows_total": 500
+}

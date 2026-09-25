@@ -917,6 +917,95 @@
     },
     "finalizer": "src/e2/finalize_e2.py"
   },
+  "e5_benchmark": {
+    "status": "complete",
+    "output": {
+      "path": "data/e5_watchtower.csv",
+      "sha256": "eea355feeb9f69f8fd22dab70bf234fe46d6cf6447db6975fb92c1bf260af280"
+    },
+    "final_measurement_commit": "34c0a39b4673aae5aa4975b2687a6d147aa41298",
+    "config": "layer_aware",
+    "state_counts": [
+      10,
+      100,
+      1000,
+      10000,
+      100000
+    ],
+    "warmup_iterations_per_condition": 100,
+    "measured_iterations_per_condition": 1000,
+    "percentile_method": "linear interpolation using rank p*(n-1); final scan_cpu_ms is the median",
+    "scan": {
+      "definition": "deterministic sequential worst-case identifier scan to final state",
+      "nonmatching_payload_treatment": "skip fixed payload by memory offset without parsing",
+      "cache_policy": "mmap prefault plus discarded warm-up scans",
+      "timer": "Linux CLOCK_PROCESS_CPUTIME_ID user plus system process CPU",
+      "timed_region": "identifier scan and matching payload copy only"
+    },
+    "cpu_control": {
+      "cpu_model": "AMD Ryzen 7 7735HS with Radeon Graphics",
+      "process_affinity": "2,4,6,8,10,12,14",
+      "scaling_driver": "amd-pstate-epp",
+      "governor": "performance",
+      "energy_performance_preference": "performance",
+      "boost_enabled": false,
+      "scaling_min_freq_khz": 3200000,
+      "scaling_max_freq_khz": 3200000,
+      "power_source": "AC"
+    },
+    "blob": {
+      "source": "real E2 layer_aware penalty transition",
+      "bytes": 5387,
+      "software_pin_references": [
+        "software_pins.liboqs",
+        "software_pins.liboqs_go"
+      ]
+    },
+    "record_layout": "uint64-big-endian state_id || unchanged E2 penalty blob",
+    "total_bytes_definition": "actual os.Stat size after streaming physical generation, flush, fsync, and close",
+    "artifact_retention": "Synthetic .bin artifacts were hashed and fully validated during collection, then omitted from Git; measured sizes, hashes, and validation receipts remain in condition manifests.",
+    "raw_evidence": {
+      "directory": "raw/e5",
+      "manifest": "raw/e5/evidence_manifest.json",
+      "manifest_sha256": "f4b9ce259e7cf4e8e87baae43baab009b654e20b58d5056a8965c574b5cc5bee",
+      "source_file_count": 10,
+      "compression": "deterministic gzip -9 -n",
+      "hash_semantics": "original_sha256 identifies decompressed scientific bytes; tracked_sha256 identifies the gzip container"
+    },
+    "finalizer": "src/e5/finalize_e5.py",
+    "final_rows": [
+      {
+        "n_states": 10,
+        "blob_bytes_median": 5387,
+        "total_bytes": 53950,
+        "scan_cpu_ms": "0.002104000"
+      },
+      {
+        "n_states": 100,
+        "blob_bytes_median": 5387,
+        "total_bytes": 539500,
+        "scan_cpu_ms": "0.001693000"
+      },
+      {
+        "n_states": 1000,
+        "blob_bytes_median": 5387,
+        "total_bytes": 5395000,
+        "scan_cpu_ms": "0.002785000"
+      },
+      {
+        "n_states": 10000,
+        "blob_bytes_median": 5387,
+        "total_bytes": 53950000,
+        "scan_cpu_ms": "0.026449000"
+      },
+      {
+        "n_states": 100000,
+        "blob_bytes_median": 5387,
+        "total_bytes": 539500000,
+        "scan_cpu_ms": "0.250582500"
+      }
+    ]
+  },
   "notes": {
     "falcon_liboqs_caveat": "Falcon-512 and Falcon-padded-512 in liboqs 0.15.0 are round-3 implementations, not final FIPS 206.",
     "make_figures_gap": "The student specification references a supplied make_figures.py sanity checker, but its source and plausible bands are absent."

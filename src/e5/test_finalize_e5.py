@@ -1,4 +1,5 @@
 import csv
+import gzip
 import hashlib
 import importlib.util
 import json
@@ -19,7 +20,7 @@ def scientific_environment():
         "values_by_policy": {"policy0": value, "policy1": value},
     }
     return {
-        "git_commit": "a" * 40,
+        "git_commit": finalizer.MEASUREMENT_COMMIT,
         "git_dirty": False,
         "go_version": "go1.22.2",
         "kernel": "test-kernel",
@@ -154,6 +155,62 @@ def mutate_rows(sample_path, mutation):
         writer.writerows(rows)
 
 
+def freeze_evidence(source_root, frozen_root):
+    frozen_root.mkdir()
+    entries = []
+    for source in sorted(source_root.rglob("manifest_layer_aware_n*.json")) + sorted(
+        source_root.rglob("samples_layer_aware_n*.csv")
+    ):
+        match = finalizer.EVIDENCE_NAME.fullmatch(source.name)
+        assert match is not None
+        role, n_text, _ = match.groups()
+        original = source.read_bytes()
+        compressed = gzip.compress(original, compresslevel=9, mtime=0)
+        tracked = frozen_root / f"{source.name}.gz"
+        tracked.write_bytes(compressed)
+        entries.append(
+            {
+                "original_filename": source.name,
+                "evidence_role": role,
+                "n_states": int(n_text),
+                "original_size": len(original),
+                "original_sha256": sha256(original),
+                "tracked_filename": f"raw/e5/{source.name}.gz",
+                "tracked_size": len(compressed),
+                "tracked_sha256": sha256(compressed),
+                "compression": "gzip",
+            }
+        )
+    entries.sort(key=lambda entry: entry["original_filename"])
+    manifest = {
+        "schema": finalizer.FROZEN_SCHEMA,
+        "measurement_commit": finalizer.MEASUREMENT_COMMIT,
+        "config": finalizer.CONFIG,
+        "state_counts": list(finalizer.STATE_COUNTS),
+        "condition_count": 5,
+        "source_file_count": 10,
+        "warmup_iterations_per_condition": 100,
+        "measured_iterations_per_condition": 1000,
+        "raw_sample_rows_total": 5500,
+        "warmup_rows_total": 500,
+        "measured_rows_total": 5000,
+        "failure_count": 0,
+        "blob_bytes": 5387,
+        "compression": {
+            "format": "gzip",
+            "level": 9,
+            "deterministic_header": True,
+            "command": "LC_ALL=C gzip -9 -n",
+            "original_sha256_semantics": "SHA-256 of decompressed/original scientific evidence bytes",
+            "tracked_sha256_semantics": "SHA-256 of tracked gzip container bytes",
+        },
+        "entries": entries,
+    }
+    (frozen_root / "evidence_manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+
 class FinalizeE5Tests(unittest.TestCase):
     def test_percentile_linear_interpolation(self):
         self.assertEqual(finalizer.percentile([1.0], 0.99), 1.0)
@@ -163,15 +220,45 @@ class FinalizeE5Tests(unittest.TestCase):
     def test_frozen_finalization_requires_no_artifacts(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
+            source = root / "source"
+            source.mkdir()
             for n_states in finalizer.STATE_COUNTS:
-                write_condition(root, n_states)
+                write_condition(source, n_states)
+            frozen = root / "frozen"
+            freeze_evidence(source, frozen)
             output = root / "final.csv"
-            finalizer.finalize(root, output)
+            finalizer.finalize(frozen, output)
             with output.open(newline="", encoding="utf-8") as source:
                 rows = list(csv.reader(source))
             self.assertEqual(tuple(rows[0]), finalizer.FINAL_FIELDS)
             self.assertEqual([int(row[1]) for row in rows[1:]], list(finalizer.STATE_COUNTS))
             self.assertTrue(all(row[2] == "5387" for row in rows[1:]))
+
+    def test_frozen_gzip_hash_and_inventory_fail_closed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            source.mkdir()
+            for n_states in finalizer.STATE_COUNTS:
+                write_condition(source, n_states)
+            frozen = root / "frozen"
+            freeze_evidence(source, frozen)
+            gzip_path = frozen / "samples_layer_aware_n10.csv.gz"
+            gzip_path.write_bytes(gzip_path.read_bytes() + b"corrupt")
+            with self.assertRaisesRegex(ValueError, "tracked gzip identity"):
+                finalizer.EvidenceRoot(frozen)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            source.mkdir()
+            for n_states in finalizer.STATE_COUNTS:
+                write_condition(source, n_states)
+            frozen = root / "frozen"
+            freeze_evidence(source, frozen)
+            (frozen / "extra.gz").write_bytes(b"junk")
+            with self.assertRaisesRegex(ValueError, "unmanifested"):
+                finalizer.EvidenceRoot(frozen)
 
     def test_collection_receipt_sha_and_methodology_fail_closed(self):
         mutations = (
@@ -187,7 +274,7 @@ class FinalizeE5Tests(unittest.TestCase):
                 mutation(manifest)
                 write_manifest(manifest_path, manifest)
                 with self.assertRaises(ValueError):
-                    finalizer.summarize_condition(manifest_path, None)
+                    finalizer.summarize_condition(finalizer.EvidenceRoot(root), 10, None)
 
     def test_total_bytes_manifest_and_record_integrity_mismatches(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -196,7 +283,7 @@ class FinalizeE5Tests(unittest.TestCase):
             mutate_rows(sample_path, lambda rows: rows[0].update(total_bytes="1"))
             refresh_sample_identity(manifest_path, sample_path)
             with self.assertRaisesRegex(ValueError, "total_bytes"):
-                finalizer.summarize_condition(manifest_path, None)
+                finalizer.summarize_condition(finalizer.EvidenceRoot(root), 10, None)
 
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -208,7 +295,7 @@ class FinalizeE5Tests(unittest.TestCase):
             mutate_rows(sample_path, lambda rows: [row.update(total_bytes=str(wrong_total)) for row in rows])
             refresh_sample_identity(manifest_path, sample_path)
             with self.assertRaisesRegex(ValueError, "record-size integrity"):
-                finalizer.summarize_condition(manifest_path, None)
+                finalizer.summarize_condition(finalizer.EvidenceRoot(root), 10, None)
 
     def test_optional_deep_audit_rejects_corrupted_artifact(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -220,7 +307,9 @@ class FinalizeE5Tests(unittest.TestCase):
                 output.seek(9)
                 output.write(b"X")
             with self.assertRaisesRegex(ValueError, "artifact identity mismatch"):
-                finalizer.summarize_condition(manifest_path, artifacts)
+                finalizer.summarize_condition(
+                    finalizer.EvidenceRoot(root / "evidence"), 10, artifacts
+                )
 
     def test_raw_warmup_inconsistency_is_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -229,7 +318,7 @@ class FinalizeE5Tests(unittest.TestCase):
             mutate_rows(sample_path, lambda rows: rows[0].update(scientific="false"))
             refresh_sample_identity(manifest_path, sample_path)
             with self.assertRaisesRegex(ValueError, "failed or inconsistent"):
-                finalizer.summarize_condition(manifest_path, None)
+                finalizer.summarize_condition(finalizer.EvidenceRoot(root), 10, None)
 
     def test_rejects_incomplete_and_smoke_evidence(self):
         with tempfile.TemporaryDirectory() as temporary:

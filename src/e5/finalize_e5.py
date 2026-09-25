@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 import csv
+import gzip
 import hashlib
+import io
 import json
 import math
 import re
@@ -55,6 +57,11 @@ ARTIFACT_VALIDATION_RECEIPT = {
     "no_trailing_bytes": True,
 }
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+EVIDENCE_NAME = re.compile(
+    r"^(manifest|samples)_layer_aware_n(10|100|1000|10000|100000)\.(json|csv)$"
+)
+FROZEN_SCHEMA = "pqc-energy-trading.raw-e5-evidence-manifest.v1"
+MEASUREMENT_COMMIT = "34c0a39b4673aae5aa4975b2687a6d147aa41298"
 
 
 def sha256_file(path: Path) -> tuple[str, int]:
@@ -78,17 +85,119 @@ def percentile(values: list[float], probability: float) -> float:
     return ordered[lower] + (rank - lower) * (ordered[upper] - ordered[lower])
 
 
-def discover(root: Path, prefix: str, suffix: str) -> dict[int, Path]:
-    found: dict[int, Path] = {}
-    for path in root.rglob(f"{prefix}_layer_aware_n*{suffix}"):
-        number_text = path.name.removeprefix(f"{prefix}_layer_aware_n").removesuffix(suffix)
-        if not number_text.isdigit():
-            continue
-        number = int(number_text)
-        if number in found:
-            raise ValueError(f"duplicate {prefix} evidence for n_states={number}")
-        found[number] = path
-    return found
+class EvidenceRoot:
+    """Read either external plain evidence or the canonical frozen gzip set."""
+
+    def __init__(self, root: Path):
+        self.root = root.resolve()
+        self.contents: dict[str, bytes] = {}
+        frozen_manifest = self.root / "evidence_manifest.json"
+        if frozen_manifest.exists():
+            self._load_frozen(frozen_manifest)
+        else:
+            self._load_plain()
+
+    def _load_plain(self) -> None:
+        for path in self.root.rglob("*"):
+            if not path.is_file():
+                continue
+            match = EVIDENCE_NAME.fullmatch(path.name)
+            if match is None:
+                continue
+            if path.name in self.contents:
+                raise ValueError(f"duplicate E5 evidence file {path.name}")
+            self.contents[path.name] = path.read_bytes()
+
+    def _load_frozen(self, manifest_path: Path) -> None:
+        manifest = json.loads(manifest_path.read_bytes())
+        expected = {
+            "schema": FROZEN_SCHEMA,
+            "measurement_commit": MEASUREMENT_COMMIT,
+            "config": CONFIG,
+            "state_counts": list(STATE_COUNTS),
+            "condition_count": 5,
+            "source_file_count": 10,
+            "warmup_iterations_per_condition": 100,
+            "measured_iterations_per_condition": 1000,
+            "raw_sample_rows_total": 5500,
+            "warmup_rows_total": 500,
+            "measured_rows_total": 5000,
+            "failure_count": 0,
+            "blob_bytes": 5387,
+        }
+        for key, value in expected.items():
+            if manifest.get(key) != value:
+                raise ValueError(f"frozen evidence manifest {key} mismatch")
+        compression = manifest.get("compression")
+        if not isinstance(compression, dict) or compression != {
+            "command": "LC_ALL=C gzip -9 -n",
+            "deterministic_header": True,
+            "format": "gzip",
+            "level": 9,
+            "original_sha256_semantics": "SHA-256 of decompressed/original scientific evidence bytes",
+            "tracked_sha256_semantics": "SHA-256 of tracked gzip container bytes",
+        }:
+            raise ValueError("frozen evidence compression policy mismatch")
+        entries = manifest.get("entries")
+        if not isinstance(entries, list) or len(entries) != 10:
+            raise ValueError("frozen evidence manifest must contain ten entries")
+        names = [entry.get("original_filename") for entry in entries]
+        if names != sorted(names) or len(set(names)) != 10:
+            raise ValueError("frozen evidence entries are unsorted or duplicated")
+        tracked_names: set[str] = set()
+        for entry in entries:
+            logical = entry.get("original_filename")
+            match = EVIDENCE_NAME.fullmatch(logical) if isinstance(logical, str) else None
+            if match is None:
+                raise ValueError(f"invalid frozen logical filename {logical!r}")
+            role, n_text, _ = match.groups()
+            tracked_name = entry.get("tracked_filename")
+            expected_tracked = f"raw/e5/{logical}.gz"
+            if (
+                entry.get("evidence_role") != role
+                or entry.get("n_states") != int(n_text)
+                or entry.get("compression") != "gzip"
+                or tracked_name != expected_tracked
+                or tracked_name in tracked_names
+            ):
+                raise ValueError(f"frozen evidence classification mismatch for {logical}")
+            tracked_path = self.root / Path(tracked_name).name
+            compressed = tracked_path.read_bytes()
+            if (
+                len(compressed) != entry.get("tracked_size")
+                or hashlib.sha256(compressed).hexdigest() != entry.get("tracked_sha256")
+            ):
+                raise ValueError(f"tracked gzip identity mismatch for {logical}")
+            try:
+                original = gzip.decompress(compressed)
+            except OSError as error:
+                raise ValueError(f"invalid gzip evidence for {logical}") from error
+            if (
+                len(original) != entry.get("original_size")
+                or hashlib.sha256(original).hexdigest() != entry.get("original_sha256")
+            ):
+                raise ValueError(f"original evidence identity mismatch for {logical}")
+            self.contents[logical] = original
+            tracked_names.add(tracked_name)
+        actual = {path.name for path in self.root.iterdir() if path.is_file()}
+        expected_files = {Path(name).name for name in tracked_names} | {"evidence_manifest.json"}
+        if actual != expected_files:
+            raise ValueError("raw/e5 contains missing or unmanifested files")
+
+    def require_complete(self) -> None:
+        expected = {
+            f"{role}_layer_aware_n{n_states}.{extension}"
+            for n_states in STATE_COUNTS
+            for role, extension in (("manifest", "json"), ("samples", "csv"))
+        }
+        if set(self.contents) != expected:
+            raise ValueError("E5 evidence must contain exactly all five scientific datapoints")
+
+    def read(self, filename: str) -> bytes:
+        try:
+            return self.contents[filename]
+        except KeyError as error:
+            raise ValueError(f"missing E5 evidence file {filename}") from error
 
 
 def validate_artifact(path: Path, n_states: int, blob_bytes: int, blob_sha256: str) -> int:
@@ -114,7 +223,10 @@ def validate_artifact(path: Path, n_states: int, blob_bytes: int, blob_sha256: s
 
 
 def validate_scientific_environment(environment: dict[str, object]) -> None:
-    if environment.get("git_dirty") is not False or not environment.get("git_commit"):
+    if (
+        environment.get("git_dirty") is not False
+        or environment.get("git_commit") != MEASUREMENT_COMMIT
+    ):
         raise ValueError("scientific Git provenance is invalid")
     if not environment.get("go_version") or not environment.get("kernel"):
         raise ValueError("scientific software provenance is incomplete")
@@ -155,34 +267,35 @@ def validate_scientific_environment(environment: dict[str, object]) -> None:
 
 
 def summarize_condition(
-    manifest_path: Path, artifact_root: Path | None
+    evidence: EvidenceRoot, n_states: int, artifact_root: Path | None
 ) -> tuple[str, int, int, int, float, str]:
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest_name = f"manifest_layer_aware_n{n_states}.json"
+    manifest = json.loads(evidence.read(manifest_name))
     if manifest.get("schema") != SCHEMA or manifest.get("scientific") is not True:
-        raise ValueError(f"non-scientific or invalid manifest {manifest_path}")
+        raise ValueError(f"non-scientific or invalid manifest {manifest_name}")
     condition = manifest.get("condition", {})
-    n_states = condition.get("n_states")
     if (
         condition.get("config") != CONFIG
-        or n_states not in STATE_COUNTS
+        or condition.get("n_states") != n_states
         or condition.get("warmup_iterations") != 100
         or condition.get("measured_iterations") != 1000
         or condition.get("worst_case_target_state") != n_states - 1
     ):
-        raise ValueError(f"condition metadata mismatch in {manifest_path}")
+        raise ValueError(f"condition metadata mismatch in {manifest_name}")
     environment = manifest.get("environment", {})
     if not isinstance(environment, dict):
-        raise ValueError(f"scientific environment missing in {manifest_path}")
+        raise ValueError(f"scientific environment missing in {manifest_name}")
     validate_scientific_environment(environment)
 
     samples_meta = manifest.get("samples", {})
-    if samples_meta.get("filename") != f"samples_layer_aware_n{n_states}.csv":
+    sample_name = f"samples_layer_aware_n{n_states}.csv"
+    if samples_meta.get("filename") != sample_name:
         raise ValueError(f"sample filename mismatch for n_states={n_states}")
-    sample_path = manifest_path.parent / samples_meta.get("filename", "")
-    sample_hash, sample_size = sha256_file(sample_path)
+    sample_bytes = evidence.read(sample_name)
+    sample_hash, sample_size = hashlib.sha256(sample_bytes).hexdigest(), len(sample_bytes)
     if sample_hash != samples_meta.get("sha256") or sample_size != samples_meta.get("bytes"):
         raise ValueError(f"sample identity mismatch for n_states={n_states}")
-    with sample_path.open(newline="", encoding="utf-8") as source:
+    with io.StringIO(sample_bytes.decode("utf-8"), newline="") as source:
         reader = csv.DictReader(source)
         if tuple(reader.fieldnames or ()) != RAW_FIELDS:
             raise ValueError(f"raw schema mismatch for n_states={n_states}")
@@ -287,11 +400,9 @@ def summarize_condition(
 
 
 def finalize(evidence_root: Path, output: Path, artifact_root: Path | None = None) -> None:
-    manifests = discover(evidence_root, "manifest", ".json")
-    samples = discover(evidence_root, "samples", ".csv")
-    if set(manifests) != set(STATE_COUNTS) or set(samples) != set(STATE_COUNTS):
-        raise ValueError("E5 evidence must contain exactly all five scientific datapoints")
-    audited = [summarize_condition(manifests[n_states], artifact_root) for n_states in STATE_COUNTS]
+    evidence = EvidenceRoot(evidence_root)
+    evidence.require_complete()
+    audited = [summarize_condition(evidence, n_states, artifact_root) for n_states in STATE_COUNTS]
     if len({row[5] for row in audited}) != 1:
         raise ValueError("scientific environment differs across E5 datapoints")
     output.parent.mkdir(parents=True, exist_ok=True)

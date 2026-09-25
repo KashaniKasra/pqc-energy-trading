@@ -1,0 +1,6 @@
+config,n_states,blob_bytes_median,total_bytes,scan_cpu_ms
+layer_aware,10,5387,53950,0.002104000
+layer_aware,100,5387,539500,0.001693000
+layer_aware,1000,5387,5395000,0.002785000
+layer_aware,10000,5387,53950000,0.026449000
+layer_aware,100000,5387,539500000,0.250582500

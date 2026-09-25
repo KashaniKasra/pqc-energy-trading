@@ -8,14 +8,16 @@ This repository is an empirical testbed for measuring cryptographic, blockchain,
 - E0 primitives, meter/SBC: pending hardware measurement.
 - E1 Fabric: complete.
 - E2 channel state machine: complete.
+- E5 watchtower scalability: complete.
 - E9 network-measurement infrastructure: implemented; final sweep pending.
-- E5, E7, and E8: not yet completed.
+- E7 and E8: not yet completed.
 
 Final completed-experiment CSVs:
 
 - `data/e0_primitives.csv`
 - `data/e1_fabric.csv`
 - `data/e2_statemachine.csv`
+- `data/e5_watchtower.csv`
 
 The specification references a supplied `make_figures.py` sanity checker, but that source and its plausible bands are not present in the repository; no replacement is fabricated.
 
@@ -158,6 +160,12 @@ For a serialized transaction, `T0 = total bytes - signature payload bytes - publ
 
 E2 RTT uses two Mininet hosts joined by one direct 20 ms RTT `TCLink`. A prepares and signs the canonical transaction before timing, starts a monotonic timer immediately before sending the serialized bytes over an already-established `TCP_NODELAY` connection, and stops only after receiving B's success ACK. B sends that ACK only after verifying every included signature over the canonical semantic preimage. Thus RTT includes transmission, receive/framing, real verification at B, and ACK return, while excluding key generation, signing, transaction construction, serialization, and TCP setup. Transport framing and ACK bytes do not contribute to `message_bytes`. The classical verification remains one Ed25519 verification for the representative aggregated-size case; it is not a MuSig2 execution. Each scientific condition used 100 discarded warm-up iterations and 1,000 measured iterations after a retained 20-sample ping passed the strict deviation `<10%` gate. The penalty transaction is produced by the real state-machine path that revokes an old commitment, force-closes that stale state, and authorizes the counterparty punishment. Final raw evidence is under `raw/e2/`; `data/e2_statemachine.csv` is complete.
 
+## E5 watchtower scalability
+
+E5 measures only `layer_aware`, using the unchanged 5,387-byte canonical E2 penalty transaction from the real stale-state punishment path. The sweep contains 10, 100, 1,000, 10,000, and 100,000 states. Each physically generated record is an 8-byte big-endian state ID followed by the unchanged penalty blob; `total_bytes` is the `os.Stat` size after streaming generation, flush, fsync, and close.
+
+The registered scan is a deterministic worst-case search for the final state. It examines identifiers sequentially, skips nonmatching fixed payloads by mmap offset, and returns the matching blob. Files are prefaulted before 100 discarded warm-ups and 1,000 measured scans. `scan_cpu_ms` is the median Linux `CLOCK_PROCESS_CPUTIME_ID` process CPU time; p95 and p99 remain in condition manifests. Large synthetic artifacts were fully validated during collection but are not archived; their hashes, measured sizes, and validation receipts remain in `raw/e5/`.
+
 ## E9 network sensitivity
 
 E9 is network-only. In its linear Mininet path, `hops` is the number of payment-channel links and `rtt_ms` is the configured RTT of each link; each interface direction receives `rtt_ms/2` delay. The official full-path ping median must be within strictly less than 10% of `hops*rtt_ms` before a scientific condition may run.
@@ -248,6 +256,35 @@ cmp -- data/e2_statemachine.csv /tmp/e2_statemachine.regenerated.csv
 sha256sum data/e2_statemachine.csv
 ```
 
+E5 reuses the pinned E2/liboqs environment and the same controlled CPU affinity and power policy. Run its tests:
+
+```bash
+(cd src/e5 && go test ./... && go vet ./...)
+python3 -m unittest -v src/e5/test_finalize_e5.py
+```
+
+Run one scientific condition to new external directories, or run the complete five-point sweep:
+
+```bash
+(cd src/e5 && taskset -c 2,4,6,8,10,12,14 go run ./cmd/e5bench \
+  --n-states 1000 --warmup 100 --iterations 1000 \
+  --output-root /tmp/e5_n1000_evidence \
+  --artifact-root /tmp/e5_n1000_artifact --scientific)
+
+env/e5/run_e5_sweep.sh /tmp/e5_full /tmp/e5_artifacts
+```
+
+While generated artifacts exist, request the optional deep audit. Canonical frozen regeneration needs only `raw/e5/`:
+
+```bash
+python3 src/e5/finalize_e5.py --evidence-root /tmp/e5_full \
+  --artifact-root /tmp/e5_artifacts --output /tmp/e5_watchtower.deep.csv
+python3 src/e5/finalize_e5.py --evidence-root raw/e5 \
+  --output /tmp/e5_watchtower.regenerated.csv
+cmp -- data/e5_watchtower.csv /tmp/e5_watchtower.regenerated.csv
+sha256sum data/e5_watchtower.csv
+```
+
 ## Evidence storage and provenance
 
 `meta.json` is the machine-readable project and experiment provenance record.
@@ -260,3 +297,5 @@ E1 raw evidence is frozen under `raw/e1/` using deterministic gzip storage (`gzi
 Scientific raw-evidence identity is defined by the original/decompressed bytes. Compression changes storage representation only and does not change any E1 result.
 
 E2 raw evidence is frozen under `raw/e2/` with the same deterministic `gzip -9 -n` convention. `raw/e2/evidence_manifest.json` maps all 72 original condition files to tracked gzip containers and records both original and tracked SHA-256 identities. `src/e2/finalize_e2.py` validates those identities and all condition-level scientific gates before regenerating the final E2 CSV.
+
+E5 compact raw evidence is frozen under `raw/e5/` using deterministic `gzip -9 -n`. Its evidence manifest maps the ten retained condition manifests/sample files to their gzip containers. The synthetic storage artifacts are omitted after deep validation; frozen regeneration verifies their recorded hashes, measured sizes, validation receipts, and retained raw samples.
