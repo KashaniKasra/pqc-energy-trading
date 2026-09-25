@@ -1,8 +1,8 @@
 """Pure, non-privileged E9 measurement and validation infrastructure.
 
-The E9 config values and completion exchange remain unresolved interfaces. This
-module does not start Mininet, apply host networking changes, or implement a
-completion workload.
+E9 times a network-only HTLC_ADD/HTLC_SETTLE round trip using injected,
+already-prepared messages. This module does not start Mininet, apply host
+networking changes, or perform cryptography/serialization.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from typing import Protocol, Sequence, TextIO
 
 RTT_VALUES_MS = (5, 20, 50, 100)
 HOP_VALUES = (1, 2, 3, 4, 5)
+CONFIG_VALUES = ("classical", "uniform_mldsa", "layer_aware")
 MINIMUM_SCIENTIFIC_ITERATIONS = 1000
 FINAL_FIELDS = (
     "config",
@@ -41,9 +42,10 @@ PING_FIELDS = (
     "config",
     "rtt_ms",
     "hops",
+    "expected_end_to_end_rtt_ms",
     "ping_sample_count",
     "ping_samples_ms",
-    "measured_rtt_ms",
+    "measured_end_to_end_rtt_ms",
     "deviation_pct",
     "raw_output_sha256",
     "raw_output_bytes",
@@ -56,6 +58,8 @@ PHASE_MEASURED = "measured"
 
 @dataclass(frozen=True, order=True)
 class NetworkCondition:
+    """Per-payment-channel RTT and number of payment-channel links."""
+
     configured_rtt_ms: int
     hops: int
 
@@ -71,25 +75,36 @@ def sweep_conditions() -> list[NetworkCondition]:
     return [NetworkCondition(rtt, hops) for rtt in RTT_VALUES_MS for hops in HOP_VALUES]
 
 
-def path_link_count(hops: int) -> int:
-    """Return path links for the provisional intermediate-forwarder definition."""
+def payment_channel_link_count(hops: int) -> int:
+    """Return the authoritative number of payment-channel links."""
     if hops not in HOP_VALUES:
         raise ValueError(f"unsupported hop count: {hops}")
-    return hops + 1
+    return hops
 
 
-def per_link_one_way_delay_ms(condition: NetworkCondition) -> float:
-    """Distribute target RTT across both directions and every path link.
+def intermediate_node_count(hops: int) -> int:
+    if hops not in HOP_VALUES:
+        raise ValueError(f"unsupported hop count: {hops}")
+    return hops - 1
 
-    Each Mininet link receives this delay symmetrically. A one-way packet crosses
-    hops+1 links, so 2 * link_count * delay equals the target end-to-end RTT.
-    """
+
+def per_channel_one_way_delay_ms(condition: NetworkCondition) -> float:
+    """Return half of the configured per-payment-channel RTT."""
     condition.validate()
-    return condition.configured_rtt_ms / (2.0 * path_link_count(condition.hops))
+    return condition.configured_rtt_ms / 2.0
 
 
-def expected_rtt_ms(condition: NetworkCondition) -> float:
-    return 2.0 * path_link_count(condition.hops) * per_link_one_way_delay_ms(condition)
+def expected_end_to_end_rtt_ms(condition: NetworkCondition) -> float:
+    """Return whole-path RTT: per-channel RTT multiplied by channel count."""
+    condition.validate()
+    return float(condition.configured_rtt_ms * condition.hops)
+
+
+def validate_config(config: str, *, scientific: bool) -> None:
+    if not config:
+        raise ValueError("config must be non-empty")
+    if scientific and config not in CONFIG_VALUES:
+        raise ValueError(f"unsupported scientific E9 config: {config}")
 
 
 def percentile(values: Sequence[float], probability: float) -> float:
@@ -133,7 +148,8 @@ class PingVerificationRecord:
     config: str
     condition: NetworkCondition
     samples_ms: tuple[float, ...]
-    measured_rtt_ms: float
+    expected_end_to_end_rtt_ms: float
+    measured_end_to_end_rtt_ms: float
     deviation_pct: float
     passed: bool
     raw_output: str
@@ -155,20 +171,21 @@ def verify_ping(
     condition: NetworkCondition,
     output: str,
 ) -> PingVerificationRecord:
-    if not config:
-        raise ValueError("config must be non-empty")
+    validate_config(config, scientific=False)
     condition.validate()
     if condition.configured_rtt_ms <= 0:
         raise ValueError("configured RTT must be positive")
     samples = parse_ping_samples(output)
     measured = percentile(samples, 0.50)
-    deviation = abs(measured - condition.configured_rtt_ms) / condition.configured_rtt_ms * 100.0
+    expected = expected_end_to_end_rtt_ms(condition)
+    deviation = abs(measured - expected) / expected * 100.0
     raw_bytes = output.encode("utf-8")
     return PingVerificationRecord(
         config=config,
         condition=condition,
         samples_ms=samples,
-        measured_rtt_ms=measured,
+        expected_end_to_end_rtt_ms=expected,
+        measured_end_to_end_rtt_ms=measured,
         deviation_pct=deviation,
         passed=deviation < 10.0,
         raw_output=output,
@@ -177,11 +194,33 @@ def verify_ping(
     )
 
 
-class CompletionExecutor(Protocol):
+@dataclass(frozen=True)
+class PreparedHTLCMessages:
+    """Already-prepared network messages; E9 performs no crypto or serialization."""
+
+    add: bytes
+    settle: bytes
+
+    def validate(self) -> None:
+        if not self.add or not self.settle:
+            raise ValueError("prepared HTLC_ADD and HTLC_SETTLE bytes are required")
+
+
+class HTLCCompletionExecutor(Protocol):
     scientific: bool
 
-    def execute(self, config: str, condition: NetworkCondition) -> float:
-        """Run one unresolved network-only exchange and return completion ms."""
+    def execute(
+        self,
+        config: str,
+        condition: NetworkCondition,
+        messages: PreparedHTLCMessages,
+    ) -> float:
+        """Time sender HTLC_ADD send through settle receipt at the sender.
+
+        Implementations may only move already-prepared bytes forward across all
+        payment-channel links and move the settle confirmation back. Crypto and
+        serialization computation are outside this timed E9 operation.
+        """
 
 
 @dataclass(frozen=True)
@@ -194,15 +233,18 @@ class RunOptions:
 def validate_run(
     config: str,
     condition: NetworkCondition,
-    executor: CompletionExecutor | None,
+    executor: HTLCCompletionExecutor | None,
+    messages: PreparedHTLCMessages | None,
     options: RunOptions,
     verification: PingVerificationRecord | None,
 ) -> None:
-    if not config:
-        raise ValueError("config must be non-empty")
+    validate_config(config, scientific=options.scientific)
     condition.validate()
     if executor is None:
         raise ValueError("completion executor is required")
+    if messages is None:
+        raise ValueError("prepared HTLC messages are required")
+    messages.validate()
     if options.warmup_iterations < 0:
         raise ValueError("warmup iterations cannot be negative")
     if options.measured_iterations <= 0:
@@ -232,10 +274,13 @@ def validate_ping_gate(
     parsed_samples = parse_ping_samples(verification.raw_output)
     if parsed_samples != verification.samples_ms:
         raise ValueError("ping samples do not match retained raw ping output")
+    expected = expected_end_to_end_rtt_ms(condition)
     measured = percentile(verification.samples_ms, 0.50)
-    deviation = abs(measured - condition.configured_rtt_ms) / condition.configured_rtt_ms * 100.0
+    deviation = abs(measured - expected) / expected * 100.0
     passed = deviation < 10.0
-    if not math.isclose(measured, verification.measured_rtt_ms, rel_tol=0.0, abs_tol=1e-12):
+    if not math.isclose(expected, verification.expected_end_to_end_rtt_ms, rel_tol=0.0, abs_tol=1e-12):
+        raise ValueError("ping expected whole-path RTT provenance mismatch")
+    if not math.isclose(measured, verification.measured_end_to_end_rtt_ms, rel_tol=0.0, abs_tol=1e-12):
         raise ValueError("ping measured RTT provenance mismatch")
     if not math.isclose(deviation, verification.deviation_pct, rel_tol=0.0, abs_tol=1e-12):
         raise ValueError("ping deviation provenance mismatch")
@@ -261,11 +306,12 @@ class RawCompletionRecord:
 def run_condition(
     config: str,
     condition: NetworkCondition,
-    executor: CompletionExecutor,
+    executor: HTLCCompletionExecutor,
+    messages: PreparedHTLCMessages,
     options: RunOptions,
     verification: PingVerificationRecord | None = None,
 ) -> list[RawCompletionRecord]:
-    validate_run(config, condition, executor, options, verification)
+    validate_run(config, condition, executor, messages, options, verification)
     records: list[RawCompletionRecord] = []
     for phase, iterations in (
         (PHASE_WARMUP, options.warmup_iterations),
@@ -273,7 +319,7 @@ def run_condition(
     ):
         for iteration in range(iterations):
             try:
-                completion_ms = executor.execute(config, condition)
+                completion_ms = executor.execute(config, condition, messages)
                 if not math.isfinite(completion_ms) or completion_ms < 0:
                     raise ValueError("executor returned invalid completion time")
                 success = True
@@ -328,6 +374,7 @@ def summarize_condition(
             raise ValueError("mixed scientific and non-scientific records")
     condition = NetworkCondition(first.configured_rtt_ms, first.hops)
     condition.validate()
+    validate_config(first.config, scientific=scientific)
 
     measured = [record for record in records if record.phase == PHASE_MEASURED]
     if scientific:
@@ -362,13 +409,13 @@ def summarize_condition(
 
 
 def validate_final_rows(rows: Sequence[SummaryRow]) -> None:
-    if not rows:
-        raise ValueError("final E9 dataset requires at least one config")
+    expected_row_count = len(CONFIG_VALUES) * len(RTT_VALUES_MS) * len(HOP_VALUES)
+    if len(rows) != expected_row_count:
+        raise ValueError(f"final E9 dataset requires exactly {expected_row_count} rows")
     seen: set[tuple[str, int, int]] = set()
     configs: set[str] = set()
     for row in rows:
-        if not row.config:
-            raise ValueError("final E9 config must be non-empty")
+        validate_config(row.config, scientific=True)
         condition = NetworkCondition(row.rtt_ms, row.hops)
         condition.validate()
         if not row.scientific:
@@ -381,8 +428,10 @@ def validate_final_rows(rows: Sequence[SummaryRow]) -> None:
             raise ValueError("duplicate final E9 config/RTT/hops row")
         seen.add(key)
         configs.add(row.config)
+    if configs != set(CONFIG_VALUES):
+        raise ValueError("final E9 dataset does not contain exactly the three authoritative configs")
     expected_conditions = set(sweep_conditions())
-    for config in configs:
+    for config in CONFIG_VALUES:
         actual = {NetworkCondition(rtt, hops) for cfg, rtt, hops in seen if cfg == config}
         if actual != expected_conditions:
             raise ValueError(f"incomplete 20-condition sweep for config {config!r}")
@@ -393,7 +442,7 @@ def write_final_csv(output: TextIO, rows: Sequence[SummaryRow]) -> None:
     writer = csv.writer(output, lineterminator="\n")
     writer.writerow(FINAL_FIELDS)
     by_key = {(row.config, row.rtt_ms, row.hops): row for row in rows}
-    for config in sorted({row.config for row in rows}):
+    for config in CONFIG_VALUES:
         for condition in sweep_conditions():
             row = by_key[(config, condition.configured_rtt_ms, condition.hops)]
             writer.writerow(
@@ -441,9 +490,10 @@ def write_ping_verification_csv(
                 record.config,
                 record.condition.configured_rtt_ms,
                 record.condition.hops,
+                _format_float(record.expected_end_to_end_rtt_ms),
                 len(record.samples_ms),
                 ";".join(_format_float(sample) for sample in record.samples_ms),
-                _format_float(record.measured_rtt_ms),
+                _format_float(record.measured_end_to_end_rtt_ms),
                 _format_float(record.deviation_pct),
                 record.raw_output_sha256,
                 record.raw_output_bytes,

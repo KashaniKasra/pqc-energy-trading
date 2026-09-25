@@ -1,33 +1,89 @@
 #!/usr/bin/env python3
-"""Parameterized E9 Mininet topology; importing it makes no host changes.
+"""Authoritative E9 payment-channel path topology.
 
-Provisional definition: ``hops`` is the number of intermediate forwarding
-switches between h1 and h2. The path therefore contains ``hops + 1`` links.
-This interpretation requires professor confirmation before final measurement.
+``hops`` is the number of payment-channel links. Intermediate Mininet hosts
+forward packets but perform no cryptography or application computation.
 """
 
 from mininet.link import TCLink
+from mininet.node import Host
 from mininet.topo import Topo
 
-from src.e9.network import NetworkCondition, path_link_count, per_link_one_way_delay_ms
+from src.e9.network import (
+    NetworkCondition,
+    intermediate_node_count,
+    payment_channel_link_count,
+    per_channel_one_way_delay_ms,
+)
+
+
+class PaymentChannelHost(Host):
+    """Network-namespace host with optional minimal IPv4 forwarding/routes."""
+
+    def config(self, forwarding=False, routes=(), **params):
+        result = super().config(**params)
+        self._e9_forwarding = bool(forwarding)
+        if self._e9_forwarding:
+            self.cmd("sysctl -qw net.ipv4.ip_forward=1")
+        for route in routes:
+            self.cmd(f"ip route replace {route}")
+        return result
+
+    def terminate(self):
+        if getattr(self, "_e9_forwarding", False):
+            self.cmd("sysctl -qw net.ipv4.ip_forward=0")
+        super().terminate()
+
+
+def _node_names(hops):
+    return ["a", *(f"i{index}" for index in range(1, hops)), "b"]
+
+
+def _endpoint_routes(node_index, hops):
+    sender_ip = "10.0.1.1"
+    receiver_ip = f"10.0.{hops}.2"
+    routes = []
+    if node_index > 0:
+        left_neighbor_ip = f"10.0.{node_index}.1"
+        routes.append(f"{sender_ip}/32 via {left_neighbor_ip}")
+    if node_index < hops:
+        right_neighbor_ip = f"10.0.{node_index + 1}.2"
+        routes.append(f"{receiver_ip}/32 via {right_neighbor_ip}")
+    return routes
 
 
 class E9LinearTopology(Topo):
-    """Two endpoints connected through 1..5 intermediate switches."""
+    """A -- I1 -- ... -- B, with one TCLink per payment channel."""
 
-    def build(self, hops: int = 1, target_rtt_ms: int = 5) -> None:
+    def build(self, hops=1, target_rtt_ms=5):
         condition = NetworkCondition(int(target_rtt_ms), int(hops))
         condition.validate()
-        delay = f"{per_link_one_way_delay_ms(condition):.9f}ms"
-
-        endpoint_a = self.addHost("h1")
-        endpoint_b = self.addHost("h2")
-        switches = [self.addSwitch(f"s{index}") for index in range(1, condition.hops + 1)]
-        path = [endpoint_a, *switches, endpoint_b]
-        if len(path) - 1 != path_link_count(condition.hops):
-            raise RuntimeError("internal E9 path/link count mismatch")
-        for left, right in zip(path, path[1:]):
-            self.addLink(left, right, cls=TCLink, delay=delay)
+        delay = f"{per_channel_one_way_delay_ms(condition):.9f}ms"
+        names = _node_names(condition.hops)
+        nodes = []
+        for index, name in enumerate(names):
+            nodes.append(
+                self.addHost(
+                    name,
+                    cls=PaymentChannelHost,
+                    ip=None,
+                    forwarding=0 < index < condition.hops,
+                    routes=_endpoint_routes(index, condition.hops),
+                )
+            )
+        if len(nodes) - 2 != intermediate_node_count(condition.hops):
+            raise RuntimeError("internal E9 intermediate-node count mismatch")
+        for index, (left, right) in enumerate(zip(nodes, nodes[1:]), start=1):
+            self.addLink(
+                left,
+                right,
+                cls=TCLink,
+                delay=delay,
+                params1={"ip": f"10.0.{index}.1/30"},
+                params2={"ip": f"10.0.{index}.2/30"},
+            )
+        if len(nodes) - 1 != payment_channel_link_count(condition.hops):
+            raise RuntimeError("internal E9 payment-channel link count mismatch")
 
 
 topos = {"e9linear": E9LinearTopology}

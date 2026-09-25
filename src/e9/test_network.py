@@ -8,6 +8,7 @@ from pathlib import Path
 import unittest
 
 from src.e9.network import (
+    CONFIG_VALUES,
     FINAL_FIELDS,
     HOP_VALUES,
     MINIMUM_SCIENTIFIC_ITERATIONS,
@@ -17,13 +18,15 @@ from src.e9.network import (
     CompletionStatistics,
     NetworkCondition,
     PingVerificationRecord,
+    PreparedHTLCMessages,
     RawCompletionRecord,
     RunOptions,
     SummaryRow,
     completion_statistics,
-    expected_rtt_ms,
-    path_link_count,
-    per_link_one_way_delay_ms,
+    expected_end_to_end_rtt_ms,
+    intermediate_node_count,
+    payment_channel_link_count,
+    per_channel_one_way_delay_ms,
     run_condition,
     summarize_condition,
     sweep_conditions,
@@ -44,7 +47,9 @@ class FakeExecutor:
         self._fail_calls = set(fail_calls)
         self._calls = 0
 
-    def execute(self, config, condition):
+    def execute(self, config, condition, messages):
+        if not messages.add or not messages.settle:
+            raise RuntimeError("missing prepared messages")
         call = self._calls
         self._calls += 1
         if call in self._fail_calls:
@@ -60,13 +65,16 @@ def ping_output(*samples):
 
 
 def passing_ping(config, condition):
-    return verify_ping(config, condition, ping_output(condition.configured_rtt_ms))
+    return verify_ping(config, condition, ping_output(expected_end_to_end_rtt_ms(condition)))
+
+
+PREPARED_MESSAGES = PreparedHTLCMessages(add=b"prepared-add", settle=b"prepared-settle")
 
 
 def scientific_records(count=MINIMUM_SCIENTIFIC_ITERATIONS):
     return [
         RawCompletionRecord(
-            config="test-config",
+            config="classical",
             configured_rtt_ms=5,
             hops=1,
             iteration=iteration,
@@ -80,7 +88,7 @@ def scientific_records(count=MINIMUM_SCIENTIFIC_ITERATIONS):
     ]
 
 
-def complete_rows(configs=("test-config",)):
+def complete_rows(configs=CONFIG_VALUES):
     rows = []
     for config in configs:
         for condition in sweep_conditions():
@@ -112,44 +120,61 @@ class SweepAndTopologyTests(unittest.TestCase):
             [NetworkCondition(rtt, hops) for rtt in RTT_VALUES_MS for hops in HOP_VALUES],
         )
 
-    def test_provisional_hops_map_to_links(self):
-        for hops in HOP_VALUES:
-            self.assertEqual(path_link_count(hops), hops + 1)
+    def test_authoritative_hops_map_to_channels_and_intermediates(self):
+        expected = {1: (1, 0), 3: (3, 2), 5: (5, 4)}
+        for hops, (links, intermediates) in expected.items():
+            self.assertEqual(payment_channel_link_count(hops), links)
+            self.assertEqual(intermediate_node_count(hops), intermediates)
         for invalid in (0, 6, -1):
             with self.assertRaises(ValueError):
-                path_link_count(invalid)
+                payment_channel_link_count(invalid)
+            with self.assertRaises(ValueError):
+                intermediate_node_count(invalid)
 
     def test_delay_distribution_preserves_end_to_end_rtt(self):
         for condition in sweep_conditions():
-            delay = per_link_one_way_delay_ms(condition)
-            self.assertGreater(delay, 0)
-            self.assertAlmostEqual(expected_rtt_ms(condition), condition.configured_rtt_ms)
-            self.assertAlmostEqual(
-                2 * path_link_count(condition.hops) * delay,
-                condition.configured_rtt_ms,
+            delay = per_channel_one_way_delay_ms(condition)
+            self.assertEqual(delay, condition.configured_rtt_ms / 2)
+            self.assertEqual(
+                expected_end_to_end_rtt_ms(condition),
+                condition.configured_rtt_ms * condition.hops,
             )
+        examples = (
+            (NetworkCondition(20, 3), 10, 60),
+            (NetworkCondition(5, 5), 2.5, 25),
+            (NetworkCondition(100, 1), 50, 100),
+        )
+        for condition, delay, expected in examples:
+            self.assertEqual(per_channel_one_way_delay_ms(condition), delay)
+            self.assertEqual(expected_end_to_end_rtt_ms(condition), expected)
 
     def test_mininet_topology_object_has_expected_path(self):
         topology_path = Path(__file__).parents[2] / "env/mininet/e9/topology.py"
         specification = importlib.util.spec_from_file_location("e9_topology_test", topology_path)
         module = importlib.util.module_from_spec(specification)
         specification.loader.exec_module(module)
-        topology = module.E9LinearTopology(hops=3, target_rtt_ms=20)
-        self.assertEqual(topology.hosts(), ["h1", "h2"])
-        self.assertEqual(topology.switches(), ["s1", "s2", "s3"])
-        links = topology.links(withInfo=True)
-        self.assertEqual(len(links), 4)
-        self.assertTrue(all(info["delay"] == "2.500000000ms" for _, _, info in links))
-        self.assertTrue(all(info["cls"].__name__ == "TCLink" for _, _, info in links))
+        expected_shapes = {
+            1: (["a", "b"], 1),
+            3: (["a", "i1", "i2", "b"], 3),
+            5: (["a", "i1", "i2", "i3", "i4", "b"], 5),
+        }
+        for hops, (hosts, link_count) in expected_shapes.items():
+            topology = module.E9LinearTopology(hops=hops, target_rtt_ms=20)
+            self.assertCountEqual(topology.hosts(), hosts)
+            self.assertEqual(topology.switches(), [])
+            links = topology.links(withInfo=True)
+            self.assertEqual(len(links), link_count)
+            self.assertTrue(all(info["delay"] == "10.000000000ms" for _, _, info in links))
+            self.assertTrue(all(info["cls"].__name__ == "TCLink" for _, _, info in links))
 
 
 class PingVerificationTests(unittest.TestCase):
     def test_strict_deviation_boundary(self):
-        condition = NetworkCondition(100, 1)
-        exact = verify_ping("cfg", condition, ping_output(100))
-        below = verify_ping("cfg", condition, ping_output(109.99))
-        boundary = verify_ping("cfg", condition, ping_output(110))
-        above = verify_ping("cfg", condition, ping_output(111))
+        condition = NetworkCondition(20, 3)
+        exact = verify_ping("classical", condition, ping_output(60))
+        below = verify_ping("classical", condition, ping_output(65.99))
+        boundary = verify_ping("classical", condition, ping_output(66))
+        above = verify_ping("classical", condition, ping_output(67))
         self.assertTrue(exact.passed)
         self.assertTrue(below.passed)
         self.assertLess(below.deviation_pct, 10)
@@ -159,16 +184,17 @@ class PingVerificationTests(unittest.TestCase):
     def test_invalid_configured_rtt_and_samples(self):
         for rtt in (0, -5):
             with self.assertRaises(ValueError):
-                verify_ping("cfg", NetworkCondition(rtt, 1), ping_output(1))
+                verify_ping("classical", NetworkCondition(rtt, 1), ping_output(1))
         for output in ("time=nan ms", "time=inf ms", "no ping samples"):
             with self.assertRaises(ValueError):
-                verify_ping("cfg", NetworkCondition(5, 1), output)
+                verify_ping("classical", NetworkCondition(5, 1), output)
 
     def test_median_verification_retains_samples(self):
-        raw_output = ping_output(19, 20, 21, 22)
-        record = verify_ping("cfg", NetworkCondition(20, 2), raw_output)
-        self.assertEqual(record.samples_ms, (19.0, 20.0, 21.0, 22.0))
-        self.assertEqual(record.measured_rtt_ms, 20.5)
+        raw_output = ping_output(39, 40, 41, 42)
+        record = verify_ping("classical", NetworkCondition(20, 2), raw_output)
+        self.assertEqual(record.samples_ms, (39.0, 40.0, 41.0, 42.0))
+        self.assertEqual(record.expected_end_to_end_rtt_ms, 40)
+        self.assertEqual(record.measured_end_to_end_rtt_ms, 40.5)
         self.assertTrue(record.passed)
         self.assertEqual(record.raw_output, raw_output)
         self.assertEqual(record.raw_output_sha256, hashlib.sha256(raw_output.encode("utf-8")).hexdigest())
@@ -176,49 +202,71 @@ class PingVerificationTests(unittest.TestCase):
 
     def test_altered_raw_output_rejected_with_old_provenance(self):
         condition = NetworkCondition(20, 2)
-        record = verify_ping("cfg", condition, ping_output(19, 20, 21))
+        record = verify_ping("classical", condition, ping_output(39, 40, 41))
         altered = replace(record, raw_output=record.raw_output + "\n")
         with self.assertRaisesRegex(ValueError, "SHA-256 provenance mismatch"):
-            validate_ping_gate("cfg", condition, altered)
+            validate_ping_gate("classical", condition, altered)
 
 
 class RunAndSummaryTests(unittest.TestCase):
     def test_scientific_guards_at_validation_level(self):
         condition = NetworkCondition(5, 1)
-        verification = passing_ping("cfg", condition)
+        verification = passing_ping("classical", condition)
         scientific_executor = FakeExecutor(scientific=True)
         with self.assertRaises(ValueError):
             validate_run(
-                "cfg",
+                "classical",
                 condition,
                 scientific_executor,
+                PREPARED_MESSAGES,
                 RunOptions(0, 999, True),
                 verification,
             )
         validate_run(
-            "cfg",
+            "classical",
             condition,
             scientific_executor,
+            PREPARED_MESSAGES,
             RunOptions(1, 1000, True),
             verification,
         )
-        failed = verify_ping("cfg", condition, ping_output(5.5))
+        failed = verify_ping("classical", condition, ping_output(5.5))
         self.assertFalse(failed.passed)
         with self.assertRaises(ValueError):
             validate_run(
-                "cfg",
+                "classical",
                 condition,
                 scientific_executor,
+                PREPARED_MESSAGES,
                 RunOptions(0, 1000, True),
                 failed,
             )
         with self.assertRaises(ValueError):
             validate_run(
-                "cfg",
+                "classical",
                 condition,
                 FakeExecutor(scientific=False),
+                PREPARED_MESSAGES,
                 RunOptions(0, 1000, True),
                 verification,
+            )
+        with self.assertRaises(ValueError):
+            validate_run(
+                "unknown",
+                condition,
+                scientific_executor,
+                PREPARED_MESSAGES,
+                RunOptions(0, 1000, True),
+                verification,
+            )
+        for config in CONFIG_VALUES:
+            validate_run(
+                config,
+                condition,
+                scientific_executor,
+                PREPARED_MESSAGES,
+                RunOptions(0, 1000, True),
+                passing_ping(config, condition),
             )
 
     def test_warmup_retained_but_excluded(self):
@@ -226,6 +274,7 @@ class RunAndSummaryTests(unittest.TestCase):
             "cfg",
             NetworkCondition(5, 1),
             FakeExecutor(values=(100, 2, 4)),
+            PREPARED_MESSAGES,
             RunOptions(1, 2, False),
         )
         self.assertEqual([record.phase for record in records], ["warmup", "measured", "measured"])
@@ -238,6 +287,7 @@ class RunAndSummaryTests(unittest.TestCase):
             "cfg",
             NetworkCondition(5, 1),
             FakeExecutor(fail_calls=(0,)),
+            PREPARED_MESSAGES,
             RunOptions(0, 2, False),
         )
         self.assertFalse(records[0].success)
@@ -249,11 +299,11 @@ class RunAndSummaryTests(unittest.TestCase):
             summarize_condition(
                 scientific,
                 MINIMUM_SCIENTIFIC_ITERATIONS,
-                passing_ping("test-config", NetworkCondition(5, 1)),
+                passing_ping("classical", NetworkCondition(5, 1)),
             )
 
     def test_missing_and_duplicate_scientific_iterations_rejected(self):
-        verification = passing_ping("test-config", NetworkCondition(5, 1))
+        verification = passing_ping("classical", NetworkCondition(5, 1))
         missing = scientific_records()[:-1]
         with self.assertRaises(ValueError):
             summarize_condition(missing, MINIMUM_SCIENTIFIC_ITERATIONS, verification)
@@ -267,13 +317,13 @@ class RunAndSummaryTests(unittest.TestCase):
         records.insert(
             0,
             RawCompletionRecord(
-                "test-config", 5, 1, 0, "warmup", True, 999.0, True, ""
+                "classical", 5, 1, 0, "warmup", True, 999.0, True, ""
             ),
         )
         row = summarize_condition(
             records,
             MINIMUM_SCIENTIFIC_ITERATIONS,
-            passing_ping("test-config", NetworkCondition(5, 1)),
+            passing_ping("classical", NetworkCondition(5, 1)),
         )
         self.assertTrue(row.scientific)
         self.assertEqual(row.n_iter, 1000)
@@ -333,18 +383,22 @@ class WriterTests(unittest.TestCase):
         invalid_hops[0] = SummaryRow(**{**invalid_hops[0].__dict__, "hops": 0})
         with self.assertRaises(ValueError):
             validate_final_rows(invalid_hops)
+        unknown = list(rows)
+        unknown[0] = SummaryRow(**{**unknown[0].__dict__, "config": "unknown"})
+        with self.assertRaises(ValueError):
+            validate_final_rows(unknown)
 
     def test_final_csv_order_schema_and_no_p99(self):
-        rows = complete_rows(("z-config", "a-config"))
+        rows = complete_rows()
         rows.reverse()
         output = io.StringIO()
         write_final_csv(output, rows)
         parsed = list(csv.reader(io.StringIO(output.getvalue())))
         self.assertEqual(parsed[0], list(FINAL_FIELDS))
-        self.assertEqual(len(parsed), 41)
+        self.assertEqual(len(parsed), 61)
         self.assertNotIn("p99", parsed[0])
         expected = []
-        for config in ("a-config", "z-config"):
+        for config in CONFIG_VALUES:
             for condition in sweep_conditions():
                 expected.append([config, str(condition.configured_rtt_ms), str(condition.hops)])
         self.assertEqual([row[:3] for row in parsed[1:]], expected)
@@ -367,10 +421,11 @@ class WriterTests(unittest.TestCase):
         write_ping_verification_csv(ping_csv, [verification])
         parsed_ping = list(csv.reader(io.StringIO(ping_csv.getvalue())))
         self.assertEqual(parsed_ping[0], list(PING_FIELDS))
-        self.assertEqual(parsed_ping[1][3], "2")
-        self.assertEqual(parsed_ping[1][4], "4.900000;5.100000")
-        self.assertEqual(parsed_ping[1][7], verification.raw_output_sha256)
-        self.assertEqual(parsed_ping[1][8], str(verification.raw_output_bytes))
+        self.assertEqual(parsed_ping[1][3], "5.000000")
+        self.assertEqual(parsed_ping[1][4], "2")
+        self.assertEqual(parsed_ping[1][5], "4.900000;5.100000")
+        self.assertEqual(parsed_ping[1][8], verification.raw_output_sha256)
+        self.assertEqual(parsed_ping[1][9], str(verification.raw_output_bytes))
         self.assertEqual(parsed_ping[1][-1], "true")
 
 
