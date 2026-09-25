@@ -825,8 +825,100 @@
       "sphincs_latency_fields": "empty because the professor-selected 200-TPS common-profile population saturated and is not a valid normal-latency population; tx_success_rate and tx_error_rate remain reported"
     }
   },
+  "e2_benchmark": {
+    "status": "complete",
+    "output": {
+      "path": "data/e2_statemachine.csv",
+      "sha256": "0b6c9139ff5973f08373060e68c309d4d3d57d19b3ecfcc0f917eb94e2b882dd"
+    },
+    "final_measurement_commit": "43b863e88b7bf0ba3da2a4dfa654d9f4e2b4ed37",
+    "final_output_commit": "f097d1c9be344f3e546cee68676c48156d11587c",
+    "configs": [
+      "classical",
+      "uniform_mldsa",
+      "layer_aware"
+    ],
+    "transitions": [
+      "channel_setup",
+      "commitment_update",
+      "htlc_add",
+      "htlc_settle",
+      "funding",
+      "coop_close",
+      "force_close",
+      "penalty"
+    ],
+    "condition_count": 24,
+    "warmup_iterations_per_condition": 100,
+    "measured_iterations_per_condition": 1000,
+    "percentile_method": "linear interpolation using rank p*(n-1)",
+    "topology": {
+      "emulator": "Mininet 2.3.0",
+      "hosts": 2,
+      "path": "A <-> B over one direct TCLink",
+      "target_rtt_ms": 20,
+      "one_way_link_delay_ms": 10,
+      "ping_samples_per_condition": 20,
+      "ping_gate": "absolute median RTT deviation from 20 ms is strictly less than 10%"
+    },
+    "rtt_timing": {
+      "start": "immediately before A sends the already-signed, already-serialized canonical transaction over an established persistent TCP connection",
+      "stop": "after A fully receives and validates B's success ACK",
+      "includes": "network transfer, transport receive/framing, verification of every included signature at B, and ACK return",
+      "excludes": "key generation, signing, transaction construction, serialization, and TCP connection setup",
+      "message_bytes_excludes": "transport framing and ACK bytes"
+    },
+    "cpu_control": {
+      "cpu_model": "AMD Ryzen 7 7735HS with Radeon Graphics",
+      "online_logical_cpus": 16,
+      "process_affinity": "2,4,6,8,10,12,14",
+      "scaling_driver": "amd-pstate-epp",
+      "governor": "performance",
+      "energy_performance_preference": "performance",
+      "boost_enabled": false,
+      "scaling_min_freq_khz": 3200000,
+      "scaling_max_freq_khz": 3200000,
+      "power_source": "AC"
+    },
+    "algorithms": {
+      "classical": "Ed25519; one 64-byte signature and one 32-byte public key as the representative compact MuSig2-aggregated size case, not a MuSig2 execution",
+      "uniform_mldsa": "ML-DSA-65 without aggregation",
+      "layer_aware_channel_transitions": "Falcon-padded-512 for channel_setup, commitment_update, htlc_add, and htlc_settle",
+      "layer_aware_l1_transitions": "ML-DSA-65 for funding, coop_close, force_close, and penalty",
+      "software_pin_references": [
+        "software_pins.liboqs",
+        "software_pins.liboqs_go"
+      ]
+    },
+    "canonical_serialization": {
+      "format": "e2-canonical-binary-v1",
+      "byte_order": "big-endian",
+      "varints": false,
+      "semantic_body_bytes": 114,
+      "t0_bytes": 126,
+      "crypto_length_prefix": "uint16 big-endian",
+      "message_bytes_definition": "len(actual canonical serialized transaction bytes)"
+    },
+    "penalty_provenance": "The penalty transition is produced by a real state-machine execution in which state 2 revokes state 1, a party force-closes stale state 1, and the counterparty cryptographically authorizes the punishment transaction.",
+    "environment": {
+      "go": "go version go1.22.2 linux/amd64",
+      "kernel": "7.0.0-31-generic",
+      "python": "3.12.3",
+      "mininet": "2.3.0",
+      "tc": "tc utility, iproute2-6.1.0, libbpf 1.3.0"
+    },
+    "raw_evidence": {
+      "directory": "raw/e2",
+      "manifest": "raw/e2/evidence_manifest.json",
+      "manifest_sha256": "d0528c80aeb1ece12d6cb38e50944cfbb04689b651d9de7470e5e452362590d6",
+      "source_file_count": 72,
+      "compression": "deterministic gzip -9 -n",
+      "hash_semantics": "original_sha256 identifies decompressed scientific bytes; tracked_sha256 identifies the gzip container"
+    },
+    "finalizer": "src/e2/finalize_e2.py"
+  },
   "notes": {
-    "falcon_liboqs_caveat": "Falcon-512 in liboqs 0.15.0 is the round-3 implementation, not final FIPS 206.",
+    "falcon_liboqs_caveat": "Falcon-512 and Falcon-padded-512 in liboqs 0.15.0 are round-3 implementations, not final FIPS 206.",
     "make_figures_gap": "The student specification references a supplied make_figures.py sanity checker, but its source and plausible bands are absent."
   }
 }

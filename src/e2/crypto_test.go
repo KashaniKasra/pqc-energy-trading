@@ -3,7 +3,6 @@ package e2
 import (
 	"bytes"
 	"errors"
-	"os"
 	"reflect"
 	"testing"
 
@@ -388,14 +387,5 @@ func TestBackendCleanupIsIdempotentAndDisablesUse(t *testing.T) {
 		if _, err := backend.Sign(alice, TransitionHTLCAdd, []byte("after close")); err == nil {
 			t.Fatal("closed backend accepted signing")
 		}
-	}
-}
-
-func TestRealCryptoCheckpointCreatesNoScientificOutput(t *testing.T) {
-	if _, err := os.Stat("../../data/e2_statemachine.csv"); !os.IsNotExist(err) {
-		t.Fatalf("final E2 CSV exists: %v", err)
-	}
-	if _, err := os.Stat("../../raw/e2"); !os.IsNotExist(err) {
-		t.Fatalf("scientific raw E2 evidence exists: %v", err)
 	}
 }

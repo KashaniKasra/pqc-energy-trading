@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"math"
-	"os"
 	"reflect"
 	"testing"
 
@@ -456,15 +455,6 @@ func TestFalconPaddedScientificLengthIsExact(t *testing.T) {
 	authorized.Authorization.Materials[0].Signature = append(authorized.Authorization.Materials[0].Signature, 0)
 	if _, err := serializer.Serialize(authorized); err == nil {
 		t.Fatal("667-byte Falcon-padded signature accepted")
-	}
-}
-
-func TestNoFinalE2ArtifactsCreated(t *testing.T) {
-	if _, err := os.Stat("../../data/e2_statemachine.csv"); !os.IsNotExist(err) {
-		t.Fatalf("final E2 CSV must not be created at this checkpoint: %v", err)
-	}
-	if _, err := os.Stat("../../raw/e2"); !os.IsNotExist(err) {
-		t.Fatalf("scientific raw E2 evidence must not be created at this checkpoint: %v", err)
 	}
 }
 

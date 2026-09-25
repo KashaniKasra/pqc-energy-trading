@@ -7,7 +7,7 @@ This repository is an empirical testbed for measuring cryptographic, blockchain,
 - E0 primitives, server: complete.
 - E0 primitives, meter/SBC: pending hardware measurement.
 - E1 Fabric: complete.
-- E2 measurement infrastructure and canonical serialization: implemented; final measurements pending.
+- E2 channel state machine: complete.
 - E9 network-measurement infrastructure: implemented; final sweep pending.
 - E5, E7, and E8: not yet completed.
 
@@ -15,6 +15,7 @@ Final completed-experiment CSVs:
 
 - `data/e0_primitives.csv`
 - `data/e1_fabric.csv`
+- `data/e2_statemachine.csv`
 
 The specification references a supplied `make_figures.py` sanity checker, but that source and its plausible bands are not present in the repository; no replacement is fabricated.
 
@@ -45,7 +46,7 @@ Measured/configured schemes include ML-KEM-768, ML-DSA-44/65/87, Falcon-512, `SP
 
 `SLH-DSA` in the final E1 schema is implemented as liboqs `SPHINCS+-SHA2-128s-simple`.
 
-Falcon-512 in liboqs 0.15.0 is the round-3 implementation and must not be described as final FIPS 206.
+Falcon-512 and Falcon-padded-512 in liboqs 0.15.0 are round-3 implementations and must not be described as final FIPS 206.
 
 ## E0 primitive benchmark
 
@@ -124,7 +125,7 @@ For evidence collected with the final block inspector, exact block-cutter messag
 
 The final SLH-DSA block-utilisation estimate pools two qualifying size-filled blocks from two independent, otherwise identical 54-TPS runs. Therefore its retained population is `n=2` and must be interpreted as a small-population estimate. A supporting 60-TPS diagnostic produced no qualifying retained block and does not contribute to the final pooled statistic.
 
-## E2 channel-state serialization
+## E2 channel state machine
 
 E2 uses one deterministic binary envelope for all configurations, in network byte order, with no varints. Logical channel ID `c1` is serialized as `SHA-256("c1")` (identifier canonicalization only). Unused 32-byte identifiers are zero; unused state references are `uint64` maximum. Raw signatures and public keys use unsigned 16-bit big-endian length prefixes.
 
@@ -155,7 +156,7 @@ Scientific E2 authorization uses real Ed25519 and pinned liboqs `0.15.0` (`97f6b
 
 For a serialized transaction, `T0 = total bytes - signature payload bytes - public-key payload bytes`; both count fields and all four fixed-width element-length prefixes remain in `T0`. Derived from the emitted field table, `T0` is globally constant at 126 bytes. Final `message_bytes` is obtained only as the length of the actual serialized transaction.
 
-E2 RTT uses two Mininet hosts joined by one direct 20 ms RTT `TCLink`. A prepares and signs the canonical transaction before timing, starts a monotonic timer immediately before sending the serialized bytes over an already-established `TCP_NODELAY` connection, and stops only after receiving B's success ACK. B sends that ACK only after verifying every included signature over the canonical semantic preimage. Thus RTT includes transmission, receive/framing, real verification at B, and ACK return, while excluding key generation, signing, transaction construction, serialization, and TCP setup. Transport framing and ACK bytes do not contribute to `message_bytes`. The classical verification remains one Ed25519 verification for the representative aggregated-size case; it is not a MuSig2 execution. Each scientific condition requires a retained full ping output passing the strict 20 ms ±10% gate, retains warm-up, measured, and failed raw rows, and uses collision-refusing evidence files with hashes and environment provenance. Final E2 measurement and `data/e2_statemachine.csv` remain pending.
+E2 RTT uses two Mininet hosts joined by one direct 20 ms RTT `TCLink`. A prepares and signs the canonical transaction before timing, starts a monotonic timer immediately before sending the serialized bytes over an already-established `TCP_NODELAY` connection, and stops only after receiving B's success ACK. B sends that ACK only after verifying every included signature over the canonical semantic preimage. Thus RTT includes transmission, receive/framing, real verification at B, and ACK return, while excluding key generation, signing, transaction construction, serialization, and TCP setup. Transport framing and ACK bytes do not contribute to `message_bytes`. The classical verification remains one Ed25519 verification for the representative aggregated-size case; it is not a MuSig2 execution. Each scientific condition used 100 discarded warm-up iterations and 1,000 measured iterations after a retained 20-sample ping passed the strict deviation `<10%` gate. The penalty transaction is produced by the real state-machine path that revokes an old commitment, force-closes that stale state, and authorizes the counterparty punishment. Final raw evidence is under `raw/e2/`; `data/e2_statemachine.csv` is complete.
 
 ## E9 network sensitivity
 
@@ -196,6 +197,57 @@ cmp -- data/e1_fabric.csv /tmp/e1_fabric.regenerated.csv
 sha256sum data/e0_primitives.csv data/e1_fabric.csv
 ```
 
+E2 requires the pinned liboqs/liboqs-go versions above, Go 1.22.2, Mininet 2.3.0, and `tc`. Its scientific run used AMD `amd-pstate-epp`, performance governor and EPP, boost disabled, AC power, min=max frequency of 3,200,000 kHz, and process affinity `2,4,6,8,10,12,14`. Confirm these controls before running; the scientific runner records and validates them and requires a clean Git worktree.
+
+Point `LIBOQS_GO_PC_DIR` to the directory containing `liboqs-go.pc` from the pinned liboqs-go v0.15.0 checkout or installation, then verify dependency discovery:
+
+```bash
+export LIBOQS_GO_PC_DIR=/path/to/liboqs-go/.config
+export PKG_CONFIG_PATH="$LIBOQS_GO_PC_DIR:/usr/local/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+pkg-config --modversion liboqs-go
+pkg-config --cflags --libs liboqs-go
+mn --version
+```
+
+Run E2 tests:
+
+```bash
+(cd src/e2 && go test ./...)
+python3 -m unittest -v src/e2/test_rtt_runner.py
+```
+
+Run one scientific condition to a new directory outside the worktree:
+
+```bash
+sudo env PATH="$PATH" PYTHONPATH="$PWD" \
+  PKG_CONFIG_PATH="$LIBOQS_GO_PC_DIR:/usr/local/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" \
+  LD_LIBRARY_PATH="/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+  taskset -c 2,4,6,8,10,12,14 \
+  python3 env/mininet/e2/run_e2.py \
+    --config classical --transition penalty \
+    --warmup 100 --iterations 1000 --ping-samples 20 \
+    --output-root /tmp/e2_classical_penalty --scientific
+```
+
+Run the deterministic 24-condition sweep; the wrapper refuses an existing output directory and delegates every condition to the same runner:
+
+```bash
+sudo env PATH="$PATH" PYTHONPATH="$PWD" \
+  PKG_CONFIG_PATH="$LIBOQS_GO_PC_DIR:/usr/local/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" \
+  LD_LIBRARY_PATH="/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+  taskset -c 2,4,6,8,10,12,14 \
+  env/mininet/e2/run_e2_sweep.sh /tmp/e2_full
+```
+
+Validate retained E2 evidence and regenerate the final CSV:
+
+```bash
+python3 src/e2/finalize_e2.py --evidence-root raw/e2 \
+  --output /tmp/e2_statemachine.regenerated.csv
+cmp -- data/e2_statemachine.csv /tmp/e2_statemachine.regenerated.csv
+sha256sum data/e2_statemachine.csv
+```
+
 ## Evidence storage and provenance
 
 `meta.json` is the machine-readable project and experiment provenance record.
@@ -206,3 +258,5 @@ E1 raw evidence is frozen under `raw/e1/` using deterministic gzip storage (`gzi
 - the SHA-256 of the tracked gzip container
 
 Scientific raw-evidence identity is defined by the original/decompressed bytes. Compression changes storage representation only and does not change any E1 result.
+
+E2 raw evidence is frozen under `raw/e2/` with the same deterministic `gzip -9 -n` convention. `raw/e2/evidence_manifest.json` maps all 72 original condition files to tracked gzip containers and records both original and tracked SHA-256 identities. `src/e2/finalize_e2.py` validates those identities and all condition-level scientific gates before regenerating the final E2 CSV.
