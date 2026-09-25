@@ -27,6 +27,14 @@ func Configurations() []Configuration {
 	return append([]Configuration(nil), configurations...)
 }
 
+func ParseConfiguration(value string) (Configuration, error) {
+	configuration := Configuration(value)
+	if !configuration.valid() {
+		return "", ErrInvalidConfiguration
+	}
+	return configuration, nil
+}
+
 func (c Configuration) valid() bool {
 	for _, candidate := range configurations {
 		if c == candidate {
@@ -72,6 +80,14 @@ const (
 	TransitionForceClose       TransitionType = "force_close"
 	TransitionPenalty          TransitionType = "penalty"
 )
+
+func ParseTransitionType(value string) (TransitionType, error) {
+	transition := TransitionType(value)
+	if !validTransition(transition) {
+		return "", fmt.Errorf("unsupported E2 transition %q", value)
+	}
+	return transition, nil
+}
 
 type RevocationEvidence struct {
 	RevokedState uint64
@@ -514,8 +530,8 @@ func AuthorizeTransition(
 	return AuthorizedTransition{Transition: transition, Authorization: authorization}, nil
 }
 
-// ScientificMessageBytes is the only message-size entry point intended for the
-// future E2 measurement harness. Test-only serializers are rejected explicitly.
+// ScientificMessageBytes is the size-only counterpart to
+// ScientificSerializedTransaction. Test-only serializers are rejected.
 func ScientificMessageBytes(
 	serializer Serializer,
 	authorized AuthorizedTransition,
@@ -534,6 +550,29 @@ func ScientificMessageBytes(
 		return 0, errors.New("scientific serializer returned no bytes")
 	}
 	return len(serialized), nil
+}
+
+// ScientificSerializedTransaction returns the exact canonical bytes that a
+// scientific transport must send. Callers derive message_bytes from len of
+// this returned slice; transport framing is deliberately separate.
+func ScientificSerializedTransaction(
+	serializer Serializer,
+	authorized AuthorizedTransition,
+) ([]byte, error) {
+	if !serializer.Scientific() {
+		return nil, ErrNonScientificSerializer
+	}
+	if !authorized.Authorization.Scientific {
+		return nil, ErrNonScientificBackend
+	}
+	serialized, err := serializer.Serialize(authorized)
+	if err != nil {
+		return nil, err
+	}
+	if len(serialized) == 0 {
+		return nil, errors.New("scientific serializer returned no bytes")
+	}
+	return serialized, nil
 }
 
 type SamplePhase string

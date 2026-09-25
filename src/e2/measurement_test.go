@@ -16,12 +16,12 @@ type deterministicExecutor struct {
 
 func (deterministicExecutor) Scientific() bool { return false }
 
-func (executor deterministicExecutor) Execute(authorized AuthorizedTransition) (float64, error) {
-	if authorized.Transition.Type == executor.fail {
+func (executor deterministicExecutor) Execute(prepared PreparedTransition) (float64, error) {
+	if prepared.Authorized.Transition.Type == executor.fail {
 		return 7.5, errors.New("deterministic execution failure")
 	}
 	for index, transition := range finalTransitionOrder {
-		if authorized.Transition.Type == transition {
+		if prepared.Authorized.Transition.Type == transition {
 			return float64(index + 1), nil
 		}
 	}
@@ -305,6 +305,30 @@ func TestCompleteSummaryValidation(t *testing.T) {
 	if err := ValidateCompleteSummaries(unknown); err == nil {
 		t.Fatal("unknown configuration accepted")
 	}
+	missingPing := append([]SummaryRow(nil), rows...)
+	missingPing[0].PingVerified = false
+	if err := ValidateCompleteSummaries(missingPing); err == nil {
+		t.Fatal("summary without passing ping gate accepted")
+	}
+	tooFew := append([]SummaryRow(nil), rows...)
+	tooFew[0].NIter = MinimumScientificIterations - 1
+	if err := ValidateCompleteSummaries(tooFew); err == nil {
+		t.Fatal("summary below the scientific iteration minimum accepted")
+	}
+}
+
+func TestScientificConditionSummaryRequiresPassingPingGate(t *testing.T) {
+	records := completeScientificRecords(MinimumScientificIterations)
+	if _, err := SummarizeScientificCondition(records, MinimumScientificIterations, false); err == nil {
+		t.Fatal("scientific condition without a passing ping gate was summarized")
+	}
+	row, err := SummarizeScientificCondition(records, MinimumScientificIterations, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !row.Scientific || !row.PingVerified || row.NIter != MinimumScientificIterations {
+		t.Fatalf("scientific condition summary = %+v", row)
+	}
 }
 
 func TestFinalCSVSchemaAndOrder(t *testing.T) {
@@ -372,6 +396,8 @@ func completeSummaryRows() []SummaryRow {
 				RTTMedianMS:  float64(transitionIndex + 1),
 				RTTP95MS:     float64(transitionIndex + 2),
 				RTTP99MS:     float64(transitionIndex + 3),
+				NIter:        MinimumScientificIterations,
+				PingVerified: true,
 			})
 		}
 	}

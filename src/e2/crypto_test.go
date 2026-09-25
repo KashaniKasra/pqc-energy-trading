@@ -354,7 +354,7 @@ type claimingTestBackend struct{ testBackend }
 
 func (claimingTestBackend) Scientific() bool { return true }
 
-func TestScientificRunnerBlockedUntilRTTSemanticsAreApproved(t *testing.T) {
+func TestScientificRunnerRejectsUnapprovedExecutor(t *testing.T) {
 	backend := newRealBackendForTest(t, ConfigurationClassical)
 	for _, executor := range []TransitionExecutor{deterministicExecutor{}, claimingTestExecutor{}} {
 		_, err := RunMeasurements(
@@ -373,7 +373,7 @@ func TestScientificRunnerBlockedUntilRTTSemanticsAreApproved(t *testing.T) {
 type claimingTestExecutor struct{}
 
 func (claimingTestExecutor) Scientific() bool { return true }
-func (claimingTestExecutor) Execute(AuthorizedTransition) (float64, error) {
+func (claimingTestExecutor) Execute(PreparedTransition) (float64, error) {
 	return 1, nil
 }
 

@@ -109,11 +109,17 @@ func BuildMeasurementScenario(configuration Configuration) (MeasurementScenario,
 	}, nil
 }
 
-// TransitionExecutor supplies the RTT for a future real transition execution.
-// E2 does not emulate network delay or prescribe a transport here.
+type PreparedTransition struct {
+	Authorized AuthorizedTransition
+	Serialized []byte
+}
+
+// TransitionExecutor receives bytes that were signed and serialized before
+// Execute is called. A scientific executor must start its timer only at the
+// transport write and must never sign or serialize inside the timed region.
 type TransitionExecutor interface {
 	Scientific() bool
-	Execute(authorized AuthorizedTransition) (rttMS float64, err error)
+	Execute(prepared PreparedTransition) (rttMS float64, err error)
 }
 
 type scientificTransitionExecutor interface {
@@ -214,6 +220,84 @@ func RunMeasurements(
 	return records, nil
 }
 
+// RunConditionMeasurements measures exactly one config/transition condition.
+// A fresh valid state-machine scenario is constructed for every iteration, so
+// penalty samples always originate from the revoked-state punishment path.
+func RunConditionMeasurements(
+	configuration Configuration,
+	transitionType TransitionType,
+	backend CryptoBackend,
+	serializer Serializer,
+	executor TransitionExecutor,
+	options RunOptions,
+) ([]RawMeasurementRecord, error) {
+	if !validTransition(transitionType) {
+		return nil, fmt.Errorf("unsupported E2 transition %q", transitionType)
+	}
+	if err := ValidateRunOptions(options, serializer); err != nil {
+		return nil, err
+	}
+	if backend == nil || executor == nil || backend.Configuration() != configuration {
+		return nil, errors.New("matching crypto backend and transition executor are required")
+	}
+	if options.Scientific && !isScientificCryptoBackend(backend) {
+		return nil, ErrNonScientificBackend
+	}
+	if options.Scientific && !isScientificTransitionExecutor(executor) {
+		return nil, ErrNonScientificExecutor
+	}
+	records := make([]RawMeasurementRecord, 0, options.WarmupIterations+options.MeasuredIterations)
+	for _, phase := range []struct {
+		name       SamplePhase
+		iterations int
+	}{
+		{SampleWarmup, options.WarmupIterations},
+		{SampleMeasured, options.MeasuredIterations},
+	} {
+		for iteration := 0; iteration < phase.iterations; iteration++ {
+			scenario, err := BuildMeasurementScenario(configuration)
+			if err != nil {
+				return nil, fmt.Errorf("build %s iteration %d: %w", phase.name, iteration, err)
+			}
+			transition, err := transitionFromScenario(scenario, transitionType)
+			if err != nil {
+				return nil, err
+			}
+			records = append(records, measureTransition(
+				configuration,
+				transition,
+				uint64(iteration),
+				phase.name,
+				backend,
+				serializer,
+				executor,
+				options.Scientific,
+			))
+		}
+	}
+	return records, nil
+}
+
+func transitionFromScenario(scenario MeasurementScenario, transitionType TransitionType) (Transition, error) {
+	for _, transition := range scenario.Transitions {
+		if transition.Type == transitionType {
+			return transition, nil
+		}
+	}
+	return Transition{}, fmt.Errorf("scenario lacks transition %q", transitionType)
+}
+
+func TransitionForMeasurement(
+	configuration Configuration,
+	transitionType TransitionType,
+) (Transition, error) {
+	scenario, err := BuildMeasurementScenario(configuration)
+	if err != nil {
+		return Transition{}, err
+	}
+	return transitionFromScenario(scenario, transitionType)
+}
+
 func measureTransition(
 	configuration Configuration,
 	transition Transition,
@@ -236,18 +320,21 @@ func measureTransition(
 		record.ErrorMessage = err.Error()
 		return record
 	}
+	var serialized []byte
 	if scientific {
-		record.MessageBytes, err = ScientificMessageBytes(serializer, authorized)
+		serialized, err = ScientificSerializedTransaction(serializer, authorized)
 	} else {
-		var serialized []byte
 		serialized, err = serializer.Serialize(authorized)
-		record.MessageBytes = len(serialized)
 	}
 	if err != nil {
 		record.ErrorMessage = err.Error()
 		return record
 	}
-	record.RTTMS, err = executor.Execute(authorized)
+	record.MessageBytes = len(serialized)
+	record.RTTMS, err = executor.Execute(PreparedTransition{
+		Authorized: authorized,
+		Serialized: serialized,
+	})
 	if err != nil {
 		record.ErrorMessage = err.Error()
 		return record
@@ -307,6 +394,8 @@ type SummaryRow struct {
 	RTTMedianMS  float64
 	RTTP95MS     float64
 	RTTP99MS     float64
+	NIter        int
+	PingVerified bool
 }
 
 type summaryKey struct {
@@ -400,9 +489,35 @@ func SummarizeMeasurements(records []RawMeasurementRecord, expectedMeasuredItera
 			RTTMedianMS:  statistics.MedianMS,
 			RTTP95MS:     statistics.P95MS,
 			RTTP99MS:     statistics.P99MS,
+			NIter:        len(group.timings),
 		})
 	}
 	return rows, nil
+}
+
+// SummarizeScientificCondition binds the successful raw condition to its
+// mandatory pre-run 20 ms ping gate. Ping evidence itself is retained in the
+// condition manifest rather than duplicated in the professor CSV.
+func SummarizeScientificCondition(
+	records []RawMeasurementRecord,
+	expectedMeasuredIterations int,
+	pingVerified bool,
+) (SummaryRow, error) {
+	rows, err := SummarizeMeasurements(records, expectedMeasuredIterations)
+	if err != nil {
+		return SummaryRow{}, err
+	}
+	if len(rows) != 1 {
+		return SummaryRow{}, errors.New("condition summary must contain exactly one config/transition")
+	}
+	if !rows[0].Scientific {
+		return SummaryRow{}, errors.New("condition summary is not scientific")
+	}
+	if !pingVerified {
+		return SummaryRow{}, errors.New("condition summary lacks a passing RTT ping gate")
+	}
+	rows[0].PingVerified = true
+	return rows[0], nil
 }
 
 func ValidateCompleteSummaries(rows []SummaryRow) error {
@@ -413,6 +528,12 @@ func ValidateCompleteSummaries(rows []SummaryRow) error {
 	for _, row := range rows {
 		if !row.Scientific {
 			return errors.New("final E2 dataset contains non-scientific summary data")
+		}
+		if !row.PingVerified {
+			return errors.New("final E2 dataset contains a row without a passing ping gate")
+		}
+		if row.NIter < MinimumScientificIterations {
+			return fmt.Errorf("final E2 row for %s/%s has fewer than %d iterations", row.Config, row.Transition, MinimumScientificIterations)
 		}
 		if !row.Config.valid() || !validTransition(row.Transition) {
 			return errors.New("final E2 dataset contains unknown config or transition")

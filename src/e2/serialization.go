@@ -11,10 +11,11 @@ import (
 )
 
 const (
-	CanonicalFormatVersion  uint8 = 1
-	ChannelIDBytes                = sha256.Size
-	CryptoLengthPrefixBytes       = 2
-	MaximumCryptoSlots            = 2
+	CanonicalFormatVersion     uint8 = 1
+	ChannelIDBytes                   = sha256.Size
+	CryptoLengthPrefixBytes          = 2
+	MaximumCryptoSlots               = 2
+	CanonicalSemanticBodyBytes       = 114
 
 	AlgorithmEd25519Compact  = "Ed25519-compact-aggregate-size"
 	AlgorithmMLDSA65         = "ML-DSA-65"
@@ -317,7 +318,7 @@ func (CanonicalSerializer) encodeBody(transition Transition) ([]byte, []FieldCon
 		supersededBy = transition.Revocation.SupersededBy
 	}
 
-	buffer := bytes.NewBuffer(make([]byte, 0, 114))
+	buffer := bytes.NewBuffer(make([]byte, 0, CanonicalSemanticBodyBytes))
 	fields := make([]FieldContribution, 0, 14)
 	writeUint8Field(buffer, &fields, "format_version", CanonicalFormatVersion)
 	writeUint8Field(buffer, &fields, "transition_type", code)
