@@ -7,7 +7,8 @@ This repository is an empirical testbed for measuring cryptographic, blockchain,
 - E0 primitives, server: complete.
 - E0 primitives, meter/SBC: pending hardware measurement.
 - E1 Fabric: complete.
-- E2, E5, E7, E8, and E9: not yet completed.
+- E2 measurement infrastructure and canonical serialization: implemented; final measurements pending.
+- E5, E7, E8, and E9: not yet completed.
 
 Final completed-experiment CSVs:
 
@@ -121,6 +122,35 @@ For evidence collected with the final block inspector, exact block-cutter messag
 `SPHINCS+-SHA2-128s-simple` saturated under the unchanged common latency profile, so the final `SLH-DSA` latency fields at 200 TPS are intentionally blank rather than reported as normal-latency measurements. Its success and error rates remain reported.
 
 The final SLH-DSA block-utilisation estimate pools two qualifying size-filled blocks from two independent, otherwise identical 54-TPS runs. Therefore its retained population is `n=2` and must be interpreted as a small-population estimate. A supporting 60-TPS diagnostic produced no qualifying retained block and does not contribute to the final pooled statistic.
+
+## E2 channel-state serialization
+
+E2 uses one deterministic binary envelope for all configurations, in network byte order, with no varints. Logical channel ID `c1` is serialized as `SHA-256("c1")` (identifier canonicalization only). Unused 32-byte identifiers are zero; unused state references are `uint64` maximum. Raw signatures and public keys use unsigned 16-bit big-endian length prefixes.
+
+| Field | Encoding | Bytes |
+|---|---|---:|
+| format version | `uint8` | 1 |
+| transition type | `uint8` enum | 1 |
+| channel ID | SHA-256 logical ID | 32 |
+| state number | `uint64` big-endian | 8 |
+| balance A | `uint64` big-endian | 8 |
+| balance B | `uint64` big-endian | 8 |
+| HTLC ID | SHA-256 logical ID or zero sentinel | 32 |
+| referenced state | `uint64` big-endian | 8 |
+| revoked state | `uint64` big-endian | 8 |
+| superseded-by state | `uint64` big-endian | 8 |
+| signature count | `uint16` big-endian | 2 |
+| signature slot 1 | `uint16` length + raw bytes | 2 + signature bytes |
+| signature slot 2 | `uint16` length + raw bytes | 2 + signature bytes, or 2 when unused |
+| public-key count | `uint16` big-endian | 2 |
+| public-key slot 1 | `uint16` length + raw bytes | 2 + public-key bytes |
+| public-key slot 2 | `uint16` length + raw bytes | 2 + public-key bytes, or 2 when unused |
+
+`classical` uses one 64-byte Ed25519 signature and one 32-byte public key as the compact representation of the MuSig2-aggregated size case; this does not assert that Ed25519 itself is MuSig2. `uniform_mldsa` uses ML-DSA-65 (3,309-byte signatures, 1,952-byte public keys) without aggregation. For `layer_aware`, channel setup, commitment updates, and HTLC add/settle use enabled liboqs `Falcon-padded-512` (fixed 666-byte signatures, 897-byte public keys); funding, cooperative close, force close, and penalty use ML-DSA-65.
+
+The crypto section always carries framing for exactly two signature slots and two public-key slots. An unused second slot has a zero length and no payload; it is canonical framing, not a dummy cryptographic object. Actual counts remain one or two and must match contiguous occupied slots.
+
+For a serialized transaction, `T0 = total bytes - signature payload bytes - public-key payload bytes`; both count fields and all four fixed-width element-length prefixes remain in `T0`. Derived from the emitted field table, `T0` is globally constant at 126 bytes. Final `message_bytes` is obtained only as the length of the actual serialized transaction. No final E2 measurement or CSV has yet been produced.
 
 ## Reproduction and validation
 

@@ -1,9 +1,7 @@
 // Package e2 implements the configuration-independent E2 channel state machine.
 //
-// It intentionally does not choose a scientific transaction encoding or concrete
-// cryptographic construction. Those choices remain explicit interfaces until the
-// professor resolves the E2 wire format, Falcon-512/FN-DSA-512 naming, and the
-// classical ECDSA key-aggregation construction.
+// The state machine is independent of the canonical scientific transaction
+// encoding and concrete cryptographic backends.
 package e2
 
 import (
@@ -419,11 +417,22 @@ func uint64Pointer(value uint64) *uint64 {
 	return &copy
 }
 
-// Authorization is intentionally opaque to the state machine. A future backend
-// decides whether material contains an aggregate signature/key or multiple ones.
+// CryptoMaterial is one raw signature/public-key pair emitted by a backend.
+// Algorithm identifies the exact representation whose lengths the scientific
+// serializer must validate.
+type CryptoMaterial struct {
+	Algorithm string
+	Signature []byte
+	PublicKey []byte
+}
+
+// Authorization is opaque to the state machine. Materials is the structured
+// input required by the canonical scientific serializer. WireMaterial remains
+// available only to non-scientific plumbing serializers used by unit tests.
 type Authorization struct {
 	Configuration Configuration
 	Signers       []PartyID
+	Materials     []CryptoMaterial
 	WireMaterial  []byte
 }
 
@@ -441,10 +450,10 @@ type AuthorizedTransition struct {
 	Authorization Authorization
 }
 
-// Serializer separates transition logic from the unresolved scientific wire
-// format. Scientific is an explicit provenance/trust marker only; it does not
-// independently prove an encoding authoritative. Final measurements must
-// register only the professor-approved scientific serializer.
+// Serializer separates transition logic from its wire encoding. Scientific is
+// an explicit provenance/trust marker only; it does not independently prove an
+// encoding authoritative. Final measurements must register only the canonical
+// professor-approved scientific serializer.
 type Serializer interface {
 	Name() string
 	Scientific() bool
