@@ -19,6 +19,12 @@ RTT_VALUES_MS = (5, 20, 50, 100)
 HOP_VALUES = (1, 2, 3, 4, 5)
 CONFIG_VALUES = ("classical", "uniform_mldsa", "layer_aware")
 MINIMUM_SCIENTIFIC_ITERATIONS = 1000
+DEFAULT_SCIENTIFIC_WARMUP_ITERATIONS = 100
+MESSAGE_BYTES_BY_CONFIG = {
+    "classical": 222,
+    "uniform_mldsa": 10648,
+    "layer_aware": 3252,
+}
 FINAL_FIELDS = (
     "config",
     "rtt_ms",
@@ -105,6 +111,20 @@ def validate_config(config: str, *, scientific: bool) -> None:
         raise ValueError("config must be non-empty")
     if scientific and config not in CONFIG_VALUES:
         raise ValueError(f"unsupported scientific E9 config: {config}")
+
+
+def payment_channel_node_names(hops: int) -> tuple[str, ...]:
+    """Return sender, zero or more intermediates, and receiver."""
+    payment_channel_link_count(hops)
+    return ("a", *(f"i{index}" for index in range(1, hops)), "b")
+
+
+def link_endpoint_addresses(link_index: int, hops: int) -> tuple[str, str]:
+    """Return the left/right directly connected addresses for one channel."""
+    payment_channel_link_count(hops)
+    if not 1 <= link_index <= hops:
+        raise ValueError(f"invalid payment-channel link index: {link_index}")
+    return (f"10.0.{link_index}.1", f"10.0.{link_index}.2")
 
 
 def percentile(values: Sequence[float], probability: float) -> float:
@@ -206,6 +226,37 @@ class PreparedHTLCMessages:
             raise ValueError("prepared HTLC_ADD and HTLC_SETTLE bytes are required")
 
 
+def _prepared_payload(config: str, message_type: str) -> bytes:
+    """Build inert E9 bytes with the authoritative E2 serialized length.
+
+    These bytes model already-prepared E2 transactions for network-size
+    purposes. They are deterministic integrity-test payloads, not independently
+    valid cryptographic transactions.
+    """
+    validate_config(config, scientific=True)
+    if message_type not in ("HTLC_ADD", "HTLC_SETTLE"):
+        raise ValueError(f"unsupported prepared message type: {message_type}")
+    size = MESSAGE_BYTES_BY_CONFIG[config]
+    seed = hashlib.sha256(f"e9:{config}:{message_type}:v1".encode("ascii")).digest()
+    return (seed * ((size + len(seed) - 1) // len(seed)))[:size]
+
+
+def prepared_htlc_messages(config: str) -> PreparedHTLCMessages:
+    return PreparedHTLCMessages(
+        add=_prepared_payload(config, "HTLC_ADD"),
+        settle=_prepared_payload(config, "HTLC_SETTLE"),
+    )
+
+
+def validate_authoritative_messages(config: str, messages: PreparedHTLCMessages) -> None:
+    expected = prepared_htlc_messages(config)
+    if messages != expected:
+        raise ValueError(
+            "scientific E9 messages must be the authoritative deterministic "
+            "prepared HTLC_ADD/HTLC_SETTLE buffers"
+        )
+
+
 class HTLCCompletionExecutor(Protocol):
     scientific: bool
 
@@ -254,6 +305,7 @@ def validate_run(
             raise ValueError("scientific runs require at least 1000 measured iterations")
         if not executor.scientific:
             raise ValueError("non-scientific completion executor cannot run scientifically")
+        validate_authoritative_messages(config, messages)
         validate_ping_gate(config, condition, verification)
 
 

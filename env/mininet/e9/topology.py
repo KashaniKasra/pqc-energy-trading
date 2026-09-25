@@ -13,6 +13,7 @@ from src.e9.network import (
     NetworkCondition,
     intermediate_node_count,
     payment_channel_link_count,
+    payment_channel_node_names,
     per_channel_one_way_delay_ms,
 )
 
@@ -35,10 +36,6 @@ class PaymentChannelHost(Host):
         super().terminate()
 
 
-def _node_names(hops):
-    return ["a", *(f"i{index}" for index in range(1, hops)), "b"]
-
-
 def _endpoint_routes(node_index, hops):
     sender_ip = "10.0.1.1"
     receiver_ip = f"10.0.{hops}.2"
@@ -59,7 +56,7 @@ class E9LinearTopology(Topo):
         condition = NetworkCondition(int(target_rtt_ms), int(hops))
         condition.validate()
         delay = f"{per_channel_one_way_delay_ms(condition):.9f}ms"
-        names = _node_names(condition.hops)
+        names = payment_channel_node_names(condition.hops)
         nodes = []
         for index, name in enumerate(names):
             nodes.append(

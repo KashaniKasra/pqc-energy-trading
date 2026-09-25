@@ -11,6 +11,7 @@ from src.e9.network import (
     CONFIG_VALUES,
     FINAL_FIELDS,
     HOP_VALUES,
+    MESSAGE_BYTES_BY_CONFIG,
     MINIMUM_SCIENTIFIC_ITERATIONS,
     PING_FIELDS,
     RAW_FIELDS,
@@ -26,7 +27,9 @@ from src.e9.network import (
     expected_end_to_end_rtt_ms,
     intermediate_node_count,
     payment_channel_link_count,
+    payment_channel_node_names,
     per_channel_one_way_delay_ms,
+    prepared_htlc_messages,
     run_condition,
     summarize_condition,
     sweep_conditions,
@@ -131,6 +134,14 @@ class SweepAndTopologyTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 intermediate_node_count(invalid)
 
+    def test_node_names_match_payment_channel_path(self):
+        self.assertEqual(payment_channel_node_names(1), ("a", "b"))
+        self.assertEqual(payment_channel_node_names(3), ("a", "i1", "i2", "b"))
+        self.assertEqual(
+            payment_channel_node_names(5),
+            ("a", "i1", "i2", "i3", "i4", "b"),
+        )
+
     def test_delay_distribution_preserves_end_to_end_rtt(self):
         for condition in sweep_conditions():
             delay = per_channel_one_way_delay_ms(condition)
@@ -218,7 +229,7 @@ class RunAndSummaryTests(unittest.TestCase):
                 "classical",
                 condition,
                 scientific_executor,
-                PREPARED_MESSAGES,
+                prepared_htlc_messages("classical"),
                 RunOptions(0, 999, True),
                 verification,
             )
@@ -226,10 +237,19 @@ class RunAndSummaryTests(unittest.TestCase):
             "classical",
             condition,
             scientific_executor,
-            PREPARED_MESSAGES,
+            prepared_htlc_messages("classical"),
             RunOptions(1, 1000, True),
             verification,
         )
+        with self.assertRaisesRegex(ValueError, "authoritative deterministic"):
+            validate_run(
+                "classical",
+                condition,
+                scientific_executor,
+                PREPARED_MESSAGES,
+                RunOptions(0, 1000, True),
+                verification,
+            )
         failed = verify_ping("classical", condition, ping_output(5.5))
         self.assertFalse(failed.passed)
         with self.assertRaises(ValueError):
@@ -237,7 +257,7 @@ class RunAndSummaryTests(unittest.TestCase):
                 "classical",
                 condition,
                 scientific_executor,
-                PREPARED_MESSAGES,
+                prepared_htlc_messages("classical"),
                 RunOptions(0, 1000, True),
                 failed,
             )
@@ -246,7 +266,7 @@ class RunAndSummaryTests(unittest.TestCase):
                 "classical",
                 condition,
                 FakeExecutor(scientific=False),
-                PREPARED_MESSAGES,
+                prepared_htlc_messages("classical"),
                 RunOptions(0, 1000, True),
                 verification,
             )
@@ -255,7 +275,7 @@ class RunAndSummaryTests(unittest.TestCase):
                 "unknown",
                 condition,
                 scientific_executor,
-                PREPARED_MESSAGES,
+                prepared_htlc_messages("classical"),
                 RunOptions(0, 1000, True),
                 verification,
             )
@@ -264,10 +284,22 @@ class RunAndSummaryTests(unittest.TestCase):
                 config,
                 condition,
                 scientific_executor,
-                PREPARED_MESSAGES,
+                prepared_htlc_messages(config),
                 RunOptions(0, 1000, True),
                 passing_ping(config, condition),
             )
+
+    def test_authoritative_prepared_message_sizes_and_content(self):
+        self.assertEqual(
+            MESSAGE_BYTES_BY_CONFIG,
+            {"classical": 222, "uniform_mldsa": 10648, "layer_aware": 3252},
+        )
+        for config, expected_size in MESSAGE_BYTES_BY_CONFIG.items():
+            messages = prepared_htlc_messages(config)
+            self.assertEqual(len(messages.add), expected_size)
+            self.assertEqual(len(messages.settle), expected_size)
+            self.assertNotEqual(messages.add, messages.settle)
+            self.assertEqual(messages, prepared_htlc_messages(config))
 
     def test_warmup_retained_but_excluded(self):
         records = run_condition(

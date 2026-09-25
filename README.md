@@ -8,7 +8,8 @@ This repository is an empirical testbed for measuring cryptographic, blockchain,
 - E0 primitives, meter/SBC: pending hardware measurement.
 - E1 Fabric: complete.
 - E2 measurement infrastructure and canonical serialization: implemented; final measurements pending.
-- E5, E7, E8, and E9: not yet completed.
+- E9 network-measurement infrastructure: implemented; final sweep pending.
+- E5, E7, and E8: not yet completed.
 
 Final completed-experiment CSVs:
 
@@ -153,6 +154,14 @@ The crypto section always carries framing for exactly two signature slots and tw
 Scientific E2 authorization uses real Ed25519 and pinned liboqs `0.15.0` (`97f6b86b1b6d109cfd43cf276ae39c2e776aed80`) ML-DSA-65/Falcon-padded-512 keys. Participant keys are generated once per run context and reused; private keys are never serialized. The signing preimage is the canonical 114-byte semantic body; verified signatures and corresponding public keys are then inserted into the canonical transaction envelope. Every bundle is verified before serialization.
 
 For a serialized transaction, `T0 = total bytes - signature payload bytes - public-key payload bytes`; both count fields and all four fixed-width element-length prefixes remain in `T0`. Derived from the emitted field table, `T0` is globally constant at 126 bytes. Final `message_bytes` is obtained only as the length of the actual serialized transaction. E2 RTT transport, acknowledgment, and timer-boundary semantics are not specified by the retained authoritative material, so RTT measurement and the final E2 CSV remain pending rather than being guessed.
+
+## E9 network sensitivity
+
+E9 is network-only. In its linear Mininet path, `hops` is the number of payment-channel links and `rtt_ms` is the configured RTT of each link; each interface direction receives `rtt_ms/2` delay. The official full-path ping median must be within strictly less than 10% of `hops*rtt_ms` before a scientific condition may run.
+
+The HTLC executor moves inert, already-prepared buffers whose authoritative serialized sizes come from E2: 222 bytes (`classical`), 10,648 bytes (`uniform_mldsa`), and 3,252 bytes (`layer_aware`). It performs no cryptography or serialization. Each neighboring direction uses a persistent `TCP_NODELAY` connection established before timing. Its one-byte message type plus four-byte big-endian payload length is E9 transport framing, not part of E2 transaction serialization.
+
+One completion sample starts immediately before sender A writes `HTLC_ADD`, relays that complete message to the receiver, relays `HTLC_SETTLE` back, and stops immediately after A receives the complete returned frame. Samples are not pipelined. The scientific default is 100 warm-up iterations (an implementation choice) followed by at least 1,000 retained measured iterations. Official ping stdout and every completion record are retained with SHA-256 provenance. The 60-condition final sweep and `data/e9_network.csv` have not yet been run or created.
 
 ## Reproduction and validation
 
