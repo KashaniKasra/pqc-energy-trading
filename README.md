@@ -9,7 +9,7 @@ This repository is an empirical testbed for measuring cryptographic, blockchain,
 - E1 Fabric: complete.
 - E2 channel state machine: complete.
 - E5 watchtower scalability: complete.
-- E9 network-measurement infrastructure: implemented; final sweep pending.
+- E9 network sensitivity: complete.
 - E7 and E8: not yet completed.
 
 Final completed-experiment CSVs:
@@ -18,6 +18,7 @@ Final completed-experiment CSVs:
 - `data/e1_fabric.csv`
 - `data/e2_statemachine.csv`
 - `data/e5_watchtower.csv`
+- `data/e9_network.csv`
 
 The specification references a supplied `make_figures.py` sanity checker, but that source and its plausible bands are not present in the repository; no replacement is fabricated.
 
@@ -168,11 +169,13 @@ The registered scan is a deterministic worst-case search for the final state. It
 
 ## E9 network sensitivity
 
-E9 is network-only. In its linear Mininet path, `hops` is the number of payment-channel links and `rtt_ms` is the configured RTT of each link; each interface direction receives `rtt_ms/2` delay. The official full-path ping median must be within strictly less than 10% of `hops*rtt_ms` before a scientific condition may run.
+E9 is network-only. In its linear Mininet path, `hops` is the number of payment-channel links, not switches, and `rtt_ms` is the logical configured RTT of each link. To compensate for systematic host/Mininet/Linux processing overhead, the final testbed calibration subtracts 0.75 ms per channel before configuring `TCLink`: the injected one-way delay is `(rtt_ms - 0.75)/2`. Thus logical RTTs 5, 20, 50, and 100 ms use one-way delays 2.125, 9.625, 24.625, and 49.625 ms respectively. The compensation is a host/testbed calibration, not part of the logical RTT; expected full-path RTT remains `hops*rtt_ms`.
 
-The HTLC executor moves inert, already-prepared buffers whose authoritative serialized sizes come from E2: 222 bytes (`classical`), 10,648 bytes (`uniform_mldsa`), and 3,252 bytes (`layer_aware`). It performs no cryptography or serialization. Each neighboring direction uses a persistent `TCP_NODELAY` connection established before timing. Its one-byte message type plus four-byte big-endian payload length is E9 transport framing, not part of E2 transaction serialization.
+Before each condition, 20 official full-path ping samples were retained. Their project-defined median had to deviate by strictly less than 10% from `hops*rtt_ms`; exactly 10% fails. All 60 final conditions—three configurations, four RTTs, and five hop counts—passed this gate.
 
-One completion sample starts immediately before sender A writes `HTLC_ADD`, relays that complete message to the receiver, relays `HTLC_SETTLE` back, and stops immediately after A receives the complete returned frame. Samples are not pipelined. The scientific default is 100 warm-up iterations (an implementation choice) followed by at least 1,000 retained measured iterations. Official ping stdout and every completion record are retained with SHA-256 provenance. The 60-condition final sweep and `data/e9_network.csv` have not yet been run or created.
+The HTLC executor moves deterministic inert, already-prepared buffers whose authoritative serialized sizes come from E2: 222 bytes (`classical`), 10,648 bytes (`uniform_mldsa`), and 3,252 bytes (`layer_aware`). These buffers model network size and are not independently valid cryptographic transactions. E9 performs no signing, verification, key generation, or serialization inside the timed measurement. Each neighboring direction uses a persistent `TCP_NODELAY` connection established before timing. Its one-byte message type plus four-byte big-endian payload length is E9 transport framing, not part of E2 transaction serialization.
+
+One completion sample starts immediately before sender A writes `HTLC_ADD`, relays that complete message across the whole path to the receiver, relays `HTLC_SETTLE` back, and stops immediately after A receives the complete returned frame. TCP setup is outside timing and samples are not pipelined. Every final condition used 100 discarded warm-ups and 1,000 retained measurements with zero completion failures. Median, p95, and audit-only p99 use linear interpolation at rank `p*(n-1)`; the professor CSV intentionally includes only median and p95. The final 60-condition output is `data/e9_network.csv`, and canonical frozen evidence is under `raw/e9/`.
 
 ## Reproduction and validation
 
@@ -285,6 +288,16 @@ cmp -- data/e5_watchtower.csv /tmp/e5_watchtower.regenerated.csv
 sha256sum data/e5_watchtower.csv
 ```
 
+E9 tests and frozen finalization do not require the scientific CPU policy. A new scientific measurement does: AC power, `amd-pstate-epp`, performance governor and EPP, boost disabled, min=max frequency of 3,200,000 kHz, and process affinity `2,4,6,8,10,12,14`. Validate and regenerate the completed E9 result from retained evidence with:
+
+```bash
+python3 -m unittest discover -s src/e9 -p 'test*.py' -v
+python3 src/e9/finalize_e9.py --evidence-root raw/e9 \
+  --output /tmp/e9_network.regenerated.csv
+cmp -- data/e9_network.csv /tmp/e9_network.regenerated.csv
+sha256sum data/e9_network.csv raw/e9/evidence_manifest.json
+```
+
 ## Evidence storage and provenance
 
 `meta.json` is the machine-readable project and experiment provenance record.
@@ -299,3 +312,5 @@ Scientific raw-evidence identity is defined by the original/decompressed bytes. 
 E2 raw evidence is frozen under `raw/e2/` with the same deterministic `gzip -9 -n` convention. `raw/e2/evidence_manifest.json` maps all 72 original condition files to tracked gzip containers and records both original and tracked SHA-256 identities. `src/e2/finalize_e2.py` validates those identities and all condition-level scientific gates before regenerating the final E2 CSV.
 
 E5 compact raw evidence is frozen under `raw/e5/` using deterministic `gzip -9 -n`. Its evidence manifest maps the ten retained condition manifests/sample files to their gzip containers. The synthetic storage artifacts are omitted after deep validation; frozen regeneration verifies their recorded hashes, measured sizes, validation receipts, and retained raw samples.
+
+E9 raw evidence is frozen under `raw/e9/` using `LC_ALL=C gzip -9 -n`. Its top-level manifest maps all 180 original condition manifests, completion CSVs, and ping outputs to deterministic gzip containers while preserving original and tracked byte counts and SHA-256 identities. `src/e9/finalize_e9.py` revalidates the exact 60-condition Cartesian product, scientific environment, calibration, ping gates, raw samples, and statistics before regenerating the byte-identical final CSV.
