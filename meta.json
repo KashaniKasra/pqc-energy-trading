@@ -1006,6 +1006,68 @@
       }
     ]
   },
+  "e6_benchmark": {
+    "status": "complete",
+    "output": {
+      "path": "data/e6_aggregation.csv",
+      "sha256": "266439b8be7f124e7966a8bd79734df677f621bb397ddd3fca8fa1087d26b470",
+      "schema": [
+        "scheme",
+        "aggregated",
+        "k_sig",
+        "k_pk",
+        "tx_bytes"
+      ],
+      "data_row_count": 2
+    },
+    "source": {
+      "experiment": "E2",
+      "path": "data/e2_statemachine.csv",
+      "sha256": "0b6c9139ff5973f08373060e68c309d4d3d57d19b3ecfcc0f917eb94e2b882dd",
+      "transition": "funding",
+      "configurations": [
+        "classical",
+        "uniform_mldsa"
+      ]
+    },
+    "finalizer": "src/e6/finalize_e6.py",
+    "test": "src/e6/test_finalize_e6.py",
+    "deterministic_ablation": true,
+    "timing_measurement": false,
+    "rows": {
+      "classical": {
+        "scheme": "classical",
+        "aggregated": true,
+        "k_sig": 1,
+        "k_pk": 1,
+        "tx_bytes": 222,
+        "representation": "one 64-byte Ed25519 signature and one 32-byte public key as the representative compact aggregated 2-of-2 size case; not a MuSig2 execution"
+      },
+      "ML-DSA-65": {
+        "scheme": "ML-DSA-65",
+        "aggregated": false,
+        "k_sig": 2,
+        "k_pk": 2,
+        "tx_bytes": 10648,
+        "signature_bytes_each": 3309,
+        "public_key_bytes_each": 1952,
+        "representation": "two independent ML-DSA-65 signatures and two independent ML-DSA-65 public keys"
+      }
+    },
+    "canonical_serialization": {
+      "semantic_body_bytes": 114,
+      "fixed_crypto_framing_bytes": 12,
+      "t0_bytes": 126,
+      "classical_accounting": "126 + 64 + 32 = 222",
+      "mldsa65_accounting": "126 + 2*3309 + 2*1952 = 10648"
+    },
+    "provenance": {
+      "derivation": "reuse authoritative E2 serialized funding message_bytes; no second serializer",
+      "fail_closed": "verify immutable E2 SHA-256 and exact schema; require exactly one funding row per source configuration; require positive integer message_bytes equal to 222 and 10648; validate exact E6 schema, values, and order",
+      "musig2_execution": false,
+      "classical_caveat": "Ed25519 represents the compact aggregated-size case only and is not claimed to perform MuSig2"
+    }
+  },
   "e9_benchmark": {
     "status": "complete",
     "output": {

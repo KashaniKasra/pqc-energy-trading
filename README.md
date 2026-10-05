@@ -9,6 +9,7 @@ This repository is an empirical testbed for measuring cryptographic, blockchain,
 - E1 Fabric: complete.
 - E2 channel state machine: complete.
 - E5 watchtower scalability: complete.
+- E6 key-aggregation ablation: complete.
 - E9 network sensitivity: complete.
 - E7 and E8: not yet completed.
 
@@ -18,6 +19,7 @@ Final completed-experiment CSVs:
 - `data/e1_fabric.csv`
 - `data/e2_statemachine.csv`
 - `data/e5_watchtower.csv`
+- `data/e6_aggregation.csv`
 - `data/e9_network.csv`
 
 The specification references a supplied `make_figures.py` sanity checker, but that source and its plausible bands are not present in the repository; no replacement is fabricated.
@@ -167,6 +169,12 @@ E5 measures only `layer_aware`, using the unchanged 5,387-byte canonical E2 pena
 
 The registered scan is a deterministic worst-case search for the final state. It examines identifiers sequentially, skips nonmatching fixed payloads by mmap offset, and returns the matching blob. Files are prefaulted before 100 discarded warm-ups and 1,000 measured scans. `scan_cpu_ms` is the median Linux `CLOCK_PROCESS_CPUTIME_ID` process CPU time; p95 and p99 remain in condition manifests. Large synthetic artifacts were fully validated during collection but are not archived; their hashes, measured sizes, and validation receipts remain in `raw/e5/`.
 
+## E6 key-aggregation ablation
+
+E6 is a deterministic transaction-size ablation, not a timing or cryptographic-runtime benchmark. It compares the final E2 `funding` rows: the classical representative aggregated 2-of-2 size case has `k_sig=1`, `k_pk=1`, and 222 transaction bytes; the non-aggregated ML-DSA-65 bilateral case has `k_sig=2`, `k_pk=2`, and 10,648 transaction bytes. Here `k_sig` and `k_pk` count signature and public-key payloads carried by the canonical transaction.
+
+Both sizes are derived from the hash-verified final `data/e2_statemachine.csv`, not from a second serializer. With E2's 126-byte `T0`, the corresponding accounting is `126 + 64 + 32 = 222` for classical and `126 + 2*3309 + 2*1952 = 10648` for ML-DSA-65. The classical row uses one Ed25519 signature/public key only as the representative compact aggregated-size case; no MuSig2 execution occurred, and Ed25519 is not claimed to implement MuSig2.
+
 ## E9 network sensitivity
 
 E9 is network-only. In its linear Mininet path, `hops` is the number of payment-channel links, not switches, and `rtt_ms` is the logical configured RTT of each link. To compensate for systematic host/Mininet/Linux processing overhead, the final testbed calibration subtracts 0.75 ms per channel before configuring `TCLink`: the injected one-way delay is `(rtt_ms - 0.75)/2`. Thus logical RTTs 5, 20, 50, and 100 ms use one-way delays 2.125, 9.625, 24.625, and 49.625 ms respectively. The compensation is a host/testbed calibration, not part of the logical RTT; expected full-path RTT remains `hops*rtt_ms`.
@@ -286,6 +294,17 @@ python3 src/e5/finalize_e5.py --evidence-root raw/e5 \
   --output /tmp/e5_watchtower.regenerated.csv
 cmp -- data/e5_watchtower.csv /tmp/e5_watchtower.regenerated.csv
 sha256sum data/e5_watchtower.csv
+```
+
+E6 performs no timing measurement and requires no scientific CPU or AC controls. Validate its deterministic derivation from final E2 with:
+
+```bash
+python3 -m unittest discover -s src/e6 -p 'test*.py' -v
+python3 src/e6/finalize_e6.py \
+  --e2-csv data/e2_statemachine.csv \
+  --output /tmp/e6_aggregation.regenerated.csv
+cmp -- data/e6_aggregation.csv /tmp/e6_aggregation.regenerated.csv
+sha256sum data/e2_statemachine.csv data/e6_aggregation.csv
 ```
 
 E9 tests and frozen finalization do not require the scientific CPU policy. A new scientific measurement does: AC power, `amd-pstate-epp`, performance governor and EPP, boost disabled, min=max frequency of 3,200,000 kHz, and process affinity `2,4,6,8,10,12,14`. Validate and regenerate the completed E9 result from retained evidence with:
