@@ -23,11 +23,16 @@ try:
         DATASET_PRIMARY_SOURCE,
         DATASET_RESOLUTION,
         DATASET_VERSION,
+        COUNTER_POLICY,
         INTERVAL,
+        INTERVAL_TIMESTAMP_CONVENTION,
         INTERPOLATION_COLUMN,
         MINIMUM_TRACE_ROWS,
         PROVENANCE_SCHEMA,
+        SELECTION_POLICY,
         TRACE_FIELDS,
+        TRANSFORMATION,
+        UPSTREAM_REPRESENTATION,
         UPSTREAM_FILENAME,
         WARMUP_SAMPLES,
         parse_energy,
@@ -42,11 +47,16 @@ except ImportError:  # Direct execution: python3 src/e7/finalize_e7.py
         DATASET_PRIMARY_SOURCE,
         DATASET_RESOLUTION,
         DATASET_VERSION,
+        COUNTER_POLICY,
         INTERVAL,
+        INTERVAL_TIMESTAMP_CONVENTION,
         INTERPOLATION_COLUMN,
         MINIMUM_TRACE_ROWS,
         PROVENANCE_SCHEMA,
+        SELECTION_POLICY,
         TRACE_FIELDS,
+        TRANSFORMATION,
+        UPSTREAM_REPRESENTATION,
         UPSTREAM_FILENAME,
         WARMUP_SAMPLES,
         parse_energy,
@@ -92,6 +102,13 @@ def validate_trace(trace_path: Path, provenance_path: Path) -> int:
         "selected_feed_interpolated_row_count": 0,
     }:
         raise ValueError("E7 interpolation provenance mismatch")
+    if provenance.get("transformation") != {
+        "upstream_data_representation": UPSTREAM_REPRESENTATION,
+        "method": TRANSFORMATION,
+        "interval_timestamp_convention": INTERVAL_TIMESTAMP_CONVENTION,
+        "monotonic_counter_reset_policy": COUNTER_POLICY,
+    }:
+        raise ValueError("E7 cumulative-to-interval transformation mismatch")
     upstream_sha = provenance.get("upstream_sha256")
     if not isinstance(upstream_sha, str) or not SHA256_PATTERN.fullmatch(upstream_sha):
         raise ValueError("E7 upstream SHA-256 provenance is invalid")
@@ -130,15 +147,15 @@ def validate_trace(trace_path: Path, provenance_path: Path) -> int:
         raise ValueError("E7 prepared trace timestamps are not 15 minutes apart")
     selection = provenance.get("selection")
     expected_selection = {
-        "policy": (
-            "earliest contiguous valid non-interpolated-selected-feed "
-            "15-minute window in source order"
-        ),
-        "timestamp_start": timestamps[0].isoformat(),
-        "timestamp_end": timestamps[-1].isoformat(),
-        "row_count": len(rows),
+        "policy": SELECTION_POLICY,
+        "source_rows_required": len(rows) + 1,
+        "prepared_interval_rows": len(rows),
         "warmup_rows": WARMUP_SAMPLES,
         "measured_rows": len(rows) - WARMUP_SAMPLES,
+        "source_timestamp_start": (timestamps[0] - INTERVAL).isoformat(),
+        "source_timestamp_end": timestamps[-1].isoformat(),
+        "prepared_interval_timestamp_start": timestamps[0].isoformat(),
+        "prepared_interval_timestamp_end": timestamps[-1].isoformat(),
     }
     if selection != expected_selection:
         raise ValueError("E7 trace selection provenance mismatch")

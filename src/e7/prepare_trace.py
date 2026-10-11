@@ -29,7 +29,21 @@ INTERVAL = timedelta(minutes=15)
 WARMUP_SAMPLES = 100
 MEASURED_SAMPLES = 1000
 MINIMUM_TRACE_ROWS = WARMUP_SAMPLES + MEASURED_SAMPLES
+MINIMUM_SOURCE_ROWS = MINIMUM_TRACE_ROWS + 1
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+UPSTREAM_REPRESENTATION = "cumulative energy meter readings"
+TRANSFORMATION = "first difference of consecutive 15-minute cumulative readings"
+INTERVAL_TIMESTAMP_CONVENTION = (
+    "later/end timestamp of the two cumulative readings"
+)
+COUNTER_POLICY = (
+    "counters must be monotonic nondecreasing; any decrease resets the candidate "
+    "window without absolute value, clamping, or tolerance"
+)
+SELECTION_POLICY = (
+    "earliest contiguous valid non-interpolated-selected-feed cumulative window "
+    "yielding consecutive 15-minute intervals in source order"
+)
 
 
 def sha256(content: bytes) -> str:
@@ -82,7 +96,9 @@ def select_window(
     row_count: int = MINIMUM_TRACE_ROWS,
 ) -> list[tuple[datetime, float, float, float]]:
     if row_count < MINIMUM_TRACE_ROWS:
-        raise ValueError(f"E7 trace requires at least {MINIMUM_TRACE_ROWS} rows")
+        raise ValueError(
+            f"E7 trace requires at least {MINIMUM_TRACE_ROWS} interval rows"
+        )
     try:
         reader = csv.DictReader(io.StringIO(upstream_content.decode("utf-8"), newline=""))
     except (UnicodeDecodeError, csv.Error) as error:
@@ -113,6 +129,7 @@ def select_window(
         grid_export_column.casefold(),
     }
     previous_timestamp: datetime | None = None
+    previous_endpoint: tuple[datetime, float, float, float] | None = None
     for source_index, row in enumerate(reader):
         if None in row:
             raise ValueError(f"malformed OPSD row {source_index}")
@@ -127,26 +144,58 @@ def select_window(
         interpolated = interpolated_source_columns(interpolation_value)
         if interpolated & selected_feeds:
             segment = []
+            previous_endpoint = None
             continue
         try:
-            pv = parse_energy(row.get(pv_column), "PV")
-            grid_import = parse_energy(row.get(grid_import_column), "grid import")
-            grid_export = parse_energy(row.get(grid_export_column), "grid export")
+            pv_counter = parse_energy(row.get(pv_column), "PV counter")
+            grid_import_counter = parse_energy(
+                row.get(grid_import_column), "grid-import counter"
+            )
+            grid_export_counter = parse_energy(
+                row.get(grid_export_column), "grid-export counter"
+            )
         except ValueError:
             segment = []
+            previous_endpoint = None
             continue
-        if segment and timestamp - segment[-1][0] != INTERVAL:
+
+        current_endpoint = (
+            timestamp,
+            pv_counter,
+            grid_import_counter,
+            grid_export_counter,
+        )
+        if previous_endpoint is None:
+            previous_endpoint = current_endpoint
+            continue
+        previous_time, previous_pv, previous_import, previous_export = (
+            previous_endpoint
+        )
+        if timestamp - previous_time != INTERVAL:
             segment = []
+            previous_endpoint = current_endpoint
+            continue
+
+        pv = pv_counter - previous_pv
+        grid_import = grid_import_counter - previous_import
+        grid_export = grid_export_counter - previous_export
+        if pv < 0 or grid_import < 0 or grid_export < 0:
+            segment = []
+            previous_endpoint = current_endpoint
+            continue
         demand = pv + grid_import - grid_export
         net = grid_export - grid_import
         if not math.isfinite(demand) or demand < 0 or not math.isfinite(net):
             segment = []
+            previous_endpoint = current_endpoint
             continue
         segment.append((timestamp, pv, demand, net))
         if len(segment) == row_count:
             return segment
+        previous_endpoint = current_endpoint
     raise ValueError(
-        f"OPSD source has no contiguous valid 15-minute window of {row_count} rows"
+        "OPSD source has no contiguous valid cumulative window yielding "
+        f"{row_count} 15-minute interval rows"
     )
 
 
@@ -198,16 +247,22 @@ def build_provenance(
             "policy": "selected E7 source feeds must be non-interpolated",
             "selected_feed_interpolated_row_count": 0,
         },
+        "transformation": {
+            "upstream_data_representation": UPSTREAM_REPRESENTATION,
+            "method": TRANSFORMATION,
+            "interval_timestamp_convention": INTERVAL_TIMESTAMP_CONVENTION,
+            "monotonic_counter_reset_policy": COUNTER_POLICY,
+        },
         "selection": {
-            "policy": (
-                "earliest contiguous valid non-interpolated-selected-feed "
-                "15-minute window in source order"
-            ),
-            "timestamp_start": rows[0][0].isoformat(),
-            "timestamp_end": rows[-1][0].isoformat(),
-            "row_count": len(rows),
+            "policy": SELECTION_POLICY,
+            "source_rows_required": len(rows) + 1,
+            "prepared_interval_rows": len(rows),
             "warmup_rows": WARMUP_SAMPLES,
             "measured_rows": len(rows) - WARMUP_SAMPLES,
+            "source_timestamp_start": (rows[0][0] - INTERVAL).isoformat(),
+            "source_timestamp_end": rows[-1][0].isoformat(),
+            "prepared_interval_timestamp_start": rows[0][0].isoformat(),
+            "prepared_interval_timestamp_end": rows[-1][0].isoformat(),
         },
         "upstream_sha256": sha256(upstream_content),
         "prepared_trace_sha256": sha256(trace_content),

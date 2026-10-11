@@ -18,7 +18,7 @@ GRID_EXPORT = "DE_KN_residential3_grid_export"
 UNRELATED = "DE_KN_residential4_pv"
 
 
-def upstream_bytes(row_count=prepare_trace.MINIMUM_TRACE_ROWS, mutation=None):
+def upstream_bytes(row_count=prepare_trace.MINIMUM_SOURCE_ROWS, mutation=None):
     output = io.StringIO(newline="")
     writer = csv.writer(output, lineterminator="\n")
     writer.writerow(
@@ -83,9 +83,11 @@ class PrepareTraceTests(unittest.TestCase):
                 csv.DictReader(io.StringIO(content.decode("utf-8"), newline=""))
             )
             index = 77
-            pv = float(source_rows[index][PV])
-            grid_import = float(source_rows[index][GRID_IMPORT])
-            grid_export = float(source_rows[index][GRID_EXPORT])
+            previous = source_rows[index]
+            current = source_rows[index + 1]
+            pv = float(current[PV]) - float(previous[PV])
+            grid_import = float(current[GRID_IMPORT]) - float(previous[GRID_IMPORT])
+            grid_export = float(current[GRID_EXPORT]) - float(previous[GRID_EXPORT])
             self.assertAlmostEqual(
                 float(rows[index]["demand_kwh"]), pv + grid_import - grid_export
             )
@@ -117,14 +119,53 @@ class PrepareTraceTests(unittest.TestCase):
                 },
             )
             self.assertEqual(
+                provenance["transformation"],
+                {
+                    "upstream_data_representation": "cumulative energy meter readings",
+                    "method": (
+                        "first difference of consecutive 15-minute cumulative readings"
+                    ),
+                    "interval_timestamp_convention": (
+                        "later/end timestamp of the two cumulative readings"
+                    ),
+                    "monotonic_counter_reset_policy": prepare_trace.COUNTER_POLICY,
+                },
+            )
+            self.assertEqual(
                 provenance["upstream_sha256"], hashlib.sha256(content).hexdigest()
             )
             self.assertEqual(
                 provenance["prepared_trace_sha256"],
                 hashlib.sha256(trace.read_bytes()).hexdigest(),
             )
-            self.assertEqual(provenance["selection"]["row_count"], 1100)
+            self.assertEqual(provenance["selection"]["source_rows_required"], 1101)
+            self.assertEqual(
+                provenance["selection"]["prepared_interval_rows"], 1100
+            )
+            self.assertEqual(
+                provenance["selection"]["source_timestamp_start"],
+                source_rows[0][TIMESTAMP],
+            )
+            self.assertEqual(
+                provenance["selection"]["prepared_interval_timestamp_start"],
+                source_rows[1][TIMESTAMP],
+            )
             self.assertEqual(source.name, prepare_trace.UPSTREAM_FILENAME)
+
+    def test_known_cumulative_values_produce_expected_interval(self):
+        def mutate(rows):
+            for index, row in enumerate(rows):
+                row[2:5] = [
+                    str(10 + 0.5 * index),
+                    str(20 + 0.3 * index),
+                    str(4 + 0.1 * index),
+                ]
+
+        intervals = select(upstream_bytes(mutation=mutate))
+        _, pv, demand, net = intervals[0]
+        self.assertAlmostEqual(pv, 0.5)
+        self.assertAlmostEqual(demand, 0.7)
+        self.assertAlmostEqual(net, -0.2)
 
     def test_missing_source_or_interpolated_column_rejected(self):
         cases = (
@@ -180,19 +221,20 @@ class PrepareTraceTests(unittest.TestCase):
 
     def test_negative_derived_demand_breaks_window(self):
         def mutate(rows):
-            rows[500][2] = "0"
-            rows[500][3] = "0"
-            rows[500][4] = "1"
+            previous = rows[499]
+            rows[500][2] = str(float(previous[2]) + 0.1)
+            rows[500][3] = str(float(previous[3]) + 0.1)
+            rows[500][4] = str(float(previous[4]) + 0.3)
 
         with self.assertRaisesRegex(ValueError, "no contiguous valid"):
             select(upstream_bytes(mutation=mutate))
 
-    def test_selected_feed_interpolation_resets_candidate_window(self):
+    def test_selected_feed_interpolation_resets_and_selects_earliest_window(self):
         def mutate(rows):
             rows[500][1] = f"{UNRELATED}; {PV};"
 
-        rows = select(upstream_bytes(row_count=1601, mutation=mutate))
-        expected_start = datetime(2020, 1, 1, tzinfo=timezone.utc) + 501 * timedelta(
+        rows = select(upstream_bytes(row_count=1602, mutation=mutate))
+        expected_start = datetime(2020, 1, 1, tzinfo=timezone.utc) + 502 * timedelta(
             minutes=15
         )
         self.assertEqual(rows[0][0], expected_start)
@@ -202,11 +244,25 @@ class PrepareTraceTests(unittest.TestCase):
         def mutate(rows):
             rows[500][1] = f"{PV.swapcase()};"
 
-        rows = select(upstream_bytes(row_count=1601, mutation=mutate))
-        expected_start = datetime(2020, 1, 1, tzinfo=timezone.utc) + 501 * timedelta(
+        rows = select(upstream_bytes(row_count=1602, mutation=mutate))
+        expected_start = datetime(2020, 1, 1, tzinfo=timezone.utc) + 502 * timedelta(
             minutes=15
         )
         self.assertEqual(rows[0][0], expected_start)
+
+    def test_selected_interpolation_on_previous_endpoint_invalidates_interval(self):
+        content = upstream_bytes(
+            mutation=lambda rows: rows[0].__setitem__(1, f"{PV};")
+        )
+        with self.assertRaisesRegex(ValueError, "no contiguous valid"):
+            select(content)
+
+    def test_selected_interpolation_on_current_endpoint_invalidates_interval(self):
+        content = upstream_bytes(
+            mutation=lambda rows: rows[-1].__setitem__(1, f"{PV};")
+        )
+        with self.assertRaisesRegex(ValueError, "no contiguous valid"):
+            select(content)
 
     def test_unrelated_feed_interpolation_does_not_invalidate_row(self):
         content = upstream_bytes(
@@ -214,7 +270,10 @@ class PrepareTraceTests(unittest.TestCase):
         )
         rows = select(content)
         self.assertEqual(len(rows), 1100)
-        self.assertEqual(rows[0][0], datetime(2020, 1, 1, tzinfo=timezone.utc))
+        self.assertEqual(
+            rows[0][0],
+            datetime(2020, 1, 1, 0, 15, tzinfo=timezone.utc),
+        )
 
     def test_wrong_timestamp_spacing_rejected(self):
         def mutate(rows):
@@ -224,9 +283,19 @@ class PrepareTraceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "no contiguous valid"):
             select(upstream_bytes(mutation=mutate))
 
+    def test_counter_decrease_resets_candidate_window(self):
+        def mutate(rows):
+            rows[500][2] = "0"
+
+        intervals = select(upstream_bytes(row_count=1601, mutation=mutate))
+        expected_start = datetime(2020, 1, 1, tzinfo=timezone.utc) + 501 * timedelta(
+            minutes=15
+        )
+        self.assertEqual(intervals[0][0], expected_start)
+
     def test_insufficient_trace_length_rejected(self):
         with self.assertRaisesRegex(ValueError, "no contiguous valid"):
-            select(upstream_bytes(row_count=1099))
+            select(upstream_bytes(row_count=1100))
 
     def test_wrong_upstream_filename_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:
