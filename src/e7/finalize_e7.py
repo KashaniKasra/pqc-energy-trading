@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+from decimal import Decimal, InvalidOperation
 from datetime import timedelta
 import hashlib
 import io
@@ -66,8 +67,25 @@ except ImportError:  # Direct execution: python3 src/e7/finalize_e7.py
 
 
 FINAL_FIELDS = ("config", "run_id", "sample_idx", "latency_ms")
+RAW_FIELDS = (
+    "config", "run_id", "phase", "phase_idx", "sample_idx", "trace_row_idx",
+    "trace_timestamp", "trace_row_sha256", "logical_trade_id", "direction",
+    "amount_kwh", "payer", "payee", "start_monotonic_ns", "end_monotonic_ns",
+    "latency_ms", "scientific", "success", "error", "request_id",
+    "transaction_id", "completion_status", "channel_id", "htlc_id",
+    "add_algorithm", "settle_algorithm", "add_serialized_bytes",
+    "settle_serialized_bytes", "add_serialized_sha256",
+    "settle_serialized_sha256", "authorization_verified", "receiver_verified",
+    "committed", "verified", "validation_status", "validation_code",
+    "payload_sha256",
+    "sets_ecdsa_algorithm", "sets_signed_preimage_sha256",
+    "sets_public_key_sha256", "sets_signature_sha256",
+    "sets_signature_verified", "sets_controller_eligible",
+    "sets_controller_balance_sufficient",
+)
 MINIMUM_MEASURED_SAMPLES = 1000
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+SETS_ECDSA_ALGORITHM = "ECDSA-P256-SHA256"
 
 
 def validate_trace(trace_path: Path, provenance_path: Path) -> int:
@@ -177,6 +195,186 @@ def load_evidence(evidence_path: Path) -> list[dict[str, str]]:
     return rows
 
 
+def load_raw_evidence(evidence_path: Path) -> list[dict[str, str]]:
+    try:
+        content = evidence_path.read_bytes()
+        reader = csv.DictReader(io.StringIO(content.decode("utf-8"), newline=""))
+        fields = tuple(reader.fieldnames or ())
+        if len(fields) != len(set(fields)):
+            raise ValueError("E7 raw evidence has duplicate CSV header names")
+        rows = list(reader)
+    except (OSError, UnicodeDecodeError, csv.Error) as error:
+        raise ValueError("E7 raw evidence is missing or malformed") from error
+    if fields != RAW_FIELDS:
+        raise ValueError("E7 raw evidence schema mismatch")
+    return rows
+
+
+def evidence_fields(evidence_path: Path) -> tuple[str, ...]:
+    try:
+        with evidence_path.open(newline="", encoding="utf-8") as source:
+            fields = tuple(csv.reader(source).__next__())
+    except (OSError, UnicodeDecodeError, csv.Error, StopIteration) as error:
+        raise ValueError("E7 evidence is missing or malformed") from error
+    if len(fields) != len(set(fields)):
+        raise ValueError("E7 evidence has duplicate CSV header names")
+    return fields
+
+
+def _identity_field(name: str, value: str) -> bytes:
+    encoded = value.encode("utf-8")
+    return f"{name}:{len(encoded)}:".encode("ascii") + encoded + b"\n"
+
+
+def _expected_trade(trace_sha: str, row: dict[str, str], trace_row_idx: int):
+    try:
+        net = Decimal(row["net_kwh"])
+    except (InvalidOperation, TypeError, KeyError) as error:
+        raise ValueError("malformed E7 trace net_kwh") from error
+    if not net.is_finite():
+        raise ValueError("non-finite E7 trace net_kwh")
+    if net > 0:
+        direction, amount, payer, payee = (
+            "prosumer_sale", row["net_kwh"],
+            "external-market-grid-counterparty", "residential3",
+        )
+    elif net < 0:
+        direction, amount, payer, payee = (
+            "prosumer_purchase", row["net_kwh"].removeprefix("-"),
+            "residential3", "external-market-grid-counterparty",
+        )
+    else:
+        direction, amount, payer, payee = "balanced_no_transfer", "0", "none", "none"
+    values = (
+        ("schema_version", "e7-v1"), ("trace_sha256", trace_sha),
+        ("run_id", "1"), ("trace_row_idx", str(trace_row_idx)),
+        ("timestamp", row["timestamp"]), ("direction", direction),
+        ("amount_kwh", amount), ("payer", payer), ("payee", payee),
+    )
+    preimage = b"".join(_identity_field(name, value) for name, value in values)
+    return hashlib.sha256(preimage).hexdigest(), direction, amount, payer, payee
+
+
+def _expected_logical_settlement(
+    trace_sha: str,
+    row: dict[str, str],
+    trace_row_idx: int,
+    phase: str,
+    sample_idx: int,
+    trade_id: str,
+    direction: str,
+    amount: str,
+    payer: str,
+    payee: str,
+) -> bytes:
+    values = (
+        ("schema_version", "e7-v1"), ("trace_sha256", trace_sha),
+        ("run_id", "1"), ("phase", phase),
+        ("trace_row_idx", str(trace_row_idx)), ("sample_idx", str(sample_idx)),
+        ("timestamp", row["timestamp"]), ("pv_kwh", row["pv_kwh"]),
+        ("demand_kwh", row["demand_kwh"]), ("net_kwh", row["net_kwh"]),
+        ("direction", direction), ("amount_kwh", amount), ("payer", payer),
+        ("payee", payee), ("logical_trade_id", trade_id),
+    )
+    return b"".join(_identity_field(name, value) for name, value in values)
+
+
+def _trace_identity_rows(trace_path: Path):
+    content = trace_path.read_bytes()
+    reader = csv.DictReader(io.StringIO(content.decode("utf-8"), newline=""))
+    fields = tuple(reader.fieldnames or ())
+    if fields != TRACE_FIELDS or len(fields) != len(set(fields)):
+        raise ValueError("E7 prepared trace schema mismatch")
+    rows = list(reader)
+    return sha256(content), rows
+
+
+def validate_raw_rows(rows: list[dict[str, str]], trace_path: Path) -> list[dict[str, object]]:
+    trace_sha, trace_rows = _trace_identity_rows(trace_path)
+    if len(trace_rows) != MINIMUM_TRACE_ROWS:
+        raise ValueError("E7 raw finalization requires exactly 1100 trace rows")
+    normalized = []
+    seen = set()
+    populations = {name: set() for name in CONFIG_NAMES}
+    for row in rows:
+        if None in row or any(field not in row or row[field] is None for field in RAW_FIELDS):
+            raise ValueError("malformed E7 raw evidence row")
+        config = row["config"]
+        get_configuration(config)
+        try:
+            trace_idx = int(row["trace_row_idx"])
+            phase_idx = int(row["phase_idx"])
+            sample_idx = int(row["sample_idx"])
+            started = int(row["start_monotonic_ns"])
+            ended = int(row["end_monotonic_ns"])
+            latency = float(row["latency_ms"])
+        except (TypeError, ValueError) as error:
+            raise ValueError("malformed E7 raw evidence numeric field") from error
+        if not 0 <= trace_idx < len(trace_rows):
+            raise ValueError("E7 raw trace_row_idx is out of range")
+        expected_phase = "warmup" if trace_idx < WARMUP_SAMPLES else "measured"
+        expected_idx = trace_idx if expected_phase == "warmup" else trace_idx - WARMUP_SAMPLES
+        expected_sample = -1 if expected_phase == "warmup" else expected_idx
+        if row["run_id"] != "1" or row["phase"] != expected_phase or phase_idx != expected_idx or sample_idx != expected_sample:
+            raise ValueError("E7 raw phase/run/sample mapping mismatch")
+        trace_row = trace_rows[trace_idx]
+        row_bytes = (
+            ",".join(trace_row[field] for field in TRACE_FIELDS) + "\n"
+        ).encode("utf-8")
+        trade_id, direction, amount, payer, payee = _expected_trade(trace_sha, trace_row, trace_idx)
+        if (
+            row["trace_timestamp"] != trace_row["timestamp"]
+            or row["trace_row_sha256"] != sha256(row_bytes)
+            or row["logical_trade_id"] != trade_id
+            or row["direction"] != direction
+            or row["amount_kwh"] != amount
+            or row["payer"] != payer
+            or row["payee"] != payee
+        ):
+            raise ValueError("E7 raw logical trade identity mismatch")
+        if row["scientific"] != "true" or row["success"] != "true" or row["error"]:
+            raise ValueError("E7 raw evidence is not a successful scientific sample")
+        if ended <= started or not math.isfinite(latency) or latency <= 0:
+            raise ValueError("E7 raw timing is invalid")
+        if not math.isclose(latency, (ended - started) / 1_000_000, rel_tol=0, abs_tol=5e-10):
+            raise ValueError("E7 raw latency disagrees with monotonic markers")
+        key = (config, row["run_id"], trace_idx)
+        if key in seen:
+            raise ValueError("duplicate E7 raw sample")
+        seen.add(key)
+        populations[config].add(trace_idx)
+        if config.endswith("_l2"):
+            if row["htlc_id"] != "e7-v1:" + trade_id or row["authorization_verified"] != "true" or row["receiver_verified"] != "true":
+                raise ValueError("E7 L2 verification evidence mismatch")
+        else:
+            if row["committed"] != "true" or row["verified"] != "true" or not row["transaction_id"]:
+                raise ValueError("E7 Fabric commit evidence mismatch")
+        if config == "sets_reimpl":
+            common = _expected_logical_settlement(
+                trace_sha, trace_row, trace_idx, expected_phase, expected_sample,
+                trade_id, direction, amount, payer, payee,
+            )
+            if (
+                row["sets_ecdsa_algorithm"] != SETS_ECDSA_ALGORITHM
+                or row["sets_signed_preimage_sha256"] != sha256(common)
+                or not SHA256_PATTERN.fullmatch(row["sets_public_key_sha256"])
+                or not SHA256_PATTERN.fullmatch(row["sets_signature_sha256"])
+                or row["sets_signature_verified"] != "true"
+                or row["sets_controller_eligible"] != "true"
+                or row["sets_controller_balance_sufficient"] != "true"
+            ):
+                raise ValueError("E7 SETS ECDSA/controller evidence mismatch")
+        if expected_phase == "measured":
+            normalized.append({
+                "config": config, "run_id": row["run_id"],
+                "sample_idx": sample_idx, "latency_ms": latency,
+            })
+    expected = set(range(len(trace_rows)))
+    if any(populations[name] != expected for name in CONFIG_NAMES):
+        raise ValueError("E7 raw trace populations differ or are incomplete")
+    return validate_rows(normalized, len(trace_rows))
+
+
 def validate_rows(rows: list[dict[str, str]], trace_row_count: int) -> list[dict[str, object]]:
     if not rows:
         raise ValueError("E7 evidence is empty")
@@ -263,8 +461,12 @@ def finalize(
     provenance_path: Path,
     output_path: Path,
 ) -> None:
-    trace_rows = validate_trace(trace_path, provenance_path)
-    content = render_final(validate_rows(load_evidence(evidence_path), trace_rows))
+    validate_trace(trace_path, provenance_path)
+    fields = evidence_fields(evidence_path)
+    if fields != RAW_FIELDS:
+        raise ValueError("production E7 finalization requires rich raw evidence schema")
+    normalized = validate_raw_rows(load_raw_evidence(evidence_path), trace_path)
+    content = render_final(normalized)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary_name = tempfile.mkstemp(
         prefix=f".{output_path.name}.", suffix=".tmp", dir=output_path.parent

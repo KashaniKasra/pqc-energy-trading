@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import io
 from pathlib import Path
 import tempfile
@@ -47,26 +48,136 @@ def write_evidence(path, rows, fields=finalize_e7.FINAL_FIELDS):
         writer.writerows(rows)
 
 
+def valid_rich_evidence_rows(trace):
+    trace_sha, trace_rows = finalize_e7._trace_identity_rows(trace)
+    rows = []
+    for config_name in config.CONFIG_NAMES:
+        for trace_idx, source in enumerate(trace_rows):
+            phase = "warmup" if trace_idx < prepare_trace.WARMUP_SAMPLES else "measured"
+            phase_idx = trace_idx if phase == "warmup" else trace_idx - prepare_trace.WARMUP_SAMPLES
+            sample_idx = -1 if phase == "warmup" else phase_idx
+            trade_id, direction, amount, payer, payee = finalize_e7._expected_trade(
+                trace_sha, source, trace_idx
+            )
+            row = {field: "" for field in finalize_e7.RAW_FIELDS}
+            row.update(
+                config=config_name,
+                run_id="1",
+                phase=phase,
+                phase_idx=str(phase_idx),
+                sample_idx=str(sample_idx),
+                trace_row_idx=str(trace_idx),
+                trace_timestamp=source["timestamp"],
+                trace_row_sha256=hashlib.sha256(
+                    (",".join(source[field] for field in prepare_trace.TRACE_FIELDS) + "\n").encode()
+                ).hexdigest(),
+                logical_trade_id=trade_id,
+                direction=direction,
+                amount_kwh=amount,
+                payer=payer,
+                payee=payee,
+                start_monotonic_ns=str(trace_idx * 2_000_000),
+                end_monotonic_ns=str(trace_idx * 2_000_000 + 1_000_000),
+                latency_ms="1.000000000",
+                scientific="true",
+                success="true",
+                request_id=trade_id,
+                completion_status="VALID",
+            )
+            if config_name.endswith("_l2"):
+                row.update(
+                    channel_id="c1",
+                    htlc_id="e7-v1:" + trade_id,
+                    authorization_verified="true",
+                    receiver_verified="true",
+                    verified="true",
+                )
+            else:
+                row.update(
+                    transaction_id=f"tx-{config_name}-{trace_idx}",
+                    committed="true",
+                    verified="true",
+                    validation_status="VALID",
+                    validation_code="0",
+                    payload_sha256="1" * 64,
+                )
+            if config_name == "sets_reimpl":
+                common = finalize_e7._expected_logical_settlement(
+                    trace_sha, source, trace_idx, phase, sample_idx, trade_id,
+                    direction, amount, payer, payee,
+                )
+                row.update(
+                    sets_ecdsa_algorithm=finalize_e7.SETS_ECDSA_ALGORITHM,
+                    sets_signed_preimage_sha256=hashlib.sha256(common).hexdigest(),
+                    sets_public_key_sha256="2" * 64,
+                    sets_signature_sha256="3" * 64,
+                    sets_signature_verified="true",
+                    sets_controller_eligible="true",
+                    sets_controller_balance_sufficient="true",
+                )
+            rows.append(row)
+    return rows
+
+
 class FinalizeE7Tests(unittest.TestCase):
-    def test_valid_finalization_schema_order_and_determinism(self):
+    def test_render_final_schema_order_and_determinism(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            trace, provenance = write_trace(root)
-            evidence = root / "evidence.csv"
             rows = list(reversed(valid_evidence_rows()))
-            write_evidence(evidence, rows)
-            first = root / "first.csv"
-            second = root / "second.csv"
-            finalize_e7.finalize(evidence, trace, provenance, first)
-            finalize_e7.finalize(evidence, trace, provenance, second)
-            self.assertEqual(first.read_bytes(), second.read_bytes())
-            with first.open(newline="", encoding="utf-8") as source:
-                output = list(csv.reader(source))
+            first = finalize_e7.render_final(finalize_e7.validate_rows(rows, 1100))
+            second = finalize_e7.render_final(finalize_e7.validate_rows(rows, 1100))
+            self.assertEqual(first, second)
+            output = list(csv.reader(io.StringIO(first.decode("utf-8"))))
             self.assertEqual(tuple(output[0]), finalize_e7.FINAL_FIELDS)
             self.assertEqual(len(output), 4001)
             self.assertEqual(output[1][:3], ["l1_only", "1", "0"])
             self.assertEqual(output[1001][:3], ["sets_reimpl", "1", "0"])
             self.assertEqual(output[-1][:3], ["layer_aware_l2", "1", "999"])
+
+    def test_finalize_rejects_final_shaped_evidence(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            trace, provenance = write_trace(root)
+            evidence = root / "final-shaped.csv"
+            write_evidence(evidence, valid_evidence_rows())
+            with self.assertRaisesRegex(ValueError, "requires rich raw evidence"):
+                finalize_e7.finalize(evidence, trace, provenance, root / "output.csv")
+
+    def test_finalize_accepts_rich_raw_and_emits_professor_schema(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            trace, provenance = write_trace(root)
+            evidence = root / "raw.csv"
+            write_evidence(evidence, valid_rich_evidence_rows(trace), finalize_e7.RAW_FIELDS)
+            output_path = root / "output.csv"
+            finalize_e7.finalize(evidence, trace, provenance, output_path)
+            with output_path.open(newline="", encoding="utf-8") as source:
+                output = list(csv.reader(source))
+            self.assertEqual(tuple(output[0]), finalize_e7.FINAL_FIELDS)
+            self.assertEqual(len(output), 4001)
+
+    def test_sets_proof_fields_required_and_validated(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            trace, _ = write_trace(root)
+            rows = valid_rich_evidence_rows(trace)
+            sets_row = next(row for row in rows if row["config"] == "sets_reimpl")
+            for field, value in (
+                ("sets_ecdsa_algorithm", "wrong"),
+                ("sets_signed_preimage_sha256", "A" * 64),
+                ("sets_public_key_sha256", "A" * 64),
+                ("sets_signature_sha256", "short"),
+                ("sets_signature_verified", "false"),
+                ("sets_controller_eligible", "false"),
+                ("sets_controller_balance_sufficient", "false"),
+            ):
+                original = sets_row[field]
+                sets_row[field] = value
+                with self.subTest(field=field), self.assertRaisesRegex(
+                    ValueError, "SETS ECDSA/controller evidence mismatch"
+                ):
+                    finalize_e7.validate_raw_rows(rows, trace)
+                sets_row[field] = original
 
     def test_unknown_and_misspelled_sets_config_rejected(self):
         for value in ("unknown", "sets-reimpl"):
@@ -152,6 +263,36 @@ class FinalizeE7Tests(unittest.TestCase):
             trace.write_text("\n".join(lines) + "\n")
             with self.assertRaisesRegex(ValueError, "SHA-256 mismatch"):
                 finalize_e7.validate_trace(trace, provenance)
+
+    def test_rich_raw_identity_mismatch_fails_closed(self):
+        trace = Path(__file__).resolve().parents[2] / "env/e7/trace/opsd_household_15min_e7.csv"
+        trace_sha, trace_rows = finalize_e7._trace_identity_rows(trace)
+        trace_idx = 100
+        source = trace_rows[trace_idx]
+        trade_id, direction, amount, payer, payee = finalize_e7._expected_trade(
+            trace_sha, source, trace_idx
+        )
+        row = {field: "" for field in finalize_e7.RAW_FIELDS}
+        row.update(
+            config="l1_only", run_id="1", phase="measured", phase_idx="0",
+            sample_idx="0", trace_row_idx=str(trace_idx),
+            trace_timestamp=source["timestamp"],
+            trace_row_sha256=hashlib.sha256(
+                (",".join(source[field] for field in prepare_trace.TRACE_FIELDS) + "\n").encode()
+            ).hexdigest(),
+            logical_trade_id=trade_id, direction=direction, amount_kwh=amount,
+            payer=payer, payee=payee, start_monotonic_ns="1",
+            end_monotonic_ns="1000001", latency_ms="1.000000000",
+            scientific="true", success="true", transaction_id="tx",
+            completion_status="VALID", committed="true", verified="true",
+        )
+        tampered = dict(row, logical_trade_id="0" * 64)
+        with self.assertRaisesRegex(ValueError, "logical trade identity mismatch"):
+            finalize_e7.validate_raw_rows([tampered], trace)
+        malformed = dict(row)
+        malformed["run_id"] = None
+        with self.assertRaisesRegex(ValueError, "malformed E7 raw evidence row"):
+            finalize_e7.validate_raw_rows([malformed], trace)
 
 
 if __name__ == "__main__":

@@ -135,7 +135,18 @@
       "interpolation_policy": "selected PV, grid-import, and grid-export feeds must be non-interpolated at both interval endpoints; selected window count is zero",
       "counter_reset_policy": "counters must be monotonic nondecreasing; any decrease resets the candidate window without absolute value, clamping, or tolerance",
       "prepared_trace_sha256": "7e472c032317a7e8f0af587782238cab48f22ddc50f74200cff65e9681f8bd1c",
-      "selection_rationale": "Among technically eligible residential3, residential4, and residential6 traces, residential3's earliest qualifying window contains the most net-surplus intervals while retaining net-deficit intervals (214 surplus, 886 deficit, 0 zero), providing stronger coverage of both prosumer settlement states; this is not a claim of statistical representativeness of all households."
+      "selection_rationale": "Among technically eligible residential3, residential4, and residential6 traces, residential3's earliest qualifying window contains the most net-surplus intervals while retaining net-deficit intervals (214 surplus, 886 deficit, 0 zero), providing stronger coverage of both prosumer settlement states; this is not a claim of statistical representativeness of all households.",
+      "execution_foundation": {
+        "status": "implemented; scientific latency measurement pending",
+        "run_id": 1,
+        "execution": "sequential, one settlement in flight, continuous state across 100 warm-up and 1000 measured rows",
+        "logical_balance": "E7-owned exact-rational state with trace-derived minimum initial prosumer balance 104.346 kWh-credit and counterparty balance 0",
+        "e2_limitation": "Frozen E2 has no explicit amount-bearing HTLC or mutable channel balance; E7 owns amount state and binds exact trade terms through the signed deterministic HTLC ID hash without changing E2.",
+        "layer_2_transport": "one persistent direct TCP connection per config/run; no Mininet and no artificial delay",
+        "timer_exclusions": "trace loading, run-level key generation, E2 setup/funding, TCP connection creation, Fabric network setup, and evidence-file opening",
+        "timer_inclusions": "per-sample logical validation/reservation, signing, serialization, receiver verification, ADD/SETTLE transport and acknowledgements, and logical finalization",
+        "sets_reimpl_crypto": "ECDSA P-256 with SHA-256 using the Go standard library; our limited SETS reimplementation, not the authors' original implementation"
+      }
     }
   },
   "e1_benchmark": {
