@@ -145,7 +145,23 @@
         "layer_2_transport": "one persistent direct TCP connection per config/run; no Mininet and no artificial delay",
         "timer_exclusions": "trace loading, run-level key generation, E2 setup/funding, TCP connection creation, Fabric network setup, and evidence-file opening",
         "timer_inclusions": "per-sample logical validation/reservation, signing, serialization, receiver verification, ADD/SETTLE transport and acknowledgements, and logical finalization",
-        "sets_reimpl_crypto": "ECDSA P-256 with SHA-256 using the Go standard library; our limited SETS reimplementation, not the authors' original implementation"
+        "sets_reimpl_crypto": "ECDSA P-256 with SHA-256 using the Go standard library; our limited SETS reimplementation, not the authors' original implementation",
+        "fabric_gateway_adapter": "E7-owned Fabric Gateway Go v1.7.1 adapter submits energychannel/simplekv.Set and waits for commit status; l1_only uses a fresh ml-dsa-65 E1 network and sets_reimpl uses a separate fresh ecdsa E1 network",
+        "fabric_lifecycle": "env/e7/fabric_network.sh delegates to the E1 Fabric 2.5.16 setup for a fresh ledger/channel/chaincode deployment per on-chain config without writing raw/e1",
+        "runner": "src/e7/cmd/e7bench; mode must be explicitly dry-run or scientific, run_id is 1, execution is sequential with no retry after first failure",
+        "scientific_controls": "AC online; boost disabled; amd-pstate-epp performance governor and EPP; scaling min=max=3200000 kHz; e7bench process affinity exactly 2,4,6,8,10,12,14; inspected and fail-closed, never changed automatically",
+        "fabric_cpu_isolation": {
+          "scope": "E7 on-chain runs only; frozen E1 configuration and results are unchanged",
+          "expected_cpu_set": "2,4,6,8,10,12,14",
+          "compose_override": "env/e7/docker-compose.fabric-cpu.yaml",
+          "compose_injection": "env/e7/docker-shim/docker",
+          "components": "orderer, peer0/peer1 for both organizations, and every simplekv chaincode container",
+          "verification": "post-start Docker inspection requires exact CPU-set equality before row 0; actual per-container values, simplekv package identity, and each live peer's exact chaincode-launch CPU policy are retained in the run manifest so later Fabric-launched simplekv containers inherit the same restriction"
+        },
+        "raw_evidence_layout": "external <evidence-root>/<config>/run_1/{manifest.json,samples.csv,run.log}; on-chain runs additionally retain transactions.csv and ledger_heights.csv; existing destinations are never overwritten",
+        "manifest_schema": "pqc-energy-trading.e7-run-manifest.v1",
+        "manifest_status": "foundation implemented; complete scientific manifests and raw evidence not yet collected",
+        "finalizer_policy": "production finalization requires all four complete scientific manifests, clean/consistent Git and trace provenance, passing controls, matching config semantics, and SHA-256/byte-validated rich samples; four-column input is not accepted"
       }
     }
   },

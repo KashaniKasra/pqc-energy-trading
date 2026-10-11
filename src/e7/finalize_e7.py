@@ -77,7 +77,7 @@ RAW_FIELDS = (
     "settle_serialized_bytes", "add_serialized_sha256",
     "settle_serialized_sha256", "authorization_verified", "receiver_verified",
     "committed", "verified", "validation_status", "validation_code",
-    "payload_sha256",
+    "fabric_block_number", "payload_sha256",
     "sets_ecdsa_algorithm", "sets_signed_preimage_sha256",
     "sets_public_key_sha256", "sets_signature_sha256",
     "sets_signature_verified", "sets_controller_eligible",
@@ -85,7 +85,207 @@ RAW_FIELDS = (
 )
 MINIMUM_MEASURED_SAMPLES = 1000
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+GIT_COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 SETS_ECDSA_ALGORITHM = "ECDSA-P256-SHA256"
+MANIFEST_SCHEMA = "pqc-energy-trading.e7-run-manifest.v1"
+TIMER_DEFINITION = "Go monotonic time immediately before executor.Settle through successful completion return"
+EXPECTED_AFFINITY = [2, 4, 6, 8, 10, 12, 14]
+EXPECTED_FABRIC_CPU_SET = "2,4,6,8,10,12,14"
+EXPECTED_TRACE_SHA256 = "7e472c032317a7e8f0af587782238cab48f22ddc50f74200cff65e9681f8bd1c"
+SIMPLEKV_PACKAGE_ID_PATTERN = re.compile(r"^simplekv_1:[0-9a-f]{64}$")
+REQUIRED_CODE_CONFIG_PATHS = (
+    "src/e7/cmd/e7bench/main.go", "src/e7/runner.go", "src/e7/manifest.go",
+    "src/e7/evidence.go", "src/e7/model.go", "src/e7/state.go", "src/e7/onchain.go",
+    "src/e7/l2.go", "src/e7/fabric.go", "src/e7/runio.go", "src/e7/lifecycle.go",
+    "src/e7/fabriccpu.go", "src/e7/versions.go", "src/e7/go.mod", "src/e7/go.sum", "src/e7/config.py",
+    "src/e7/finalize_e7.py", "env/e7/fabric_network.sh",
+    "env/e7/docker-compose.fabric-cpu.yaml", "env/e7/docker-shim/docker",
+    "env/fabric/e1/setup_fabric_e1.sh", "env/fabric/e1/docker-compose.yaml",
+    "env/e7/trace/opsd_household_15min_e7.csv", "env/e7/trace/provenance.json",
+)
+
+
+def _file_evidence(path: Path) -> dict[str, object]:
+    content = path.read_bytes()
+    return {"bytes": len(content), "sha256": hashlib.sha256(content).hexdigest()}
+
+
+def _expected_config_semantics(config: str) -> dict[str, object]:
+    common = {"channel": "energychannel", "chaincode": "simplekv", "function": "Set"}
+    if config == "l1_only":
+        return {"path": "fabric_l1", "fabric_identity_mode": "ml-dsa-65", **common,
+                "completion": "committed and VALID Fabric status"}
+    if config == "sets_reimpl":
+        return {"path": "fabric_l1", "fabric_identity_mode": "ecdsa",
+                "application_ecdsa": SETS_ECDSA_ALGORITHM,
+                "sets_provenance": "our reimplementation; not the original authors' code",
+                **common, "completion": "committed and VALID Fabric status"}
+    if config == "classical_l2":
+        return {"path": "direct_l2", "e2_configuration": "classical",
+                "crypto": "Ed25519 representative compact classical semantics; not MuSig2",
+                "transport": "persistent direct TCP; no Mininet or artificial delay"}
+    if config == "layer_aware_l2":
+        return {"path": "direct_l2", "e2_configuration": "layer_aware",
+                "crypto": "Falcon-padded-512 for HTLC add/settle",
+                "setup": "channel setup, funding, keys and TCP readiness before row 0",
+                "transport": "persistent direct TCP; no Mininet or artificial delay"}
+    raise ValueError("unknown E7 configuration")
+
+
+def validate_fabric_cpu_isolation(value: object) -> None:
+    if not isinstance(value, dict) or value.get("expected_fabric_cpu_set") != EXPECTED_FABRIC_CPU_SET:
+        raise ValueError("E7 Fabric CPU isolation provenance is missing")
+    components = value.get("components")
+    if not isinstance(components, list):
+        raise ValueError("E7 Fabric CPU component provenance is malformed")
+    required = {
+        "orderer": "orderer.example.com",
+        "peer0.org1": "peer0.org1.example.com",
+        "peer1.org1": "peer1.org1.example.com",
+        "peer0.org2": "peer0.org2.example.com",
+        "peer1.org2": "peer1.org2.example.com",
+    }
+    observed, containers, chaincodes = set(), set(), 0
+    for component in components:
+        if not isinstance(component, dict):
+            raise ValueError("E7 Fabric CPU component provenance is malformed")
+        role, container, cpuset = (
+            component.get("role"), component.get("container"), component.get("cpuset")
+        )
+        if not isinstance(container, str) or not container or container in containers or cpuset != EXPECTED_FABRIC_CPU_SET:
+            raise ValueError("E7 Fabric CPU component identity/cpuset is invalid")
+        containers.add(container)
+        if role == "simplekv_chaincode":
+            if (not SIMPLEKV_PACKAGE_ID_PATTERN.fullmatch(str(component.get("chaincode_id", "")))
+                    or component.get("chaincode_launch_cpuset") not in (None, "")):
+                raise ValueError("E7 simplekv chaincode CPU provenance is invalid")
+            chaincodes += 1
+        elif (role in required and role not in observed
+              and container == required[role] and not component.get("chaincode_id")):
+            launch_cpuset = component.get("chaincode_launch_cpuset")
+            if role == "orderer":
+                if launch_cpuset not in (None, ""):
+                    raise ValueError("E7 Fabric CPU orderer must not record chaincode launch provenance")
+            elif launch_cpuset != EXPECTED_FABRIC_CPU_SET:
+                raise ValueError("E7 Fabric CPU peer chaincode launch provenance is invalid")
+            observed.add(role)
+        else:
+            raise ValueError("E7 Fabric CPU component role is invalid")
+    if observed != set(required) or chaincodes < 1:
+        raise ValueError("E7 Fabric CPU isolation provenance is incomplete")
+
+
+def validate_manifest(manifest_path: Path, samples_path: Path, config: str,
+                      trace_path: Path, provenance_path: Path,
+                      project_root: Path) -> dict:
+    try:
+        manifest = json.loads(manifest_path.read_bytes())
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("E7 scientific manifest is missing or malformed") from error
+    required = {
+        "schema", "experiment", "config", "run_id", "git_commit",
+        "git_tracked_clean", "trace_path", "trace_sha256",
+        "trace_provenance_path", "trace_provenance_sha256", "warmup_rows",
+        "measured_rows", "timer_definition", "config_semantics",
+        "process_network_reset_method", "code_config_sha256", "runtime_versions",
+        "scientific_environment", "status", "prepared_at", "started_at",
+        "completed_at", "raw_files",
+    }
+    if not isinstance(manifest, dict) or not required.issubset(manifest):
+        raise ValueError("E7 scientific manifest is incomplete")
+    if (manifest["schema"] != MANIFEST_SCHEMA or manifest["experiment"] != "E7"
+            or manifest["config"] != config or manifest["run_id"] != "1"
+            or manifest["status"] != "complete"):
+        raise ValueError("E7 manifest identity/status mismatch")
+    if not GIT_COMMIT_PATTERN.fullmatch(str(manifest["git_commit"])) or manifest["git_tracked_clean"] is not True:
+        raise ValueError("E7 manifest Git provenance is invalid")
+    if (manifest["trace_sha256"] != EXPECTED_TRACE_SHA256
+            or manifest["trace_sha256"] != sha256(trace_path.read_bytes())
+            or manifest["trace_provenance_sha256"] != sha256(provenance_path.read_bytes())):
+        raise ValueError("E7 manifest trace provenance mismatch")
+    if (manifest["warmup_rows"] != 100 or manifest["measured_rows"] != 1000
+            or manifest["timer_definition"] != TIMER_DEFINITION):
+        raise ValueError("E7 manifest population/timer mismatch")
+    if manifest["config_semantics"] != _expected_config_semantics(config):
+        raise ValueError("E7 manifest configuration semantics mismatch")
+    if config in {"l1_only", "sets_reimpl"}:
+        validate_fabric_cpu_isolation(manifest.get("fabric_cpu_isolation"))
+    elif manifest.get("fabric_cpu_isolation") is not None:
+        raise ValueError("E7 L2 manifest must not contain Fabric CPU isolation provenance")
+    code_hashes = manifest["code_config_sha256"]
+    if (not manifest["process_network_reset_method"]
+            or not isinstance(code_hashes, dict)
+            or set(code_hashes) != set(REQUIRED_CODE_CONFIG_PATHS)
+            or any(not SHA256_PATTERN.fullmatch(str(value)) for value in code_hashes.values())
+            or not isinstance(manifest["runtime_versions"], dict)):
+        raise ValueError("E7 manifest code/runtime/reset provenance missing")
+    resolved_root = project_root.resolve()
+    for relative in REQUIRED_CODE_CONFIG_PATHS:
+        candidate = (resolved_root / relative).resolve()
+        if not candidate.is_relative_to(resolved_root):
+            raise ValueError("E7 code/config provenance path traversal")
+        try:
+            observed = sha256(candidate.read_bytes())
+        except OSError as error:
+            raise ValueError("E7 code/config provenance file is missing") from error
+        if observed != code_hashes[relative]:
+            raise ValueError("E7 code/config SHA-256 mismatch")
+    versions = manifest["runtime_versions"]
+    if not versions.get("go") or not versions.get("python") or versions.get("fabric_gateway_go") != "1.7.1":
+        raise ValueError("E7 manifest runtime versions are invalid")
+    if config in {"l1_only", "sets_reimpl"} and "2.5.16" not in versions.get("fabric", ""):
+        raise ValueError("E7 Fabric version provenance is invalid")
+    if config.endswith("_l2") and (versions.get("liboqs") != "0.15.0" or versions.get("liboqs_go") not in {"0.15.0", "v0.15.0"}):
+        raise ValueError("E7 liboqs version provenance is invalid")
+    environment = manifest["scientific_environment"]
+    if not isinstance(environment, dict):
+        raise ValueError("E7 scientific controls missing")
+    boost, ac = environment.get("boost_enabled"), environment.get("ac_online")
+    if (environment.get("passed") is not True or environment.get("process_affinity") != EXPECTED_AFFINITY
+            or set(environment.get("scaling_driver", [])) != {"amd-pstate-epp"}
+            or set(environment.get("governor", [])) != {"performance"}
+            or set(environment.get("energy_performance_preference", [])) != {"performance"}
+            or not environment.get("scaling_min_freq_khz")
+            or set(environment["scaling_min_freq_khz"]) != {3200000}
+            or set(environment.get("scaling_max_freq_khz", [])) != {3200000}
+            or boost is not False or ac is not True):
+        raise ValueError("E7 scientific controls did not pass")
+    required_raw = {"samples.csv", "run.log"}
+    if config in {"l1_only", "sets_reimpl"}:
+        required_raw |= {"transactions.csv", "ledger_heights.csv"}
+    raw_files = manifest["raw_files"]
+    if not isinstance(raw_files, dict) or not required_raw.issubset(raw_files):
+        raise ValueError("E7 required raw evidence hashes are missing")
+    for filename, recorded in raw_files.items():
+        if Path(filename).name != filename or recorded != _file_evidence(manifest_path.parent / filename):
+            raise ValueError("E7 raw evidence hash/size mismatch")
+    return manifest
+
+
+def load_scientific_runs(evidence_root: Path, trace_path: Path,
+                         provenance_path: Path,
+                         project_root: Path) -> tuple[list[dict[str, str]], list[dict]]:
+    if not evidence_root.is_dir():
+        raise ValueError("production E7 finalization requires an evidence root with manifests")
+    all_rows, manifests = [], []
+    for config in CONFIG_NAMES:
+        run = evidence_root / config / "run_1"
+        samples, manifest_path = run / "samples.csv", run / "manifest.json"
+        manifest = validate_manifest(
+            manifest_path, samples, config, trace_path, provenance_path, project_root
+        )
+        rows = load_raw_evidence(samples)
+        if any(row.get("config") != config or row.get("run_id") != "1" for row in rows):
+            raise ValueError("E7 run evidence config/run_id mismatch")
+        all_rows.extend(rows)
+        manifests.append(manifest)
+    commits = {manifest["git_commit"] for manifest in manifests}
+    if len(commits) != 1:
+        raise ValueError("E7 manifests have mixed Git commits")
+    code_maps = [manifest["code_config_sha256"] for manifest in manifests]
+    if any(code_map != code_maps[0] for code_map in code_maps[1:]):
+        raise ValueError("E7 manifests have inconsistent code/config hashes")
+    return all_rows, manifests
 
 
 def validate_trace(trace_path: Path, provenance_path: Path) -> int:
@@ -347,7 +547,10 @@ def validate_raw_rows(rows: list[dict[str, str]], trace_path: Path) -> list[dict
             if row["htlc_id"] != "e7-v1:" + trade_id or row["authorization_verified"] != "true" or row["receiver_verified"] != "true":
                 raise ValueError("E7 L2 verification evidence mismatch")
         else:
-            if row["committed"] != "true" or row["verified"] != "true" or not row["transaction_id"]:
+            if (row["committed"] != "true" or row["verified"] != "true"
+                    or not row["transaction_id"] or row["validation_status"] != "VALID"
+                    or row["validation_code"] != "0"
+                    or not SHA256_PATTERN.fullmatch(row["payload_sha256"])):
                 raise ValueError("E7 Fabric commit evidence mismatch")
         if config == "sets_reimpl":
             common = _expected_logical_settlement(
@@ -456,16 +659,17 @@ def render_final(rows: list[dict[str, object]]) -> bytes:
 
 
 def finalize(
-    evidence_path: Path,
+    evidence_root: Path,
     trace_path: Path,
     provenance_path: Path,
     output_path: Path,
+    project_root: Path,
 ) -> None:
     validate_trace(trace_path, provenance_path)
-    fields = evidence_fields(evidence_path)
-    if fields != RAW_FIELDS:
-        raise ValueError("production E7 finalization requires rich raw evidence schema")
-    normalized = validate_raw_rows(load_raw_evidence(evidence_path), trace_path)
+    rows, _ = load_scientific_runs(
+        evidence_root, trace_path, provenance_path, project_root
+    )
+    normalized = validate_raw_rows(rows, trace_path)
     content = render_final(normalized)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary_name = tempfile.mkstemp(
@@ -484,16 +688,18 @@ def finalize(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--evidence", type=Path, required=True)
+    parser.add_argument("--evidence-root", type=Path, required=True)
     parser.add_argument("--trace", type=Path, required=True)
     parser.add_argument("--trace-provenance", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--project-root", type=Path, required=True)
     arguments = parser.parse_args()
     finalize(
-        arguments.evidence,
+        arguments.evidence_root,
         arguments.trace,
         arguments.trace_provenance,
         arguments.output,
+        arguments.project_root,
     )
 
 

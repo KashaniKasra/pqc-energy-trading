@@ -54,6 +54,7 @@ type CompletionEvidence struct {
 	ValidationStatus                string
 	ValidationCode                  int
 	PayloadSHA256                   string
+	FabricBlockNumber               uint64
 	SETSECDSAAlgorithm              string
 	SETSSignedPreimageSHA256        string
 	SETSPublicKeySHA256             string

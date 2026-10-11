@@ -20,6 +20,7 @@ type FabricCompletion struct {
 	Verified         bool
 	ValidationStatus string
 	ValidationCode   int
+	BlockNumber      uint64
 }
 
 // FabricSubmitter is the narrow integration seam for Fabric Gateway submit and
@@ -110,9 +111,10 @@ func (executor *OnChainExecutor) Settle(ctx context.Context, sample TradeSample)
 		_ = executor.state.Cancel(sample.LogicalTradeID)
 		return evidence, err
 	}
-	if !completion.Committed || !completion.Verified || completion.ValidationStatus == "" {
+	if !completion.Committed || !completion.Verified || completion.ValidationStatus != "VALID" ||
+		completion.ValidationCode != 0 || completion.TransactionID == "" {
 		_ = executor.state.Cancel(sample.LogicalTradeID)
-		return evidence, errors.New("Fabric settlement was not committed and validated")
+		return evidence, errors.New("Fabric settlement did not return exact committed VALID status")
 	}
 	if err := executor.state.Finalize(sample.LogicalTradeID); err != nil {
 		return CompletionEvidence{}, err
@@ -121,6 +123,7 @@ func (executor *OnChainExecutor) Settle(ctx context.Context, sample TradeSample)
 	evidence.CompletionStatus = completion.ValidationStatus
 	evidence.Committed, evidence.Verified = true, true
 	evidence.ValidationStatus, evidence.ValidationCode = completion.ValidationStatus, completion.ValidationCode
+	evidence.FabricBlockNumber = completion.BlockNumber
 	evidence.PayloadSHA256 = hex.EncodeToString(payloadDigest[:])
 	return evidence, nil
 }

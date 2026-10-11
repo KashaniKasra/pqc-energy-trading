@@ -1,8 +1,11 @@
 package e7
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -52,6 +55,17 @@ func TestRunnerStopsAndRetainsFirstFailure(t *testing.T) {
 	failed := records[2]
 	if failed.Success || failed.Error != "injected settlement failure" {
 		t.Fatalf("failure row=%+v", failed)
+	}
+	runDirectory := t.TempDir()
+	if _, err := PersistSamples(runDirectory, records); err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(filepath.Join(runDirectory, "samples.csv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(content, []byte("injected settlement failure")) {
+		t.Fatal("failure row was not persisted")
 	}
 }
 func (e *recordingExecutor) Close() error { return nil }

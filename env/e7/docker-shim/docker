@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+: "${E7_REAL_DOCKER:?E7_REAL_DOCKER is required}"
+: "${E7_DOCKER_COMPOSE_OVERRIDE:?E7_DOCKER_COMPOSE_OVERRIDE is required}"
+
+if [[ "${1:-}" == "compose" && "${2:-}" == "-f" && -n "${3:-}" ]]; then
+  exec "$E7_REAL_DOCKER" compose \
+    -f "$3" \
+    -f "$E7_DOCKER_COMPOSE_OVERRIDE" \
+    "${@:4}"
+fi
+
+exec "$E7_REAL_DOCKER" "$@"

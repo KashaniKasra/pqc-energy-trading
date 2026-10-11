@@ -15,6 +15,41 @@ import (
 
 const E7ChannelID = "c1"
 
+// NewLoopbackTCPPair establishes both ends of the persistent direct TCP path
+// before PrepareRun and therefore before any per-sample timer starts.
+func NewLoopbackTCPPair(ctx context.Context) (net.Conn, net.Conn, error) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return nil, nil, err
+	}
+	defer listener.Close()
+	type accepted struct {
+		connection net.Conn
+		err        error
+	}
+	result := make(chan accepted, 1)
+	go func() {
+		connection, acceptErr := listener.Accept()
+		result <- accepted{connection: connection, err: acceptErr}
+	}()
+	dialer := net.Dialer{}
+	clientConnection, err := dialer.DialContext(ctx, "tcp", listener.Addr().String())
+	if err != nil {
+		return nil, nil, err
+	}
+	select {
+	case server := <-result:
+		if server.err != nil {
+			clientConnection.Close()
+			return nil, nil, server.err
+		}
+		return clientConnection, server.connection, nil
+	case <-ctx.Done():
+		clientConnection.Close()
+		return nil, nil, ctx.Err()
+	}
+}
+
 type receiverRequest struct {
 	sample TradeSample
 	done   chan error

@@ -18,6 +18,7 @@ type fakeFabric struct {
 	payloads          [][]byte
 	fail              bool
 	invalidCompletion bool
+	completion        *FabricCompletion
 }
 
 func (f *fakeFabric) PrepareRun(context.Context, Configuration) error { f.prepared = true; return nil }
@@ -29,6 +30,9 @@ func (f *fakeFabric) SubmitAndAwaitCommit(_ context.Context, key string, value [
 	f.payloads = append(f.payloads, append([]byte(nil), value...))
 	if f.invalidCompletion {
 		return FabricCompletion{TransactionID: "tx", Committed: false, Verified: false, ValidationStatus: "INVALID"}, nil
+	}
+	if f.completion != nil {
+		return *f.completion, nil
 	}
 	return FabricCompletion{TransactionID: "tx", Committed: true, Verified: true, ValidationStatus: "VALID"}, nil
 }
@@ -125,6 +129,29 @@ func TestOnChainFailureRollsBackLogicalReservation(t *testing.T) {
 			before := state.Snapshot()
 			if _, err := executor.Settle(context.Background(), sampleForNet(t, "-0.25")); err == nil {
 				t.Fatal("failed Fabric settlement returned success")
+			}
+			assertLogicalStateRestored(t, before, state.Snapshot())
+		})
+	}
+}
+
+func TestOnChainRejectsInexactFabricCompletion(t *testing.T) {
+	valid := FabricCompletion{TransactionID: "tx", Committed: true, Verified: true, ValidationStatus: "VALID", ValidationCode: 0}
+	tests := map[string]FabricCompletion{
+		"nonzero validation code": func() FabricCompletion { value := valid; value.ValidationCode = 10; return value }(),
+		"non-VALID status":        func() FabricCompletion { value := valid; value.ValidationStatus = "MVCC_READ_CONFLICT"; return value }(),
+		"empty transaction ID":    func() FabricCompletion { value := valid; value.TransactionID = ""; return value }(),
+	}
+	for name, completion := range tests {
+		t.Run(name, func(t *testing.T) {
+			state, _ := NewLogicalState("1", "1")
+			executor, _ := NewOnChainExecutor(ConfigurationL1Only, state, &fakeFabric{completion: &completion})
+			if err := executor.PrepareRun(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			before := state.Snapshot()
+			if _, err := executor.Settle(context.Background(), sampleForNet(t, "-0.25")); err == nil {
+				t.Fatal("invalid Fabric completion returned success")
 			}
 			assertLogicalStateRestored(t, before, state.Snapshot())
 		})

@@ -20,7 +20,7 @@ var RawEvidenceFields = []string{
 	"htlc_id", "add_algorithm", "settle_algorithm", "add_serialized_bytes",
 	"settle_serialized_bytes", "add_serialized_sha256", "settle_serialized_sha256",
 	"authorization_verified", "receiver_verified", "committed", "verified",
-	"validation_status", "validation_code", "payload_sha256",
+	"validation_status", "validation_code", "fabric_block_number", "payload_sha256",
 	"sets_ecdsa_algorithm", "sets_signed_preimage_sha256", "sets_public_key_sha256",
 	"sets_signature_sha256", "sets_signature_verified", "sets_controller_eligible",
 	"sets_controller_balance_sufficient",
@@ -125,26 +125,9 @@ func rawSampleFields(r RawSample) []string {
 		strconv.FormatBool(r.Scientific), strconv.FormatBool(r.Success), r.Error, r.RequestID, r.TransactionID, r.CompletionStatus,
 		r.ChannelID, r.HTLCID, r.AddAlgorithm, r.SettleAlgorithm, strconv.Itoa(r.AddSerializedBytes), strconv.Itoa(r.SettleSerializedBytes),
 		r.AddSerializedSHA256, r.SettleSerializedSHA256, strconv.FormatBool(r.AuthorizationVerified), strconv.FormatBool(r.ReceiverVerified),
-		strconv.FormatBool(r.Committed), strconv.FormatBool(r.Verified), r.ValidationStatus, strconv.Itoa(r.ValidationCode), r.PayloadSHA256,
+		strconv.FormatBool(r.Committed), strconv.FormatBool(r.Verified), r.ValidationStatus, strconv.Itoa(r.ValidationCode), strconv.FormatUint(r.FabricBlockNumber, 10), r.PayloadSHA256,
 		r.SETSECDSAAlgorithm, r.SETSSignedPreimageSHA256, r.SETSPublicKeySHA256,
 		r.SETSSignatureSHA256, strconv.FormatBool(r.SETSSignatureVerified),
 		strconv.FormatBool(r.SETSControllerEligible), strconv.FormatBool(r.SETSControllerBalanceSufficient),
 	}
-}
-
-type RunManifest struct {
-	Schema                string            `json:"schema"`
-	Config                Configuration     `json:"config"`
-	RunID                 string            `json:"run_id"`
-	TraceSHA256           string            `json:"trace_sha256"`
-	TraceProvenanceSHA256 string            `json:"trace_provenance_sha256"`
-	GitCommit             string            `json:"git_commit"`
-	GitDirty              bool              `json:"git_dirty"`
-	WarmupRows            int               `json:"warmup_rows"`
-	MeasuredRows          int               `json:"measured_rows"`
-	TimerDefinition       string            `json:"timer_definition"`
-	ProcessResetMethod    string            `json:"process_reset_method"`
-	CodeHashes            map[string]string `json:"code_hashes"`
-	RuntimeVersions       map[string]string `json:"runtime_versions"`
-	ScientificEnvironment map[string]any    `json:"scientific_environment"`
 }
