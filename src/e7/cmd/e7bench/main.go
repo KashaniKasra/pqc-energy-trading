@@ -91,7 +91,6 @@ func run() error {
 		resetMethod = e7.L2ResetMethod
 		runtimeVersions = map[string]string{
 			"go": runtime.Version(), "python": commandVersion("python3", "--version"),
-			"fabric":            commandVersion(filepath.Join(*projectRoot, "env/fabric/bin/peer"), "version"),
 			"fabric_gateway_go": e7.FabricGatewayVersion,
 		}
 		if runtimeVersions["python"] == "unavailable" {
@@ -107,9 +106,11 @@ func run() error {
 			}
 		} else {
 			resetMethod = e7.FabricResetMethod
-			if !strings.Contains(runtimeVersions["fabric"], e7.FabricVersion) {
-				return errors.New("scientific E7 requires Fabric 2.5.16 version provenance")
+			_, fabricVersion, versionErr := e7.CollectSystemFabricPeerVersion()
+			if versionErr != nil {
+				return fmt.Errorf("scientific E7 requires Fabric %s version provenance: %w", e7.FabricVersion, versionErr)
 			}
+			runtimeVersions["fabric"] = fabricVersion
 			runtimeVersions["liboqs"] = "not applicable to on-chain E7 config"
 			runtimeVersions["liboqs_go"] = "not applicable to on-chain E7 config"
 			gatewayConfig, configErr := e7.DefaultFabricGatewayConfig(*projectRoot, config)

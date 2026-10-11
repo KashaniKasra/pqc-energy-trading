@@ -3,7 +3,10 @@ package e7
 import (
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -11,6 +14,8 @@ const (
 	ExpectedLiboqsVersion   = "0.15.0"
 	ExpectedLiboqsGoVersion = "v0.15.0"
 )
+
+var fabricVersionPattern = regexp.MustCompile(`^v?([0-9]+\.[0-9]+\.[0-9]+)$`)
 
 type VersionCommand func(directory, name string, arguments ...string) (string, error)
 
@@ -52,4 +57,93 @@ func CollectL2CryptoVersions(moduleDirectory string, run VersionCommand) (map[st
 
 func CollectSystemL2CryptoVersions(moduleDirectory string) (map[string]string, error) {
 	return CollectL2CryptoVersions(moduleDirectory, systemVersionCommand)
+}
+
+type FabricVersionCommand func(peerBinary string, arguments ...string) (string, error)
+
+func ResolveFabricPeerBinary(fabricSamples, home string) (string, error) {
+	base := fabricSamples
+	if base == "" {
+		if home == "" {
+			return "", errors.New("HOME is required when FABRIC_SAMPLES is unset")
+		}
+		base = filepath.Join(home, "projects", "fabric-samples")
+	}
+	peerBinary := filepath.Join(base, "bin", "peer")
+	info, err := os.Stat(peerBinary)
+	if err != nil {
+		return "", fmt.Errorf("resolve Fabric peer binary %s: %w", peerBinary, err)
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("Fabric peer binary is not a regular file: %s", peerBinary)
+	}
+	if info.Mode().Perm()&0o111 == 0 {
+		return "", fmt.Errorf("Fabric peer binary is not executable: %s", peerBinary)
+	}
+	return peerBinary, nil
+}
+
+func ParseFabricPeerVersion(output string) (string, error) {
+	if strings.TrimSpace(output) == "" {
+		return "", errors.New("Fabric peer returned empty version output")
+	}
+	version := ""
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "Version:") {
+			continue
+		}
+		parts := strings.SplitN(line, ":", 2)
+		candidate := strings.TrimSpace(parts[1])
+		match := fabricVersionPattern.FindStringSubmatch(candidate)
+		if version != "" || match == nil {
+			return "", errors.New("malformed Fabric peer version output")
+		}
+		version = match[1]
+	}
+	if version == "" {
+		return "", errors.New("Fabric peer version line is missing")
+	}
+	return version, nil
+}
+
+func ValidateFabricPeerVersion(version string) error {
+	if version != FabricVersion {
+		return fmt.Errorf("unexpected Fabric version %q, want %s", version, FabricVersion)
+	}
+	return nil
+}
+
+func CollectFabricPeerVersion(fabricSamples, home string, run FabricVersionCommand) (string, string, error) {
+	if run == nil {
+		return "", "", errors.New("Fabric version command runner is required")
+	}
+	peerBinary, err := ResolveFabricPeerBinary(fabricSamples, home)
+	if err != nil {
+		return "", "", err
+	}
+	output, err := run(peerBinary, "version")
+	if err != nil {
+		return "", "", fmt.Errorf("query Fabric peer version: %w", err)
+	}
+	version, err := ParseFabricPeerVersion(output)
+	if err != nil {
+		return "", "", err
+	}
+	if err := ValidateFabricPeerVersion(version); err != nil {
+		return "", "", err
+	}
+	return peerBinary, version, nil
+}
+
+func systemFabricVersionCommand(peerBinary string, arguments ...string) (string, error) {
+	output, err := exec.Command(peerBinary, arguments...).CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", peerBinary, err)
+	}
+	return string(output), nil
+}
+
+func CollectSystemFabricPeerVersion() (string, string, error) {
+	return CollectFabricPeerVersion(os.Getenv("FABRIC_SAMPLES"), os.Getenv("HOME"), systemFabricVersionCommand)
 }
