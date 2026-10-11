@@ -11,7 +11,8 @@ This repository is an empirical testbed for measuring cryptographic, blockchain,
 - E5 watchtower scalability: complete.
 - E6 key-aggregation ablation: complete.
 - E9 network sensitivity: complete.
-- E7 and E8: not yet completed.
+- E7 latency measurement: pending; canonical workload trace frozen.
+- E8: not yet completed.
 
 Final completed-experiment CSVs:
 
@@ -174,6 +175,12 @@ The registered scan is a deterministic worst-case search for the final state. It
 E6 is a deterministic transaction-size ablation, not a timing or cryptographic-runtime benchmark. It compares the final E2 `funding` rows: the classical representative aggregated 2-of-2 size case has `k_sig=1`, `k_pk=1`, and 222 transaction bytes; the non-aggregated ML-DSA-65 bilateral case has `k_sig=2`, `k_pk=2`, and 10,648 transaction bytes. Here `k_sig` and `k_pk` count signature and public-key payloads carried by the canonical transaction.
 
 Both sizes are derived from the hash-verified final `data/e2_statemachine.csv`, not from a second serializer. With E2's 126-byte `T0`, the corresponding accounting is `126 + 64 + 32 = 222` for classical and `126 + 2*3309 + 2*1952 = 10648` for ML-DSA-65. The classical row uses one Ed25519 signature/public key only as the representative compact aggregated-size case; no MuSig2 execution occurred, and Ed25519 is not claimed to implement MuSig2.
+
+## E7 end-to-end prosumer workload
+
+E7 latency measurement is not yet complete. Its workload input is frozen at `env/e7/trace/opsd_household_15min_e7.csv`, with provenance in `env/e7/trace/provenance.json`. The trace uses OPSD Household Data version 2020-04-15 household `residential3`: 1,101 qualifying cumulative meter rows are first-differenced into 1,100 15-minute settlement intervals, comprising 100 warm-up and 1,000 measured samples. The 15-minute interval is logical trace time; benchmark replay does not wait 15 wall-clock minutes between samples.
+
+`residential3` was selected from the technically eligible residential3, residential4, and residential6 candidates because its earliest qualifying window contains the strongest mix of net-surplus and net-deficit settlement states (214 surplus and 886 deficit intervals). This selection exercises both prosumer states and is not a claim that the household is statistically representative.
 
 ## E9 network sensitivity
 

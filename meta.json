@@ -97,9 +97,46 @@
     "power_instrument": null
   },
   "dataset": {
-    "status": "pending_for_e7",
-    "name": null,
-    "license": null
+    "status": "e7_trace_frozen_latency_measurement_pending",
+    "name": "Open Power System Data - Household Data",
+    "version": "2020-04-15",
+    "primary_source": "CoSSMic",
+    "license": "Creative Commons Attribution-International",
+    "upstream": {
+      "filename": "household_data_15min_singleindex.csv",
+      "sha256": "eca7dee5ac6e53373cd0209bc05ba3383cd860bfa5d5e995f74fa78db8857c58",
+      "repository_retention": "not committed; canonical prepared trace and provenance are retained"
+    },
+    "e7_trace": {
+      "status": "frozen",
+      "path": "env/e7/trace/opsd_household_15min_e7.csv",
+      "provenance_path": "env/e7/trace/provenance.json",
+      "selected_household": "residential3",
+      "selected_source_columns": {
+        "timestamp": "utc_timestamp",
+        "photovoltaic_generation": "DE_KN_residential3_pv",
+        "grid_import": "DE_KN_residential3_grid_import",
+        "grid_export": "DE_KN_residential3_grid_export",
+        "interpolation_marker": "interpolated"
+      },
+      "source_cumulative_time_range": {
+        "start": "2016-02-28T17:15:00+00:00",
+        "end": "2016-03-11T04:15:00+00:00"
+      },
+      "prepared_interval_time_range": {
+        "start": "2016-02-28T17:30:00+00:00",
+        "end": "2016-03-11T04:15:00+00:00"
+      },
+      "source_rows": 1101,
+      "prepared_rows": 1100,
+      "warmup_rows": 100,
+      "measured_rows": 1000,
+      "transformation": "first differences of consecutive 15-minute cumulative energy meter readings; prepared timestamp is the later/end timestamp",
+      "interpolation_policy": "selected PV, grid-import, and grid-export feeds must be non-interpolated at both interval endpoints; selected window count is zero",
+      "counter_reset_policy": "counters must be monotonic nondecreasing; any decrease resets the candidate window without absolute value, clamping, or tolerance",
+      "prepared_trace_sha256": "7e472c032317a7e8f0af587782238cab48f22ddc50f74200cff65e9681f8bd1c",
+      "selection_rationale": "Among technically eligible residential3, residential4, and residential6 traces, residential3's earliest qualifying window contains the most net-surplus intervals while retaining net-deficit intervals (214 surplus, 886 deficit, 0 zero), providing stronger coverage of both prosumer settlement states; this is not a claim of statistical representativeness of all households."
+    }
   },
   "e1_benchmark": {
     "status": "complete",

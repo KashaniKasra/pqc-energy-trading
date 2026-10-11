@@ -1,0 +1,41 @@
+{
+  "dataset": {
+    "licence": "Creative Commons Attribution-International",
+    "name": "Open Power System Data \u2014 Household Data",
+    "primary_source": "CoSSMic",
+    "resolution": "15 minutes",
+    "source_filename": "household_data_15min_singleindex.csv",
+    "version": "2020-04-15"
+  },
+  "interpolation": {
+    "column": "interpolated",
+    "policy": "selected E7 source feeds must be non-interpolated",
+    "selected_feed_interpolated_row_count": 0
+  },
+  "prepared_trace_sha256": "7e472c032317a7e8f0af587782238cab48f22ddc50f74200cff65e9681f8bd1c",
+  "schema": "pqc-energy-trading.e7-trace-provenance.v1",
+  "selected_source_columns": {
+    "grid_export": "DE_KN_residential3_grid_export",
+    "grid_import": "DE_KN_residential3_grid_import",
+    "photovoltaic_generation": "DE_KN_residential3_pv",
+    "timestamp": "utc_timestamp"
+  },
+  "selection": {
+    "measured_rows": 1000,
+    "policy": "earliest contiguous valid non-interpolated-selected-feed cumulative window yielding consecutive 15-minute intervals in source order",
+    "prepared_interval_rows": 1100,
+    "prepared_interval_timestamp_end": "2016-03-11T04:15:00+00:00",
+    "prepared_interval_timestamp_start": "2016-02-28T17:30:00+00:00",
+    "source_rows_required": 1101,
+    "source_timestamp_end": "2016-03-11T04:15:00+00:00",
+    "source_timestamp_start": "2016-02-28T17:15:00+00:00",
+    "warmup_rows": 100
+  },
+  "transformation": {
+    "interval_timestamp_convention": "later/end timestamp of the two cumulative readings",
+    "method": "first difference of consecutive 15-minute cumulative readings",
+    "monotonic_counter_reset_policy": "counters must be monotonic nondecreasing; any decrease resets the candidate window without absolute value, clamping, or tolerance",
+    "upstream_data_representation": "cumulative energy meter readings"
+  },
+  "upstream_sha256": "eca7dee5ac6e53373cd0209bc05ba3383cd860bfa5d5e995f74fa78db8857c58"
+}
