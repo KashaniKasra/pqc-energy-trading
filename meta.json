@@ -97,7 +97,7 @@
     "power_instrument": null
   },
   "dataset": {
-    "status": "e7_trace_frozen_latency_measurement_pending",
+    "status": "complete",
     "name": "Open Power System Data - Household Data",
     "version": "2020-04-15",
     "primary_source": "CoSSMic",
@@ -135,34 +135,7 @@
       "interpolation_policy": "selected PV, grid-import, and grid-export feeds must be non-interpolated at both interval endpoints; selected window count is zero",
       "counter_reset_policy": "counters must be monotonic nondecreasing; any decrease resets the candidate window without absolute value, clamping, or tolerance",
       "prepared_trace_sha256": "7e472c032317a7e8f0af587782238cab48f22ddc50f74200cff65e9681f8bd1c",
-      "selection_rationale": "Among technically eligible residential3, residential4, and residential6 traces, residential3's earliest qualifying window contains the most net-surplus intervals while retaining net-deficit intervals (214 surplus, 886 deficit, 0 zero), providing stronger coverage of both prosumer settlement states; this is not a claim of statistical representativeness of all households.",
-      "execution_foundation": {
-        "status": "implemented; scientific latency measurement pending",
-        "run_id": 1,
-        "execution": "sequential, one settlement in flight, continuous state across 100 warm-up and 1000 measured rows",
-        "logical_balance": "E7-owned exact-rational state with trace-derived minimum initial prosumer balance 104.346 kWh-credit and counterparty balance 0",
-        "e2_limitation": "Frozen E2 has no explicit amount-bearing HTLC or mutable channel balance; E7 owns amount state and binds exact trade terms through the signed deterministic HTLC ID hash without changing E2.",
-        "layer_2_transport": "one persistent direct TCP connection per config/run; no Mininet and no artificial delay",
-        "timer_exclusions": "trace loading, run-level key generation, E2 setup/funding, TCP connection creation, Fabric network setup, and evidence-file opening",
-        "timer_inclusions": "per-sample logical validation/reservation, signing, serialization, receiver verification, ADD/SETTLE transport and acknowledgements, and logical finalization",
-        "sets_reimpl_crypto": "ECDSA P-256 with SHA-256 using the Go standard library; our limited SETS reimplementation, not the authors' original implementation",
-        "fabric_gateway_adapter": "E7-owned Fabric Gateway Go v1.7.1 adapter submits energychannel/simplekv.Set and waits for commit status; l1_only uses a fresh ml-dsa-65 E1 network and sets_reimpl uses a separate fresh ecdsa E1 network",
-        "fabric_lifecycle": "env/e7/fabric_network.sh delegates to the E1 Fabric 2.5.16 setup for a fresh ledger/channel/chaincode deployment per on-chain config without writing raw/e1",
-        "runner": "src/e7/cmd/e7bench; mode must be explicitly dry-run or scientific, run_id is 1, execution is sequential with no retry after first failure",
-        "scientific_controls": "AC online; boost disabled; amd-pstate-epp performance governor and EPP; scaling min=max=3200000 kHz; e7bench process affinity exactly 2,4,6,8,10,12,14; inspected and fail-closed, never changed automatically",
-        "fabric_cpu_isolation": {
-          "scope": "E7 on-chain runs only; frozen E1 configuration and results are unchanged",
-          "expected_cpu_set": "2,4,6,8,10,12,14",
-          "compose_override": "env/e7/docker-compose.fabric-cpu.yaml",
-          "compose_injection": "env/e7/docker-shim/docker",
-          "components": "orderer, peer0/peer1 for both organizations, and every simplekv chaincode container",
-          "verification": "post-start Docker inspection requires exact CPU-set equality before row 0; actual per-container values, simplekv package identity, and each live peer's exact chaincode-launch CPU policy are retained in the run manifest so later Fabric-launched simplekv containers inherit the same restriction"
-        },
-        "raw_evidence_layout": "external <evidence-root>/<config>/run_1/{manifest.json,samples.csv,run.log}; on-chain runs additionally retain transactions.csv and ledger_heights.csv; existing destinations are never overwritten",
-        "manifest_schema": "pqc-energy-trading.e7-run-manifest.v1",
-        "manifest_status": "foundation implemented; complete scientific manifests and raw evidence not yet collected",
-        "finalizer_policy": "production finalization requires all four complete scientific manifests, clean/consistent Git and trace provenance, passing controls, matching config semantics, and SHA-256/byte-validated rich samples; four-column input is not accepted"
-      }
+      "selection_rationale": "Among technically eligible residential3, residential4, and residential6 traces, residential3's earliest qualifying window contains the most net-surplus intervals while retaining net-deficit intervals (214 surplus, 886 deficit, 0 zero), providing stronger coverage of both prosumer settlement states; this is not a claim of statistical representativeness of all households."
     }
   },
   "e1_benchmark": {
@@ -1131,6 +1104,137 @@
       "musig2_execution": false,
       "classical_caveat": "Ed25519 represents the compact aggregated-size case only and is not claimed to perform MuSig2"
     }
+  },
+  "e7_benchmark": {
+    "status": "complete",
+    "settlement_measurement_commit": "0a6d20cf06d8e452b0d9bbd85922baff058cdca0",
+    "funding_measurement_commit": "839f056966a6360466ba655f64a7e07b6a02fafc",
+    "final_results_commit": "6f69861ceb6d418a9f1e59a3a9fbeb58f6757576",
+    "output": {
+      "path": "data/e7_endtoend.csv",
+      "sha256": "000a89eb0923a4f52ebc64e7e38c79696afe8c90809aa8d55435b83c25d49704",
+      "schema": [
+        "config",
+        "run_id",
+        "sample_idx",
+        "latency_ms",
+        "amortized_setup_ms"
+      ],
+      "data_row_count": 4000
+    },
+    "configurations": [
+      "l1_only",
+      "sets_reimpl",
+      "classical_l2",
+      "layer_aware_l2"
+    ],
+    "run_id": 1,
+    "population": {
+      "warmup_rows_per_configuration": 100,
+      "warmup_rows_total": 400,
+      "measured_rows_per_configuration": 1000,
+      "measured_rows_total": 4000,
+      "execution": "sequential with one settlement in flight; logical state is continuous across warm-up and measured rows",
+      "sample_idx": "0..999 maps to frozen trace rows 100..1099"
+    },
+    "trace": {
+      "path": "env/e7/trace/opsd_household_15min_e7.csv",
+      "sha256": "7e472c032317a7e8f0af587782238cab48f22ddc50f74200cff65e9681f8bd1c",
+      "provenance_path": "env/e7/trace/provenance.json",
+      "provenance_sha256": "3f1e5933b0789d722b01f8593d673488e14b54d35fec335762185ef24f2e4eec",
+      "settlement_interval_minutes": 15,
+      "replay_waits_wall_clock_interval": false
+    },
+    "settlement_measurement": {
+      "manifest_schema": "pqc-energy-trading.e7-run-manifest.v1",
+      "timer": "Go monotonic time immediately before executor.Settle through successful completion return",
+      "on_chain_completion": "l1_only and sets_reimpl stop only after committed and VALID Fabric status plus logical-state finalization",
+      "layer_2_completion": "classical_l2 and layer_aware_l2 stop after local E2 HTLC_ADD and HTLC_SETTLE, receiver verification, persistent-TCP acknowledgements, and logical-state finalization; this is not Fabric finality",
+      "included": "per-sample logical validation/reservation; applicable signing, serialization, and verification; submission or ADD/SETTLE transport; completion confirmation; logical finalization",
+      "excluded": "trace loading, run-level key generation, Fabric setup/deployment and Gateway connection, E2 channel setup/funding, TCP connection creation, and evidence-file opening"
+    },
+    "cryptography": {
+      "l1_only": "Fabric ml-dsa-65 identity mode with ML-DSA-65 peer transaction/endorsement semantics",
+      "sets_reimpl": "our limited SETS reimplementation using application ECDSA-P256-SHA256 and an ECDSA Fabric network; not the original authors' implementation",
+      "classical_l2": "real Ed25519 E2 operations as the representative compact classical-size proxy; not a MuSig2 implementation",
+      "layer_aware_l2": "real Falcon-padded-512 E2 operations for steady-state HTLC_ADD and HTLC_SETTLE"
+    },
+    "logical_state": {
+      "initial_balance": "trace-derived minimum initial prosumer balance 104.346 kWh-credit; counterparty balance 0",
+      "e2_limitation": "Frozen E2 has no explicit amount-bearing HTLC or mutable channel balance; E7 maintains exact-rational amount state and binds exact trade terms through the signed deterministic HTLC ID hash."
+    },
+    "scientific_controls": {
+      "cpu_model": "AMD Ryzen 7 7735HS with Radeon Graphics",
+      "process_affinity": "2,4,6,8,10,12,14",
+      "scaling_driver": "amd-pstate-epp",
+      "governor": "performance",
+      "energy_performance_preference": "performance",
+      "boost_enabled": false,
+      "scaling_min_freq_khz": 3200000,
+      "scaling_max_freq_khz": 3200000,
+      "power_source": "AC",
+      "fabric_cpu_isolation": "For on-chain settlement and funding runs, the orderer, all four peers, running simplekv chaincode containers, and peer chaincode-launch policy were verified at the exact CPU set 2,4,6,8,10,12,14 before measurement."
+    },
+    "software_observed": {
+      "go": "go1.22.2",
+      "python": "3.12.3",
+      "fabric": "2.5.16 for on-chain settlement and supplemental funding",
+      "fabric_gateway_go": "1.7.1",
+      "liboqs": "0.15.0 for L2 and post-quantum funding paths",
+      "liboqs_go": "v0.15.0 for L2 and post-quantum funding paths"
+    },
+    "supplemental_funding": {
+      "manifest_schema": "pqc-energy-trading.e7-funding-evidence.v2",
+      "transaction_audit_schema": "pqc-energy-trading.e7-funding-transaction-audit.v1",
+      "method": "one real committed energychannel/simplekv.Set funding commitment per L2 configuration, with no automatic retry and independent ledger readback and transaction/block/signature audit",
+      "gateway_client_algorithm": "ECDSA-P256-SHA256",
+      "timer": {
+        "start": "Linux CLOCK_MONOTONIC immediately before Fabric Gateway simplekv.Set submission",
+        "stop": "immediately after successful committed VALID commit-status return",
+        "includes": "Gateway submission, peer endorsement, ordering, validation, ledger commit, and commit-status confirmation",
+        "excludes": "Fabric/network setup, chaincode deployment, key generation, Gateway connection, payload preparation, independent post-commit readback/block/signature audit, and teardown"
+      },
+      "measurements": {
+        "classical_l2": {
+          "fabric_network_mode": "ecdsa",
+          "peer_endorsement_algorithm": "ECDSA-P256-SHA256",
+          "duration_ns": 2023056144,
+          "transaction_id": "a931ab3092622bf0922c5503de8aa9bafeca26362cba6763ef789d9645a5de7f",
+          "amortized_setup_ms": "2.023056144"
+        },
+        "layer_aware_l2": {
+          "fabric_network_mode": "ml-dsa-65",
+          "peer_endorsement_algorithm": "ML-DSA-65-SHA256",
+          "duration_ns": 2026076261,
+          "transaction_id": "01802db50c3c1b247e15a346d83ecdc6df95e383ff083c92f8f01c94589602db",
+          "amortized_setup_ms": "2.026076261"
+        }
+      },
+      "amortization": {
+        "formula": "funding_duration_ns / 1000000000",
+        "denominator_measured_settlements": 1000,
+        "warmup_rows_excluded": 100,
+        "l1_only_ms": "0.000000000",
+        "sets_reimpl_ms": "0.000000000",
+        "original_latency_ms_preserved": true,
+        "funding_cost_added_to_latency_ms": false
+      },
+      "limitation": "The committed simplekv.Set is a deterministic funding commitment, not enforceable escrow or actual on-chain asset locking."
+    },
+    "raw_evidence": {
+      "directory": "raw/e7",
+      "manifest": "raw/e7/evidence_manifest.json",
+      "manifest_sha256": "f9ad57311cf48874f4f19811036d05f0ecc059e7fa497dd2f3f7de5a5ebe75e9",
+      "frozen_manifest_schema": "pqc-energy-trading.raw-e7-evidence-manifest.v1",
+      "settlement_source_file_count": 16,
+      "funding_source_file_count": 12,
+      "source_file_count": 28,
+      "frozen_total_file_count": 29,
+      "compression": "LC_ALL=C gzip -9 -n",
+      "hash_semantics": "original_sha256 identifies decompressed scientific bytes; tracked_sha256 identifies the gzip container"
+    },
+    "finalizer": "src/e7/finalize_e7.py",
+    "freezer": "src/e7/freeze_e7.py"
   },
   "e9_benchmark": {
     "status": "complete",
