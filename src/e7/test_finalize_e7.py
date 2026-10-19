@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 import config
 import finalize_e7
@@ -36,6 +37,7 @@ def valid_evidence_rows():
             "run_id": "1",
             "sample_idx": str(sample_idx),
             "latency_ms": f"{1 + sample_idx / 1000:.6f}",
+            "amortized_setup_ms": "0.000000000",
         }
         for name in config.CONFIG_NAMES
         for sample_idx in range(1000)
@@ -147,10 +149,7 @@ def valid_fabric_cpu_isolation():
 def write_scientific_runs(root, trace, provenance, rows, mutate_manifest=None):
     evidence_root = root / "evidence"
     project_root = Path(__file__).resolve().parents[2]
-    code_hashes = {
-        relative: hashlib.sha256((project_root / relative).read_bytes()).hexdigest()
-        for relative in finalize_e7.REQUIRED_CODE_CONFIG_PATHS
-    }
+    code_hashes = {relative: "c" * 64 for relative in finalize_e7.REQUIRED_CODE_CONFIG_PATHS}
     for config_name in config.CONFIG_NAMES:
         run = evidence_root / config_name / "run_1"
         run.mkdir(parents=True)
@@ -167,7 +166,7 @@ def write_scientific_runs(root, trace, provenance, rows, mutate_manifest=None):
         manifest = {
             "schema": finalize_e7.MANIFEST_SCHEMA,
             "experiment": "E7", "config": config_name, "run_id": "1",
-            "git_commit": "a" * 40, "git_tracked_clean": True,
+            "git_commit": finalize_e7.SETTLEMENT_MEASUREMENT_COMMIT, "git_tracked_clean": True,
             "trace_path": str(trace), "trace_sha256": hashlib.sha256(trace.read_bytes()).hexdigest(),
             "trace_provenance_path": str(provenance),
             "trace_provenance_sha256": hashlib.sha256(provenance.read_bytes()).hexdigest(),
@@ -204,6 +203,107 @@ def write_scientific_runs(root, trace, provenance, rows, mutate_manifest=None):
     return evidence_root
 
 
+def write_funding_runs(root, mutate_manifest=None):
+    funding_root = root / "funding"
+    for config_name, duration, mode, peer_algorithm in (
+        ("classical_l2", 1_234_567_890, "ecdsa", "ECDSA-P256-SHA256"),
+        ("layer_aware_l2", 2_345_678_901, "ml-dsa-65", "ML-DSA-65-SHA256"),
+    ):
+        run = funding_root / config_name / "run_1"
+        run.mkdir(parents=True)
+        start_monotonic_ns = 10_000_000
+        end_monotonic_ns = start_monotonic_ns + duration
+        tx_id, block_number = f"funding-{config_name}", 7
+        payload_sha = hashlib.sha256(
+            finalize_e7._expected_funding_payload(config_name)
+        ).hexdigest()
+        block = f"block-{config_name}".encode()
+        (run / "funding_block.pb").write_bytes(block)
+        (run / "run.log").write_text("funding test log\n", encoding="utf-8")
+        with (run / "funding.csv").open("w", newline="", encoding="utf-8") as output:
+            writer = csv.writer(output, lineterminator="\n")
+            writer.writerow(finalize_e7.FUNDING_CSV_FIELDS)
+            writer.writerow((config_name, "1", start_monotonic_ns, end_monotonic_ns,
+                             duration, tx_id, block_number, "VALID", 0,
+                             "true", "true", "true", payload_sha))
+        (run / "ledger_readback.json").write_text(json.dumps({
+            "key": f"e7/funding/{config_name}/1", "payload_sha256": payload_sha,
+            "readback_sha256": payload_sha, "matched": True,
+        }) + "\n", encoding="utf-8")
+        identity = lambda msp, algorithm: {
+            "msp_id": msp, "certificate_sha256": "1" * 64,
+            "algorithm": algorithm, "signed_message_sha256": "3" * 64,
+            "signature_sha256": "2" * 64,
+            "signature_verified": True,
+        }
+        audit = {
+            "schema": finalize_e7.FUNDING_AUDIT_SCHEMA, "transaction_id": tx_id,
+            "transaction_id_verified": True,
+            "block_number": block_number,
+            "block_sha256": hashlib.sha256(block).hexdigest(),
+            "block_data_hash_verified": True, "channel": "energychannel",
+            "chaincode": "simplekv", "function": "Set",
+            "validation_status": "VALID", "validation_code": 0,
+            "commitment_key": f"e7/funding/{config_name}/1",
+            "commitment_sha256": payload_sha,
+            "gateway_client_creator": identity("Org1MSP", "ECDSA-P256-SHA256"),
+            "peer_endorsements": [identity("Org1MSP", peer_algorithm), identity("Org2MSP", peer_algorithm)],
+            "required_endorsement_msp_ids": ["Org1MSP", "Org2MSP"],
+            "all_signatures_verified": True,
+        }
+        (run / "transaction_audit.json").write_text(json.dumps(audit) + "\n", encoding="utf-8")
+        manifest = {
+            "schema": finalize_e7.FUNDING_MANIFEST_SCHEMA,
+            "experiment": "E7 supplemental channel funding", "target_config": config_name,
+            "mode": "scientific", "scientific": True,
+            "fabric_network_mode": mode, "run_id": "1",
+            "settlement_measurement_commit": finalize_e7.SETTLEMENT_MEASUREMENT_COMMIT,
+            "git_commit": "b" * 40, "git_tracked_clean": True,
+            "trace_sha256": finalize_e7.EXPECTED_TRACE_SHA256,
+            "trace_provenance_sha256": finalize_e7.EXPECTED_TRACE_PROVENANCE_SHA256,
+            "warmup_rows_excluded": 100, "measured_settlement_denominator": 1000,
+            "fabric_channel": "energychannel", "fabric_chaincode": "simplekv",
+            "fabric_function": "Set", "commitment_key": f"e7/funding/{config_name}/1",
+            "commitment_payload_sha256": payload_sha,
+            "commitment_interpretation": "measurement commitment only; not enforceable escrow or on-chain asset locking",
+            "gateway_client_signature_algorithm": "ECDSA-P256-SHA256",
+            "peer_endorsement_signature_algorithm": peer_algorithm,
+            "timer_definition": finalize_e7.FUNDING_TIMER_DEFINITION,
+            "start_monotonic_ns": start_monotonic_ns,
+            "end_monotonic_ns": end_monotonic_ns,
+            "funding_duration_ns": duration,
+            "completion": {"transaction_id": tx_id, "committed": True, "verified": True,
+                           "validation_status": "VALID", "validation_code": 0,
+                           "block_number": block_number},
+            "independent_ledger_readback_verified": True,
+            "transaction_specific_block_endorsement_verification": True,
+            "code_config_sha256": {path: "c" * 64 for path in finalize_e7.REQUIRED_FUNDING_CODE_CONFIG_PATHS},
+            "runtime_versions": {"go": "go-test", "python": "python-test", "fabric": "2.5.16",
+                                 "fabric_gateway_go": "1.7.1", "liboqs": "0.15.0", "liboqs_go": "v0.15.0"},
+            "scientific_environment": {
+                "passed": True, "process_affinity": finalize_e7.EXPECTED_AFFINITY,
+                "governor": ["performance"], "energy_performance_preference": ["performance"],
+                "scaling_min_freq_khz": [3200000], "scaling_max_freq_khz": [3200000],
+                "boost_enabled": False, "ac_online": True,
+            },
+            "fabric_cpu_isolation": valid_fabric_cpu_isolation(), "status": "complete",
+            "raw_files": {path.name: finalize_e7._file_evidence(path) for path in run.iterdir()},
+        }
+        if mutate_manifest:
+            mutate_manifest(config_name, manifest)
+        (run / "manifest.json").write_text(json.dumps(manifest) + "\n", encoding="utf-8")
+    return funding_root
+
+
+def finalize_fixture(root, evidence, trace, provenance, output, repository,
+                     mutate_funding=None):
+    funding = write_funding_runs(root, mutate_funding)
+    with mock.patch.object(finalize_e7, "_git_blob_sha256", return_value="c" * 64):
+        finalize_e7.finalize(
+            evidence, funding, trace, provenance, output, repository
+        )
+
+
 class FinalizeE7Tests(unittest.TestCase):
     def test_render_final_schema_order_and_determinism(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -226,7 +326,7 @@ class FinalizeE7Tests(unittest.TestCase):
             evidence = root / "final-shaped.csv"
             write_evidence(evidence, valid_evidence_rows())
             with self.assertRaisesRegex(ValueError, "requires an evidence root"):
-                finalize_e7.finalize(evidence, trace, provenance, root / "output.csv", Path(__file__).resolve().parents[2])
+                finalize_e7.finalize(evidence, root / "funding", trace, provenance, root / "output.csv", Path(__file__).resolve().parents[2])
 
     def test_finalize_accepts_rich_raw_and_emits_professor_schema(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -238,7 +338,7 @@ class FinalizeE7Tests(unittest.TestCase):
                 root, trace, provenance, valid_rich_evidence_rows(trace)
             )
             output_path = root / "output.csv"
-            finalize_e7.finalize(evidence, trace, provenance, output_path, repository)
+            finalize_fixture(root, evidence, trace, provenance, output_path, repository)
             with output_path.open(newline="", encoding="utf-8") as source:
                 output = list(csv.reader(source))
             self.assertEqual(tuple(output[0]), finalize_e7.FINAL_FIELDS)
@@ -269,9 +369,7 @@ class FinalizeE7Tests(unittest.TestCase):
                     root, trace, provenance, valid_rich_evidence_rows(trace), mutate
                 )
                 with self.assertRaisesRegex(ValueError, "Fabric CPU"):
-                    finalize_e7.finalize(
-                        evidence, trace, provenance, root / "output.csv", repository
-                    )
+                    finalize_fixture(root, evidence, trace, provenance, root / "output.csv", repository)
 
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -284,9 +382,7 @@ class FinalizeE7Tests(unittest.TestCase):
                 root, trace, provenance, valid_rich_evidence_rows(trace), add_to_l2
             )
             with self.assertRaisesRegex(ValueError, "L2 manifest"):
-                finalize_e7.finalize(
-                    evidence, trace, provenance, root / "output.csv", repository
-                )
+                finalize_fixture(root, evidence, trace, provenance, root / "output.csv", repository)
 
     def test_finalize_rejects_samples_without_manifest(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -296,8 +392,97 @@ class FinalizeE7Tests(unittest.TestCase):
             run = evidence / "l1_only" / "run_1"
             run.mkdir(parents=True)
             write_evidence(run / "samples.csv", [], finalize_e7.RAW_FIELDS)
-            with self.assertRaisesRegex(ValueError, "manifest is missing"):
-                finalize_e7.finalize(evidence, trace, provenance, root / "output.csv", Path(__file__).resolve().parents[2])
+            with self.assertRaisesRegex(ValueError, "missing or extra"):
+                finalize_e7.finalize(evidence, root / "funding", trace, provenance, root / "output.csv", Path(__file__).resolve().parents[2])
+
+    def test_funding_amortization_and_original_latency_text_are_exact(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repository = Path(__file__).resolve().parents[2]
+            trace = repository / "env/e7/trace/opsd_household_15min_e7.csv"
+            provenance = repository / "env/e7/trace/provenance.json"
+            rows = valid_rich_evidence_rows(trace)
+            measured = next(row for row in rows if row["config"] == "classical_l2" and row["phase"] == "measured")
+            measured["latency_ms"] = "1.230000000"
+            measured["end_monotonic_ns"] = str(int(measured["start_monotonic_ns"]) + 1_230_000)
+            evidence = write_scientific_runs(root, trace, provenance, rows)
+            output = root / "output.csv"
+            finalize_fixture(root, evidence, trace, provenance, output, repository)
+            rendered = list(csv.DictReader(io.StringIO(output.read_text())))
+            classical = next(row for row in rendered if row["config"] == "classical_l2" and row["sample_idx"] == "0")
+            layer = next(row for row in rendered if row["config"] == "layer_aware_l2")
+            l1 = next(row for row in rendered if row["config"] == "l1_only")
+            self.assertEqual(classical["latency_ms"], "1.230000000")
+            self.assertEqual(classical["amortized_setup_ms"], "1.234567890")
+            self.assertEqual(layer["amortized_setup_ms"], "2.345678901")
+            self.assertEqual(l1["amortized_setup_ms"], "0.000000000")
+
+    def test_funding_evidence_fails_closed(self):
+        cases = {
+            "wrong_duration": lambda _, manifest: manifest.update(funding_duration_ns=0),
+            "inconsistent_monotonic_end": lambda _, manifest: manifest.update(end_monotonic_ns=manifest["end_monotonic_ns"] + 1),
+            "non_scientific_smoke": lambda _, manifest: manifest.update(
+                schema="pqc-energy-trading.e7-funding-integration-smoke.v1",
+                experiment="E7 supplemental channel funding integration smoke",
+                mode="integration-smoke", scientific=False,
+            ),
+            "wrong_commit": lambda _, manifest: manifest.update(settlement_measurement_commit="0" * 40),
+            "wrong_peer_algorithm": lambda name, manifest: manifest.update(peer_endorsement_signature_algorithm="ECDSA-P256-SHA256") if name == "layer_aware_l2" else None,
+            "readback_false": lambda _, manifest: manifest.update(independent_ledger_readback_verified=False),
+        }
+        repository = Path(__file__).resolve().parents[2]
+        trace = repository / "env/e7/trace/opsd_household_15min_e7.csv"
+        provenance = repository / "env/e7/trace/provenance.json"
+        for name, mutation in cases.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                evidence = write_scientific_runs(root, trace, provenance, valid_rich_evidence_rows(trace))
+                with self.assertRaises(ValueError):
+                    finalize_fixture(root, evidence, trace, provenance, root / "output.csv", repository, mutation)
+
+    def test_missing_or_duplicate_funding_condition_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            funding = write_funding_runs(root)
+            (funding / "layer_aware_l2" / "run_1" / "manifest.json").unlink()
+            with mock.patch.object(finalize_e7, "_git_blob_sha256", return_value="c" * 64), self.assertRaises(ValueError):
+                finalize_e7.load_funding_runs(funding, Path(__file__).resolve().parents[2])
+
+    def test_transaction_specific_funding_endorsement_audit_is_required(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            funding = write_funding_runs(root)
+            run = funding / "layer_aware_l2" / "run_1"
+            audit_path = run / "transaction_audit.json"
+            audit = json.loads(audit_path.read_text())
+            audit["peer_endorsements"][0]["algorithm"] = "ECDSA-P256-SHA256"
+            audit_path.write_text(json.dumps(audit) + "\n", encoding="utf-8")
+            manifest_path = run / "manifest.json"
+            manifest = json.loads(manifest_path.read_text())
+            manifest["raw_files"]["transaction_audit.json"] = finalize_e7._file_evidence(audit_path)
+            manifest_path.write_text(json.dumps(manifest) + "\n", encoding="utf-8")
+            with mock.patch.object(finalize_e7, "_git_blob_sha256", return_value="c" * 64), self.assertRaisesRegex(ValueError, "endorsement"):
+                finalize_e7.load_funding_runs(funding, Path(__file__).resolve().parents[2])
+
+    def test_funding_csv_monotonic_markers_must_match_manifest(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            funding = write_funding_runs(root)
+            run = funding / "classical_l2" / "run_1"
+            csv_path = run / "funding.csv"
+            rows = list(csv.DictReader(io.StringIO(csv_path.read_text())))
+            rows[0]["end_monotonic_ns"] = str(int(rows[0]["end_monotonic_ns"]) + 1)
+            with csv_path.open("w", newline="", encoding="utf-8") as output:
+                writer = csv.DictWriter(output, fieldnames=finalize_e7.FUNDING_CSV_FIELDS,
+                                        lineterminator="\n")
+                writer.writeheader()
+                writer.writerows(rows)
+            manifest_path = run / "manifest.json"
+            manifest = json.loads(manifest_path.read_text())
+            manifest["raw_files"]["funding.csv"] = finalize_e7._file_evidence(csv_path)
+            manifest_path.write_text(json.dumps(manifest) + "\n", encoding="utf-8")
+            with mock.patch.object(finalize_e7, "_git_blob_sha256", return_value="c" * 64), self.assertRaisesRegex(ValueError, "CSV disagrees"):
+                finalize_e7.load_funding_runs(funding, Path(__file__).resolve().parents[2])
 
     def test_finalize_rejects_invalid_manifest_controls_and_hash(self):
         cases = (
@@ -316,7 +501,7 @@ class FinalizeE7Tests(unittest.TestCase):
                     if config_name == "l1_only" else None,
                 )
                 with self.assertRaises(ValueError):
-                    finalize_e7.finalize(evidence, trace, provenance, root / "output.csv", Path(__file__).resolve().parents[2])
+                    finalize_fixture(root, evidence, trace, provenance, root / "output.csv", Path(__file__).resolve().parents[2])
 
     def test_finalize_rejects_manifest_identity_status_and_trace_mismatch(self):
         cases = (
@@ -338,7 +523,7 @@ class FinalizeE7Tests(unittest.TestCase):
                     if config_name == "l1_only" else None,
                 )
                 with self.assertRaises(ValueError):
-                    finalize_e7.finalize(evidence, trace, provenance, root / "output.csv", repository)
+                    finalize_fixture(root, evidence, trace, provenance, root / "output.csv", repository)
 
     def test_finalize_enforces_exact_real_code_config_hashes(self):
         def fabricated(manifest):
@@ -371,9 +556,7 @@ class FinalizeE7Tests(unittest.TestCase):
                     if config_name == "l1_only" else None,
                 )
                 with self.assertRaises(ValueError):
-                    finalize_e7.finalize(
-                        evidence, trace, provenance, root / "output.csv", repository
-                    )
+                    finalize_fixture(root, evidence, trace, provenance, root / "output.csv", repository)
 
     def test_sets_proof_fields_required_and_validated(self):
         with tempfile.TemporaryDirectory() as temporary:

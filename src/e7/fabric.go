@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	client "github.com/hyperledger/fabric-gateway/pkg/client"
@@ -146,6 +147,35 @@ func (submitter *RealFabricSubmitter) SubmitAndAwaitCommit(ctx context.Context, 
 		return FabricCompletion{TransactionID: commit.TransactionID()}, fmt.Errorf("await Fabric commit status: %w", err)
 	}
 	return FabricCompletion{TransactionID: status.TransactionID, Committed: true, Verified: status.Successful, ValidationStatus: status.Code.String(), ValidationCode: int(status.Code), BlockNumber: status.BlockNumber}, nil
+}
+
+// ReadValue and FetchBlock are deliberately outside the funding timer. They
+// provide independent post-commit audit evidence for the one-time E7 channel
+// funding commitment.
+func (submitter *RealFabricSubmitter) ReadValue(ctx context.Context, key string) ([]byte, error) {
+	if submitter.contract == nil || key == "" {
+		return nil, errors.New("Fabric Gateway is not prepared or key is empty")
+	}
+	value, err := submitter.contract.EvaluateTransaction("Get", key)
+	if err != nil {
+		return nil, fmt.Errorf("evaluate simplekv.Get: %w", err)
+	}
+	return value, nil
+}
+
+func (submitter *RealFabricSubmitter) FetchBlock(ctx context.Context, blockNumber uint64) ([]byte, error) {
+	_ = ctx // Gateway evaluate timeouts are configured when the client is built.
+	if submitter.gateway == nil {
+		return nil, errors.New("Fabric Gateway is not prepared")
+	}
+	qscc := submitter.gateway.GetNetwork(submitter.config.Channel).GetContract("qscc")
+	block, err := qscc.EvaluateTransaction(
+		"GetBlockByNumber", submitter.config.Channel, strconv.FormatUint(blockNumber, 10),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("fetch committed Fabric block %d: %w", blockNumber, err)
+	}
+	return block, nil
 }
 
 func (submitter *RealFabricSubmitter) Close() error {

@@ -15,12 +15,12 @@ import (
 )
 
 type FabricCompletion struct {
-	TransactionID    string
-	Committed        bool
-	Verified         bool
-	ValidationStatus string
-	ValidationCode   int
-	BlockNumber      uint64
+	TransactionID    string `json:"transaction_id"`
+	Committed        bool   `json:"committed"`
+	Verified         bool   `json:"verified"`
+	ValidationStatus string `json:"validation_status"`
+	ValidationCode   int    `json:"validation_code"`
+	BlockNumber      uint64 `json:"block_number"`
 }
 
 // FabricSubmitter is the narrow integration seam for Fabric Gateway submit and

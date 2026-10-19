@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate future E7 per-sample evidence and emit the professor CSV."""
+"""Validate frozen E7 settlement/funding evidence and emit the professor CSV."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ import math
 import os
 from pathlib import Path
 import re
+import subprocess
 import tempfile
 
 try:
@@ -66,7 +67,8 @@ except ImportError:  # Direct execution: python3 src/e7/finalize_e7.py
     )
 
 
-FINAL_FIELDS = ("config", "run_id", "sample_idx", "latency_ms")
+SETTLEMENT_FIELDS = ("config", "run_id", "sample_idx", "latency_ms")
+FINAL_FIELDS = (*SETTLEMENT_FIELDS, "amortized_setup_ms")
 RAW_FIELDS = (
     "config", "run_id", "phase", "phase_idx", "sample_idx", "trace_row_idx",
     "trace_timestamp", "trace_row_sha256", "logical_trade_id", "direction",
@@ -88,10 +90,15 @@ SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 GIT_COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 SETS_ECDSA_ALGORITHM = "ECDSA-P256-SHA256"
 MANIFEST_SCHEMA = "pqc-energy-trading.e7-run-manifest.v1"
+FUNDING_MANIFEST_SCHEMA = "pqc-energy-trading.e7-funding-evidence.v2"
+FUNDING_AUDIT_SCHEMA = "pqc-energy-trading.e7-funding-transaction-audit.v1"
+SETTLEMENT_MEASUREMENT_COMMIT = "0a6d20cf06d8e452b0d9bbd85922baff058cdca0"
+FUNDING_TIMER_DEFINITION = "Linux CLOCK_MONOTONIC immediately before Fabric Gateway simplekv.Set submission through successful committed VALID commit-status return"
 TIMER_DEFINITION = "Go monotonic time immediately before executor.Settle through successful completion return"
 EXPECTED_AFFINITY = [2, 4, 6, 8, 10, 12, 14]
 EXPECTED_FABRIC_CPU_SET = "2,4,6,8,10,12,14"
 EXPECTED_TRACE_SHA256 = "7e472c032317a7e8f0af587782238cab48f22ddc50f74200cff65e9681f8bd1c"
+EXPECTED_TRACE_PROVENANCE_SHA256 = "3f1e5933b0789d722b01f8593d673488e14b54d35fec335762185ef24f2e4eec"
 SIMPLEKV_PACKAGE_ID_PATTERN = re.compile(r"^simplekv_1:[0-9a-f]{64}$")
 REQUIRED_CODE_CONFIG_PATHS = (
     "src/e7/cmd/e7bench/main.go", "src/e7/runner.go", "src/e7/manifest.go",
@@ -103,11 +110,58 @@ REQUIRED_CODE_CONFIG_PATHS = (
     "env/fabric/e1/setup_fabric_e1.sh", "env/fabric/e1/docker-compose.yaml",
     "env/e7/trace/opsd_household_15min_e7.csv", "env/e7/trace/provenance.json",
 )
+REQUIRED_FUNDING_CODE_CONFIG_PATHS = (
+    "src/e7/cmd/e7funding/main.go", "src/e7/funding.go", "src/e7/fundingaudit.go",
+    "src/e7/fabric.go", "src/e7/lifecycle.go", "src/e7/fabriccpu.go",
+    "src/e7/onchain.go", "src/e7/manifest.go", "src/e7/versions.go", "src/e7/finalize_e7.py",
+    "src/e7/go.mod", "src/e7/go.sum", "env/e7/fabric_network.sh",
+    "env/e7/docker-compose.fabric-cpu.yaml", "env/e7/docker-shim/docker",
+    "env/fabric/e1/setup_fabric_e1.sh", "env/fabric/e1/docker-compose.yaml",
+    "env/fabric/e1/build_fabric_pq.sh", "env/fabric/e1/patches/fabric-2.5.16-pq-identities.patch",
+    "env/fabric/e1/configtx.yaml", "env/fabric/e1/crypto-config.yaml",
+    "src/e1/chaincode/chaincode.go", "src/e1/chaincode/go.mod", "src/e1/chaincode/go.sum",
+    "src/e1/pqidentity/generate.go", "src/e1/pqidentity/go.mod", "src/e1/pqidentity/go.sum",
+    "env/e7/trace/opsd_household_15min_e7.csv", "env/e7/trace/provenance.json",
+)
+FUNDING_RAW_FILES = {
+    "funding.csv", "run.log", "funding_block.pb", "transaction_audit.json",
+    "ledger_readback.json",
+}
+FUNDING_CSV_FIELDS = (
+    "target_config", "run_id", "start_monotonic_ns", "end_monotonic_ns",
+    "funding_duration_ns", "transaction_id",
+    "block_number", "validation_status", "validation_code", "committed",
+    "verified", "readback_verified", "payload_sha256",
+)
 
 
 def _file_evidence(path: Path) -> dict[str, object]:
     content = path.read_bytes()
     return {"bytes": len(content), "sha256": hashlib.sha256(content).hexdigest()}
+
+
+def _git_blob_sha256(project_root: Path, commit: str, relative: str) -> str:
+    if (not GIT_COMMIT_PATTERN.fullmatch(commit)
+            or Path(relative).is_absolute() or ".." in Path(relative).parts):
+        raise ValueError("E7 Git code/config provenance path is invalid")
+    try:
+        content = subprocess.run(
+            ["git", "-C", str(project_root), "show", f"{commit}:{relative}"],
+            check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise ValueError("E7 recorded Git code/config blob is unavailable") from error
+    return sha256(content)
+
+
+def _validate_git_code_map(project_root: Path, commit: str, values: object,
+                           expected_paths: tuple[str, ...]) -> None:
+    if (not isinstance(values, dict) or set(values) != set(expected_paths)
+            or any(not SHA256_PATTERN.fullmatch(str(value)) for value in values.values())):
+        raise ValueError("E7 code/config provenance key set or digest is invalid")
+    for relative in expected_paths:
+        if _git_blob_sha256(project_root, commit, relative) != values[relative]:
+            raise ValueError("E7 code/config SHA-256 does not match recorded Git commit")
 
 
 def _expected_config_semantics(config: str) -> dict[str, object]:
@@ -197,7 +251,8 @@ def validate_manifest(manifest_path: Path, samples_path: Path, config: str,
             or manifest["config"] != config or manifest["run_id"] != "1"
             or manifest["status"] != "complete"):
         raise ValueError("E7 manifest identity/status mismatch")
-    if not GIT_COMMIT_PATTERN.fullmatch(str(manifest["git_commit"])) or manifest["git_tracked_clean"] is not True:
+    if (manifest["git_commit"] != SETTLEMENT_MEASUREMENT_COMMIT
+            or manifest["git_tracked_clean"] is not True):
         raise ValueError("E7 manifest Git provenance is invalid")
     if (manifest["trace_sha256"] != EXPECTED_TRACE_SHA256
             or manifest["trace_sha256"] != sha256(trace_path.read_bytes())
@@ -214,22 +269,11 @@ def validate_manifest(manifest_path: Path, samples_path: Path, config: str,
         raise ValueError("E7 L2 manifest must not contain Fabric CPU isolation provenance")
     code_hashes = manifest["code_config_sha256"]
     if (not manifest["process_network_reset_method"]
-            or not isinstance(code_hashes, dict)
-            or set(code_hashes) != set(REQUIRED_CODE_CONFIG_PATHS)
-            or any(not SHA256_PATTERN.fullmatch(str(value)) for value in code_hashes.values())
             or not isinstance(manifest["runtime_versions"], dict)):
         raise ValueError("E7 manifest code/runtime/reset provenance missing")
-    resolved_root = project_root.resolve()
-    for relative in REQUIRED_CODE_CONFIG_PATHS:
-        candidate = (resolved_root / relative).resolve()
-        if not candidate.is_relative_to(resolved_root):
-            raise ValueError("E7 code/config provenance path traversal")
-        try:
-            observed = sha256(candidate.read_bytes())
-        except OSError as error:
-            raise ValueError("E7 code/config provenance file is missing") from error
-        if observed != code_hashes[relative]:
-            raise ValueError("E7 code/config SHA-256 mismatch")
+    _validate_git_code_map(
+        project_root, manifest["git_commit"], code_hashes, REQUIRED_CODE_CONFIG_PATHS
+    )
     versions = manifest["runtime_versions"]
     if not versions.get("go") or not versions.get("python") or versions.get("fabric_gateway_go") != "1.7.1":
         raise ValueError("E7 manifest runtime versions are invalid")
@@ -267,14 +311,24 @@ def load_scientific_runs(evidence_root: Path, trace_path: Path,
                          project_root: Path) -> tuple[list[dict[str, str]], list[dict]]:
     if not evidence_root.is_dir():
         raise ValueError("production E7 finalization requires an evidence root with manifests")
+    if {path.name for path in evidence_root.iterdir()} != set(CONFIG_NAMES):
+        raise ValueError("E7 settlement evidence root has missing or extra entries")
     all_rows, manifests = [], []
     for config in CONFIG_NAMES:
         run = evidence_root / config / "run_1"
+        if ({path.name for path in (evidence_root / config).iterdir()} != {"run_1"}
+                or not run.is_dir()):
+            raise ValueError("E7 settlement evidence has duplicate or unexpected runs")
         samples, manifest_path = run / "samples.csv", run / "manifest.json"
         manifest = validate_manifest(
             manifest_path, samples, config, trace_path, provenance_path, project_root
         )
         rows = load_raw_evidence(samples)
+        expected_files = {"manifest.json", "samples.csv", "run.log"}
+        if config in {"l1_only", "sets_reimpl"}:
+            expected_files |= {"transactions.csv", "ledger_heights.csv"}
+        if {path.name for path in run.iterdir()} != expected_files:
+            raise ValueError("E7 settlement run has missing or extra evidence files")
         if any(row.get("config") != config or row.get("run_id") != "1" for row in rows):
             raise ValueError("E7 run evidence config/run_id mismatch")
         all_rows.extend(rows)
@@ -286,6 +340,227 @@ def load_scientific_runs(evidence_root: Path, trace_path: Path,
     if any(code_map != code_maps[0] for code_map in code_maps[1:]):
         raise ValueError("E7 manifests have inconsistent code/config hashes")
     return all_rows, manifests
+
+
+def _load_json(path: Path, description: str) -> dict:
+    try:
+        value = json.loads(path.read_bytes())
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"{description} is missing or malformed") from error
+    if not isinstance(value, dict):
+        raise ValueError(f"{description} must be a JSON object")
+    return value
+
+
+def _validate_funding_audit(audit: dict, manifest: dict, block_path: Path) -> None:
+    completion = manifest["completion"]
+    expected_peer = (
+        "ECDSA-P256-SHA256" if manifest["target_config"] == "classical_l2"
+        else "ML-DSA-65-SHA256"
+    )
+    if (audit.get("schema") != FUNDING_AUDIT_SCHEMA
+            or audit.get("transaction_id") != completion.get("transaction_id")
+            or audit.get("transaction_id_verified") is not True
+            or audit.get("block_number") != completion.get("block_number")
+            or audit.get("validation_status") != "VALID"
+            or audit.get("validation_code") != 0
+            or audit.get("block_data_hash_verified") is not True
+            or audit.get("channel") != "energychannel"
+            or audit.get("chaincode") != "simplekv"
+            or audit.get("function") != "Set"
+            or audit.get("commitment_key") != manifest.get("commitment_key")
+            or audit.get("commitment_sha256") != manifest.get("commitment_payload_sha256")
+            or audit.get("block_sha256") != sha256(block_path.read_bytes())
+            or audit.get("all_signatures_verified") is not True
+            or audit.get("required_endorsement_msp_ids") != ["Org1MSP", "Org2MSP"]):
+        raise ValueError("E7 funding transaction/block audit mismatch")
+    creator = audit.get("gateway_client_creator")
+    if (not isinstance(creator, dict)
+            or creator.get("algorithm") != "ECDSA-P256-SHA256"
+            or creator.get("signature_verified") is not True
+            or not SHA256_PATTERN.fullmatch(str(creator.get("certificate_sha256", "")))
+            or not SHA256_PATTERN.fullmatch(str(creator.get("signed_message_sha256", "")))
+            or not SHA256_PATTERN.fullmatch(str(creator.get("signature_sha256", "")))):
+        raise ValueError("E7 funding Gateway client signature audit is invalid")
+    endorsements = audit.get("peer_endorsements")
+    if not isinstance(endorsements, list) or len(endorsements) < 2:
+        raise ValueError("E7 funding endorsement audit is incomplete")
+    observed_msp = set()
+    for endorsement in endorsements:
+        if (not isinstance(endorsement, dict)
+                or endorsement.get("algorithm") != expected_peer
+                or endorsement.get("signature_verified") is not True
+                or not SHA256_PATTERN.fullmatch(str(endorsement.get("certificate_sha256", "")))
+                or not SHA256_PATTERN.fullmatch(str(endorsement.get("signed_message_sha256", "")))
+                or not SHA256_PATTERN.fullmatch(str(endorsement.get("signature_sha256", "")))):
+            raise ValueError("E7 funding peer endorsement audit is invalid")
+        observed_msp.add(endorsement.get("msp_id"))
+    if not {"Org1MSP", "Org2MSP"}.issubset(observed_msp):
+        raise ValueError("E7 funding endorsements do not cover both organizations")
+
+
+def _expected_funding_payload(target_config: str) -> bytes:
+    values = (
+        ("schema_version", "e7-channel-funding-v1"),
+        ("target_config", target_config), ("run_id", "1"),
+        ("settlement_measurement_commit", SETTLEMENT_MEASUREMENT_COMMIT),
+        ("trace_sha256", EXPECTED_TRACE_SHA256), ("channel_id", "c1"),
+        ("prosumer", "residential3"),
+        ("counterparty", "external-market-grid-counterparty"),
+        ("prosumer_initial_kwh_credit", "104.346"),
+        ("counterparty_initial_kwh_credit", "0"),
+        ("interpretation", "measurement commitment only; not enforceable escrow or on-chain asset locking"),
+    )
+    return b"".join(_identity_field(name, value) for name, value in values)
+
+
+def validate_funding_manifest(run: Path, target_config: str,
+                              project_root: Path) -> tuple[dict, int]:
+    manifest_path = run / "manifest.json"
+    manifest = _load_json(manifest_path, "E7 funding manifest")
+    required = {
+        "schema", "experiment", "mode", "scientific", "target_config", "fabric_network_mode", "run_id",
+        "settlement_measurement_commit", "git_commit", "git_tracked_clean",
+        "trace_sha256", "trace_provenance_sha256", "warmup_rows_excluded", "measured_settlement_denominator",
+        "fabric_channel", "fabric_chaincode", "fabric_function", "commitment_key",
+        "commitment_payload_sha256", "commitment_interpretation",
+        "gateway_client_signature_algorithm", "peer_endorsement_signature_algorithm",
+        "timer_definition", "start_monotonic_ns", "end_monotonic_ns",
+        "funding_duration_ns", "completion",
+        "independent_ledger_readback_verified",
+        "transaction_specific_block_endorsement_verification",
+        "code_config_sha256", "runtime_versions", "scientific_environment",
+        "fabric_cpu_isolation", "status", "raw_files",
+    }
+    if not required.issubset(manifest):
+        raise ValueError("E7 funding manifest is incomplete")
+    expected_mode = "ecdsa" if target_config == "classical_l2" else "ml-dsa-65"
+    expected_peer = "ECDSA-P256-SHA256" if target_config == "classical_l2" else "ML-DSA-65-SHA256"
+    expected_payload_sha256 = sha256(_expected_funding_payload(target_config))
+    if (manifest["schema"] != FUNDING_MANIFEST_SCHEMA
+            or manifest["experiment"] != "E7 supplemental channel funding"
+            or manifest["mode"] != "scientific" or manifest["scientific"] is not True
+            or manifest["target_config"] != target_config or manifest["run_id"] != "1"
+            or manifest["settlement_measurement_commit"] != SETTLEMENT_MEASUREMENT_COMMIT
+            or manifest["git_tracked_clean"] is not True or manifest["status"] != "complete"
+            or not GIT_COMMIT_PATTERN.fullmatch(str(manifest["git_commit"]))
+            or manifest["trace_sha256"] != EXPECTED_TRACE_SHA256
+            or manifest["trace_provenance_sha256"] != EXPECTED_TRACE_PROVENANCE_SHA256
+            or manifest["warmup_rows_excluded"] != 100
+            or manifest["measured_settlement_denominator"] != 1000
+            or manifest["fabric_network_mode"] != expected_mode
+            or manifest["fabric_channel"] != "energychannel"
+            or manifest["fabric_chaincode"] != "simplekv"
+            or manifest["fabric_function"] != "Set"
+            or manifest["commitment_key"] != f"e7/funding/{target_config}/1"
+            or manifest["commitment_payload_sha256"] != expected_payload_sha256
+            or manifest["commitment_interpretation"] != "measurement commitment only; not enforceable escrow or on-chain asset locking"
+            or manifest["gateway_client_signature_algorithm"] != "ECDSA-P256-SHA256"
+            or manifest["peer_endorsement_signature_algorithm"] != expected_peer
+            or manifest["timer_definition"] != FUNDING_TIMER_DEFINITION
+            or manifest["independent_ledger_readback_verified"] is not True
+            or manifest["transaction_specific_block_endorsement_verification"] is not True):
+        raise ValueError("E7 funding manifest methodology/provenance mismatch")
+    try:
+        started = int(manifest["start_monotonic_ns"])
+        ended = int(manifest["end_monotonic_ns"])
+        duration = int(manifest["funding_duration_ns"])
+    except (TypeError, ValueError) as error:
+        raise ValueError("E7 funding duration is malformed") from error
+    if (started < 0 or ended <= started or duration <= 0
+            or duration != ended - started
+            or any(isinstance(manifest[field], bool) for field in
+                   ("start_monotonic_ns", "end_monotonic_ns", "funding_duration_ns"))):
+        raise ValueError("E7 funding monotonic timing evidence is inconsistent")
+    completion = manifest["completion"]
+    if (not isinstance(completion, dict) or not completion.get("transaction_id")
+            or completion.get("committed") is not True or completion.get("verified") is not True
+            or completion.get("validation_status") != "VALID"
+            or completion.get("validation_code") != 0
+            or not isinstance(completion.get("block_number"), int)
+            or completion.get("block_number") < 0):
+        raise ValueError("E7 funding Fabric completion is invalid")
+    validate_fabric_cpu_isolation(manifest["fabric_cpu_isolation"])
+    environment = manifest["scientific_environment"]
+    if (not isinstance(environment, dict) or environment.get("passed") is not True
+            or environment.get("process_affinity") != EXPECTED_AFFINITY
+            or set(environment.get("governor", [])) != {"performance"}
+            or set(environment.get("energy_performance_preference", [])) != {"performance"}
+            or set(environment.get("scaling_min_freq_khz", [])) != {3200000}
+            or set(environment.get("scaling_max_freq_khz", [])) != {3200000}
+            or environment.get("boost_enabled") is not False
+            or environment.get("ac_online") is not True):
+        raise ValueError("E7 funding scientific controls did not pass")
+    versions = manifest["runtime_versions"]
+    if (not isinstance(versions, dict) or not versions.get("go") or not versions.get("python")
+            or versions.get("fabric") != "2.5.16"
+            or versions.get("fabric_gateway_go") != "1.7.1"
+            or versions.get("liboqs") != "0.15.0"
+            or versions.get("liboqs_go") != "v0.15.0"):
+        raise ValueError("E7 funding runtime provenance is invalid")
+    _validate_git_code_map(
+        project_root, manifest["git_commit"], manifest["code_config_sha256"],
+        REQUIRED_FUNDING_CODE_CONFIG_PATHS,
+    )
+    raw_files = manifest["raw_files"]
+    if not isinstance(raw_files, dict) or set(raw_files) != FUNDING_RAW_FILES:
+        raise ValueError("E7 funding raw evidence inventory is invalid")
+    for filename, recorded in raw_files.items():
+        if recorded != _file_evidence(run / filename):
+            raise ValueError("E7 funding raw evidence hash/size mismatch")
+    if {path.name for path in run.iterdir()} != FUNDING_RAW_FILES | {"manifest.json"}:
+        raise ValueError("E7 funding directory contains missing or extra files")
+
+    try:
+        with (run / "funding.csv").open(newline="", encoding="utf-8") as source:
+            reader = csv.DictReader(source)
+            if tuple(reader.fieldnames or ()) != FUNDING_CSV_FIELDS:
+                raise ValueError("E7 funding CSV schema mismatch")
+            rows = list(reader)
+    except (OSError, UnicodeDecodeError, csv.Error) as error:
+        raise ValueError("E7 funding CSV is malformed") from error
+    if len(rows) != 1:
+        raise ValueError("E7 funding evidence must contain exactly one transaction")
+    row = rows[0]
+    if (row["target_config"] != target_config or row["run_id"] != "1"
+            or row["start_monotonic_ns"] != str(started)
+            or row["end_monotonic_ns"] != str(ended)
+            or row["funding_duration_ns"] != str(duration)
+            or row["transaction_id"] != completion["transaction_id"]
+            or row["block_number"] != str(completion["block_number"])
+            or row["validation_status"] != "VALID" or row["validation_code"] != "0"
+            or row["committed"] != "true" or row["verified"] != "true"
+            or row["readback_verified"] != "true"
+            or row["payload_sha256"] != manifest["commitment_payload_sha256"]):
+        raise ValueError("E7 funding CSV disagrees with manifest")
+    readback = _load_json(run / "ledger_readback.json", "E7 funding readback")
+    if (readback != {"key": manifest["commitment_key"],
+                     "payload_sha256": manifest["commitment_payload_sha256"],
+                     "readback_sha256": manifest["commitment_payload_sha256"],
+                     "matched": True}):
+        raise ValueError("E7 funding independent ledger readback mismatch")
+    audit = _load_json(run / "transaction_audit.json", "E7 funding transaction audit")
+    _validate_funding_audit(audit, manifest, run / "funding_block.pb")
+    return manifest, duration
+
+
+def load_funding_runs(funding_root: Path, project_root: Path) -> dict[str, int]:
+    expected = {"classical_l2", "layer_aware_l2"}
+    if not funding_root.is_dir() or {path.name for path in funding_root.iterdir()} != expected:
+        raise ValueError("E7 funding root must contain exactly both L2 funding conditions")
+    durations, manifests = {}, []
+    for config in sorted(expected):
+        parent = funding_root / config
+        if {path.name for path in parent.iterdir()} != {"run_1"}:
+            raise ValueError("E7 funding evidence has duplicate or unexpected runs")
+        manifest, duration = validate_funding_manifest(parent / "run_1", config, project_root)
+        manifests.append(manifest)
+        durations[config] = duration
+    if len({manifest["git_commit"] for manifest in manifests}) != 1:
+        raise ValueError("E7 funding manifests have mixed Git commits")
+    if manifests[0]["code_config_sha256"] != manifests[1]["code_config_sha256"]:
+        raise ValueError("E7 funding manifests have inconsistent code/config hashes")
+    return durations
 
 
 def validate_trace(trace_path: Path, provenance_path: Path) -> int:
@@ -570,7 +845,7 @@ def validate_raw_rows(rows: list[dict[str, str]], trace_path: Path) -> list[dict
         if expected_phase == "measured":
             normalized.append({
                 "config": config, "run_id": row["run_id"],
-                "sample_idx": sample_idx, "latency_ms": latency,
+                "sample_idx": sample_idx, "latency_ms": row["latency_ms"],
             })
     expected = set(range(len(trace_rows)))
     if any(populations[name] != expected for name in CONFIG_NAMES):
@@ -588,7 +863,7 @@ def validate_rows(rows: list[dict[str, str]], trace_row_count: int) -> list[dict
     }
     counts: dict[str, int] = {name: 0 for name in CONFIG_NAMES}
     for row in rows:
-        if None in row or any(field not in row or row[field] is None for field in FINAL_FIELDS):
+        if None in row or any(field not in row or row[field] is None for field in SETTLEMENT_FIELDS):
             raise ValueError("malformed E7 evidence row")
         config = row["config"]
         get_configuration(config)
@@ -597,13 +872,13 @@ def validate_rows(rows: list[dict[str, str]], trace_row_count: int) -> list[dict
             raise ValueError("E7 run_id must be non-empty")
         try:
             sample_idx = int(row["sample_idx"])
-            latency_ms = float(row["latency_ms"])
-        except (TypeError, ValueError) as error:
+            latency_ms = Decimal(str(row["latency_ms"]))
+        except (TypeError, ValueError, InvalidOperation) as error:
             raise ValueError("E7 sample_idx/latency_ms is malformed") from error
         measured_trace_rows = trace_row_count - WARMUP_SAMPLES
         if sample_idx < 0 or sample_idx >= measured_trace_rows:
             raise ValueError("E7 sample_idx is outside the measured trace population")
-        if not math.isfinite(latency_ms) or latency_ms <= 0:
+        if not latency_ms.is_finite() or latency_ms <= 0:
             raise ValueError("E7 latency_ms must be finite and positive")
         key = (config, run_id, sample_idx)
         if key in seen:
@@ -611,14 +886,21 @@ def validate_rows(rows: list[dict[str, str]], trace_row_count: int) -> list[dict
         seen.add(key)
         populations[config].add((run_id, sample_idx))
         counts[config] += 1
-        normalized.append(
-            {
+        normalized_row = {
                 "config": config,
                 "run_id": run_id,
                 "sample_idx": sample_idx,
-                "latency_ms": latency_ms,
+                "latency_ms": str(row["latency_ms"]),
             }
-        )
+        if "amortized_setup_ms" in row:
+            try:
+                setup = Decimal(str(row["amortized_setup_ms"]))
+            except (InvalidOperation, TypeError, ValueError) as error:
+                raise ValueError("E7 amortized_setup_ms is malformed") from error
+            if not setup.is_finite() or setup < 0:
+                raise ValueError("E7 amortized_setup_ms must be finite and nonnegative")
+            normalized_row["amortized_setup_ms"] = str(row["amortized_setup_ms"])
+        normalized.append(normalized_row)
     if any(count < MINIMUM_MEASURED_SAMPLES for count in counts.values()):
         raise ValueError("E7 requires at least 1000 measured samples per configuration")
     first_population = populations[CONFIG_NAMES[0]]
@@ -652,7 +934,8 @@ def render_final(rows: list[dict[str, object]]) -> bytes:
                 row["config"],
                 row["run_id"],
                 row["sample_idx"],
-                format(float(row["latency_ms"]), ".9f"),
+                row["latency_ms"],
+                row["amortized_setup_ms"],
             )
         )
     return output.getvalue().encode("utf-8")
@@ -660,6 +943,7 @@ def render_final(rows: list[dict[str, object]]) -> bytes:
 
 def finalize(
     evidence_root: Path,
+    funding_root: Path,
     trace_path: Path,
     provenance_path: Path,
     output_path: Path,
@@ -670,6 +954,18 @@ def finalize(
         evidence_root, trace_path, provenance_path, project_root
     )
     normalized = validate_raw_rows(rows, trace_path)
+    durations = load_funding_runs(funding_root, project_root)
+    zero = "0.000000000"
+    # nanoseconds / 1e6 converts to milliseconds; dividing that one-time
+    # latency by exactly 1000 measured settlements is therefore ns / 1e9.
+    amortized = {
+        config: format(Decimal(duration) / Decimal(1_000_000_000), ".9f")
+        for config, duration in durations.items()
+    }
+    for row in normalized:
+        row["amortized_setup_ms"] = amortized.get(str(row["config"]), zero)
+    if len(normalized) != 4000:
+        raise ValueError("E7 final output requires exactly 4000 measured rows")
     content = render_final(normalized)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary_name = tempfile.mkstemp(
@@ -689,6 +985,7 @@ def finalize(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--evidence-root", type=Path, required=True)
+    parser.add_argument("--funding-evidence-root", type=Path, required=True)
     parser.add_argument("--trace", type=Path, required=True)
     parser.add_argument("--trace-provenance", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -696,6 +993,7 @@ def main() -> None:
     arguments = parser.parse_args()
     finalize(
         arguments.evidence_root,
+        arguments.funding_evidence_root,
         arguments.trace,
         arguments.trace_provenance,
         arguments.output,

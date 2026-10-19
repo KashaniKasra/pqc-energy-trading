@@ -11,7 +11,7 @@ This repository is an empirical testbed for measuring cryptographic, blockchain,
 - E5 watchtower scalability: complete.
 - E6 key-aggregation ablation: complete.
 - E9 network sensitivity: complete.
-- E7 latency measurement: pending; canonical workload trace frozen.
+- E7 settlement latency collection: complete; supplemental L2 funding collection and final CSV are pending.
 - E8: not yet completed.
 
 Final completed-experiment CSVs:
@@ -178,13 +178,19 @@ Both sizes are derived from the hash-verified final `data/e2_statemachine.csv`, 
 
 ## E7 end-to-end prosumer workload
 
-E7 latency measurement is not yet complete. Its workload input is frozen at `env/e7/trace/opsd_household_15min_e7.csv`, with provenance in `env/e7/trace/provenance.json`. The trace uses OPSD Household Data version 2020-04-15 household `residential3`: 1,101 qualifying cumulative meter rows are first-differenced into 1,100 15-minute settlement intervals, comprising 100 warm-up and 1,000 measured samples. The 15-minute interval is logical trace time; benchmark replay does not wait 15 wall-clock minutes between samples.
+The four settlement-latency runs were collected at commit `0a6d20cf06d8e452b0d9bbd85922baff058cdca0`; E7 remains incomplete until the separate supplemental L2 funding measurements are collected and audited. Its workload input is frozen at `env/e7/trace/opsd_household_15min_e7.csv`, with provenance in `env/e7/trace/provenance.json`. The trace uses OPSD Household Data version 2020-04-15 household `residential3`: 1,101 qualifying cumulative meter rows are first-differenced into 1,100 15-minute settlement intervals, comprising 100 warm-up and 1,000 measured samples. The 15-minute interval is logical trace time; benchmark replay does not wait 15 wall-clock minutes between samples.
 
 `residential3` was selected from the technically eligible residential3, residential4, and residential6 candidates because its earliest qualifying window contains the strongest mix of net-surplus and net-deficit settlement states (214 surplus and 886 deficit intervals). This selection exercises both prosumer states and is not a claim that the household is statistically representative.
 
-The pending E7 measurement uses one matched `run_id=1`, sequential one-in-flight replay, and a trace-derived minimum initial logical balance of 104.346 kWh-credit. Frozen E2 has no explicit amount-bearing HTLC or mutable channel balance. E7 therefore maintains amount-aware logical channel state in an E7 wrapper and binds the exact trade terms cryptographically through the signed HTLC ID hash; E2 remains unchanged. Layer-2 setup, funding, key generation, and one persistent direct TCP connection occur before sample timing, with no Mininet or artificial RTT. Per-sample signing, canonical serialization, receiver verification, ADD, SETTLE, acknowledgements, and logical finalization are inside the outer E7 timer. `sets_reimpl` uses the Go standard-library P-256/SHA-256 ECDSA path and remains our limited reimplementation, not the original SETS authors' implementation.
+The settlement runs use one matched `run_id=1`, sequential one-in-flight replay, and a trace-derived minimum initial logical balance of 104.346 kWh-credit. Frozen E2 has no explicit amount-bearing HTLC or mutable channel balance. E7 therefore maintains amount-aware logical channel state in an E7 wrapper and binds the exact trade terms cryptographically through the signed HTLC ID hash; E2 remains unchanged. For `l1_only`, latency begins immediately before logical validation/reservation and Fabric submission processing and ends only after a committed, `VALID` status and logical finalization. `sets_reimpl` has the same Fabric completion boundary and additionally includes its per-sample P-256/SHA-256 signing, verification, and controller checks. Network creation, chaincode deployment, Gateway connection, and run-level keys are excluded.
 
-The execution foundation now includes a pinned Fabric Gateway Go adapter for `energychannel`/`simplekv.Set`: `l1_only` starts a fresh isolated `ml-dsa-65` E1 network and `sets_reimpl` starts a separate fresh `ecdsa` network. The explicit `e7bench` mode is either `dry-run` or `scientific`; dry-run only validates inputs, while scientific mode fails closed unless the tracked tree is clean, AC is online, boost is disabled, governor/EPP are `performance`, min/max are 3.2 GHz, and affinity is exactly `2,4,6,8,10,12,14`. For on-chain E7, an E7-only Compose override also restricts the orderer, every measured peer, and launched `simplekv` chaincode containers to that exact CPU set. Before row 0, actual running-container placement and each live peer's chaincode-launch CPU policy are independently verified and retained in the manifest, ensuring later Fabric-launched `simplekv` containers inherit the same restriction. This does not alter the frozen E1 experiment. Future evidence is collision-safe at `<evidence-root>/<config>/run_1/` with `manifest.json`, rich `samples.csv`, and `run.log` (plus Fabric transaction/block audit CSVs on-chain). Production finalization requires all four complete manifests and their hash-committed rich samples. E7 remains pending: no scientific latency run or final CSV has been produced.
+For both L2 settlement runs, channel setup/funding in the local E2 model, run-level keys, verifier-independent readiness, and one persistent direct TCP connection occur before sample timing, with no Mininet or artificial RTT. Each timed sample includes E7 logical reservation; real E2 ADD and SETTLE state transitions; signing, canonical serialization, verifier construction, receiver cryptographic verification, TCP framing/transfer and acknowledgements; and logical finalization. `classical_l2` uses real Ed25519 as E2's compact classical-size proxy, not MuSig2. `layer_aware_l2` uses real Falcon-padded-512 for ADD and SETTLE. These L2 completions are local channel/TCP confirmations, not Fabric ledger finality, so their `latency_ms` and the on-chain configurations' committed-Fabric `latency_ms` represent explicitly different completion paths.
+
+The supplemental funding runner records one separate real `energychannel`/`simplekv.Set` transaction for each L2 configuration. `classical_l2` uses an ECDSA Fabric peer-identity network; `layer_aware_l2` uses ML-DSA-65 peer endorsement identities. In both cases the Fabric Gateway client identity remains ECDSA P-256, so client signatures and peer endorsements are reported separately. The deterministic record commits the channel parties, trace, run, and initial logical balances, but it is a measurement commitment—not enforceable escrow or actual on-chain asset locking. Linux `CLOCK_MONOTONIC` is sampled immediately before Gateway submission and immediately after successful endorsement, ordering, validation, and commit-status confirmation; both markers and their exact difference are retained. Fabric/network setup, chaincode deployment, key generation, Gateway connection, payload preparation, post-commit ledger readback/block/signature audit, and teardown are excluded.
+
+The final schema is `config,run_id,sample_idx,latency_ms,amortized_setup_ms`. Original settlement `latency_ms` text is retained unchanged. The one-time funding duration for each L2 configuration is divided by exactly 1,000 measured settlements using exact decimal arithmetic and written with nine decimal places; the 100 warm-ups neither enter the denominator nor receive final rows. On-chain configurations receive `0.000000000`. Funding is not added to `latency_ms`. The funding collector permits exactly one submission with no retry, then independently reads the ledger and verifies the exact transaction's block status, Gateway-client signature, and endorsements. No supplemental funding evidence or final E7 CSV has yet been collected/generated.
+
+The scientific runners fail closed unless the tracked tree is clean, AC is online, boost is disabled, governor/EPP are `performance`, min/max are 3.2 GHz, and affinity is exactly `2,4,6,8,10,12,14`. An E7-only Compose override restricts the orderer, every measured peer, and launched `simplekv` chaincode containers to that exact CPU set; actual placement and live peer chaincode-launch policy are verified before measurement and retained. Supplemental evidence is collision-safe at `<funding-evidence-root>/<classical_l2|layer_aware_l2>/run_1/` and includes the manifest, one-row funding CSV, run log, committed block, ledger readback, and transaction/signature audit. Production finalization requires the four immutable settlement runs plus both complete supplemental funding runs.
 
 ## E9 network sensitivity
 
@@ -316,6 +322,64 @@ python3 src/e6/finalize_e6.py \
   --output /tmp/e6_aggregation.regenerated.csv
 cmp -- data/e6_aggregation.csv /tmp/e6_aggregation.regenerated.csv
 sha256sum data/e2_statemachine.csv data/e6_aggregation.csv
+```
+
+E7 unit tests and dry-run funding validation do not start Fabric or collect evidence:
+
+```bash
+(cd src/e7 && go test -count=1 ./... && go vet ./...)
+python3 -m unittest discover -s src/e7 -p 'test*.py' -v
+(cd src/e7 && go run ./cmd/e7funding \
+  --target-config classical_l2 --run-id 1 \
+  --trace ../../env/e7/trace/opsd_household_15min_e7.csv \
+  --evidence-root /tmp/unused-e7-funding --project-root ../.. --mode dry-run)
+```
+
+Before scientific collection, the explicit `integration-smoke` mode can exercise the same real submission, readback, QSCC block retrieval, and signature audit path without applying scientific host-control gates. It writes only beneath an `integration-smoke/` subdirectory with a distinct non-scientific manifest schema; the production finalizer rejects it. The command starts a fresh E7-isolated Fabric network, regenerates the E1 runtime crypto/channel artifacts, stops any E1/E7 network using that Compose project, submits one transaction, and tears the network down:
+
+```bash
+export LIBOQS_GO_PC_DIR=/path/to/liboqs-go/.config
+export PKG_CONFIG_PATH="$LIBOQS_GO_PC_DIR:/usr/local/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+export LD_LIBRARY_PATH="/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+(cd src/e7 && go run ./cmd/e7funding \
+  --target-config classical_l2 --run-id 1 \
+  --trace ../../env/e7/trace/opsd_household_15min_e7.csv \
+  --evidence-root /tmp/e7-funding-integration --project-root ../.. \
+  --mode integration-smoke)
+(cd src/e7 && go run ./cmd/e7funding \
+  --target-config layer_aware_l2 --run-id 1 \
+  --trace ../../env/e7/trace/opsd_household_15min_e7.csv \
+  --evidence-root /tmp/e7-funding-integration --project-root ../.. \
+  --mode integration-smoke)
+```
+
+New scientific funding collection requires the same AC, frequency, boost, EPP/governor, affinity, and E7 Fabric-container controls described above, the pinned liboqs/liboqs-go environment, a clean committed tree, and a new external evidence root. Execute each target exactly once; the runner refuses an existing target directory and performs no retry:
+
+```bash
+export LIBOQS_GO_PC_DIR=/path/to/liboqs-go/.config
+export PKG_CONFIG_PATH="$LIBOQS_GO_PC_DIR:/usr/local/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+export LD_LIBRARY_PATH="/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+(cd src/e7 && taskset -c 2,4,6,8,10,12,14 go run ./cmd/e7funding \
+  --target-config classical_l2 --run-id 1 \
+  --trace ../../env/e7/trace/opsd_household_15min_e7.csv \
+  --evidence-root /new/external/e7-funding --project-root ../.. --mode scientific)
+(cd src/e7 && taskset -c 2,4,6,8,10,12,14 go run ./cmd/e7funding \
+  --target-config layer_aware_l2 --run-id 1 \
+  --trace ../../env/e7/trace/opsd_household_15min_e7.csv \
+  --evidence-root /new/external/e7-funding --project-root ../.. --mode scientific)
+```
+
+After both supplemental runs pass independent audit, generate a candidate final CSV without modifying the immutable settlement evidence:
+
+```bash
+python3 src/e7/finalize_e7.py \
+  --evidence-root ~/e7-scientific-evidence-0a6d20c \
+  --funding-evidence-root /new/external/e7-funding \
+  --trace env/e7/trace/opsd_household_15min_e7.csv \
+  --trace-provenance env/e7/trace/provenance.json \
+  --project-root . --output /tmp/e7_endtoend.candidate.csv
 ```
 
 E9 tests and frozen finalization do not require the scientific CPU policy. A new scientific measurement does: AC power, `amd-pstate-epp`, performance governor and EPP, boost disabled, min=max frequency of 3,200,000 kHz, and process affinity `2,4,6,8,10,12,14`. Validate and regenerate the completed E9 result from retained evidence with:
