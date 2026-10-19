@@ -1,0 +1,398 @@
+{
+  "compression": {
+    "command": "LC_ALL=C gzip -9 -n",
+    "deterministic_header": true,
+    "format": "gzip",
+    "level": 9,
+    "original_sha256_semantics": "SHA-256 of decompressed/original scientific evidence bytes",
+    "tracked_sha256_semantics": "SHA-256 of tracked gzip container bytes"
+  },
+  "configs": [
+    "l1_only",
+    "sets_reimpl",
+    "classical_l2",
+    "layer_aware_l2"
+  ],
+  "entries": [
+    {
+      "compression": "gzip",
+      "config": "classical_l2",
+      "evidence_group": "funding",
+      "original_bytes": 400,
+      "original_filename": "funding.csv",
+      "original_sha256": "65665105727679179f00111b43d40e0780996f8e7b26f07623571ba13d01ea52",
+      "run_id": "1",
+      "tracked_bytes": 284,
+      "tracked_filename": "funding/classical_l2/run_1/funding.csv.gz",
+      "tracked_sha256": "2dbdc8cf050db8af90e831baafeb57013d411a7f05c52af02ea55ef7df2efb33"
+    },
+    {
+      "compression": "gzip",
+      "config": "classical_l2",
+      "evidence_group": "funding",
+      "original_bytes": 6004,
+      "original_filename": "funding_block.pb",
+      "original_sha256": "fbdba7f0d8cc7c0b4094c6ad7e8fb3934cb6d2711833e9c7213691b9b5953835",
+      "run_id": "1",
+      "tracked_bytes": 2997,
+      "tracked_filename": "funding/classical_l2/run_1/funding_block.pb.gz",
+      "tracked_sha256": "cd884ad83905cec38b5252f4c7237d5cf1f050e3c007fb61a79349572ebddf11"
+    },
+    {
+      "compression": "gzip",
+      "config": "classical_l2",
+      "evidence_group": "funding",
+      "original_bytes": 237,
+      "original_filename": "ledger_readback.json",
+      "original_sha256": "b6234192ac41f5005b58174fd1f2bcc3e42fd247988bf7f7d7fb091c9842b8e7",
+      "run_id": "1",
+      "tracked_bytes": 155,
+      "tracked_filename": "funding/classical_l2/run_1/ledger_readback.json.gz",
+      "tracked_sha256": "841e238cdf8a66891e25bf127f0f1b3c3151b1c41fd876b59a52e560467625e6"
+    },
+    {
+      "compression": "gzip",
+      "config": "classical_l2",
+      "evidence_group": "funding",
+      "original_bytes": 10180,
+      "original_filename": "manifest.json",
+      "original_sha256": "4045652ef4d339fa9ef155207ad4e858d4fbab870a47885f7797768630e88795",
+      "run_id": "1",
+      "tracked_bytes": 3327,
+      "tracked_filename": "funding/classical_l2/run_1/manifest.json.gz",
+      "tracked_sha256": "1d3bc9c62cbe714cfacbaf3b31c7487efb4d4a1d4c42267e9d4755c46d700d59"
+    },
+    {
+      "compression": "gzip",
+      "config": "classical_l2",
+      "evidence_group": "funding",
+      "original_bytes": 13071,
+      "original_filename": "run.log",
+      "original_sha256": "7f7004dcafaeee2e9c73eae7d62a7fd5e4fe5760c6b6f16def587b2447870c73",
+      "run_id": "1",
+      "tracked_bytes": 2179,
+      "tracked_filename": "funding/classical_l2/run_1/run.log.gz",
+      "tracked_sha256": "bbbd4487db74dc09a44f7ffa5ff3a0e0e6dafd4e6553d0470b10d63693aab31c"
+    },
+    {
+      "compression": "gzip",
+      "config": "classical_l2",
+      "evidence_group": "funding",
+      "original_bytes": 1959,
+      "original_filename": "transaction_audit.json",
+      "original_sha256": "7e61d784fbbe3718f1a72708c2e5d656d6671018eefa37b54372830a35915077",
+      "run_id": "1",
+      "tracked_bytes": 920,
+      "tracked_filename": "funding/classical_l2/run_1/transaction_audit.json.gz",
+      "tracked_sha256": "92664484b90edadab356f07a840ca6420d0de79fb2c9cb029639227078b46b20"
+    },
+    {
+      "compression": "gzip",
+      "config": "layer_aware_l2",
+      "evidence_group": "funding",
+      "original_bytes": 402,
+      "original_filename": "funding.csv",
+      "original_sha256": "55edc25edff8df93dce4a78837ef9f672a4f5f5b758dacbfe59a587a73a3bcb4",
+      "run_id": "1",
+      "tracked_bytes": 284,
+      "tracked_filename": "funding/layer_aware_l2/run_1/funding.csv.gz",
+      "tracked_sha256": "cf06435b0b40c0830d53162d01aec2b8678e43ed0b4c951640b167dd42e8e705"
+    },
+    {
+      "compression": "gzip",
+      "config": "layer_aware_l2",
+      "evidence_group": "funding",
+      "original_bytes": 17890,
+      "original_filename": "funding_block.pb",
+      "original_sha256": "7aed12294f5851d95bce6646599b8d2f614c67db2fa57a77bd14c6a7f74b6fa4",
+      "run_id": "1",
+      "tracked_bytes": 14518,
+      "tracked_filename": "funding/layer_aware_l2/run_1/funding_block.pb.gz",
+      "tracked_sha256": "c7b39b158110bb35cfde3536cfc7b1d023ecdd81ae98850f654415c0e5c92113"
+    },
+    {
+      "compression": "gzip",
+      "config": "layer_aware_l2",
+      "evidence_group": "funding",
+      "original_bytes": 239,
+      "original_filename": "ledger_readback.json",
+      "original_sha256": "1b0b02706b3ee62103a933a36c82f697afa2ce51b7237022363ed670b7ac2ded",
+      "run_id": "1",
+      "tracked_bytes": 156,
+      "tracked_filename": "funding/layer_aware_l2/run_1/ledger_readback.json.gz",
+      "tracked_sha256": "d43d19fff9b32d31b388d13dbc318a6f03629c26b6a370b322c449dfd8295281"
+    },
+    {
+      "compression": "gzip",
+      "config": "layer_aware_l2",
+      "evidence_group": "funding",
+      "original_bytes": 10186,
+      "original_filename": "manifest.json",
+      "original_sha256": "b8670ab639795819ad9e08bc9c69e3f9c5e4372a0278dfb54634d73dbd1c2971",
+      "run_id": "1",
+      "tracked_bytes": 3340,
+      "tracked_filename": "funding/layer_aware_l2/run_1/manifest.json.gz",
+      "tracked_sha256": "149b798d4807e6ffed4f63ed87512117850d6622de024918286fe2100dc1904a"
+    },
+    {
+      "compression": "gzip",
+      "config": "layer_aware_l2",
+      "evidence_group": "funding",
+      "original_bytes": 13538,
+      "original_filename": "run.log",
+      "original_sha256": "b3029b020d258237a14ea259a8808971f401e05483ab29a2c11739e6f305efce",
+      "run_id": "1",
+      "tracked_bytes": 2282,
+      "tracked_filename": "funding/layer_aware_l2/run_1/run.log.gz",
+      "tracked_sha256": "28db77cba8fbff5f777499618e287a65b07283cf975ccef86014dea5588c9d74"
+    },
+    {
+      "compression": "gzip",
+      "config": "layer_aware_l2",
+      "evidence_group": "funding",
+      "original_bytes": 1959,
+      "original_filename": "transaction_audit.json",
+      "original_sha256": "3b29d369de283db1ed6b12e7d0e00ef8555988563ba8c493696ab472dafc6330",
+      "run_id": "1",
+      "tracked_bytes": 935,
+      "tracked_filename": "funding/layer_aware_l2/run_1/transaction_audit.json.gz",
+      "tracked_sha256": "bd8a56732af48e78067389f08afc63d9a03203c604943ff1378cf78ddb41bcd3"
+    },
+    {
+      "compression": "gzip",
+      "config": "classical_l2",
+      "evidence_group": "settlement",
+      "original_bytes": 6221,
+      "original_filename": "manifest.json",
+      "original_sha256": "66d95354080bc73bb62c76bd09da054137110ec5f54eec98d7ea66571362fe6f",
+      "run_id": "1",
+      "tracked_bytes": 2322,
+      "tracked_filename": "settlement/classical_l2/run_1/manifest.json.gz",
+      "tracked_sha256": "54711e9fd86f1641e4784c5eadd9f0246f2dcf4882f8dd6c0588fdda7843d86c"
+    },
+    {
+      "compression": "gzip",
+      "config": "classical_l2",
+      "evidence_group": "settlement",
+      "original_bytes": 88,
+      "original_filename": "run.log",
+      "original_sha256": "48263b3e0cfe172c9fe806f29fbcb2cdc5dd979f7cfbc9dcd1781dd8c2ea8c66",
+      "run_id": "1",
+      "tracked_bytes": 105,
+      "tracked_filename": "settlement/classical_l2/run_1/run.log.gz",
+      "tracked_sha256": "8889a45d38ca0c768ffd5856acaef8429babe240955daee080db5c59d78ce12b"
+    },
+    {
+      "compression": "gzip",
+      "config": "classical_l2",
+      "evidence_group": "settlement",
+      "original_bytes": 775241,
+      "original_filename": "samples.csv",
+      "original_sha256": "c20b531e5162e9bc391758b12ba9b064dcbb530d3fe32c50771fe63fd45b6437",
+      "run_id": "1",
+      "tracked_bytes": 223694,
+      "tracked_filename": "settlement/classical_l2/run_1/samples.csv.gz",
+      "tracked_sha256": "e487f871954213eb43cacd2691b707adcdaad063acda5b99458150c56c2e1dad"
+    },
+    {
+      "compression": "gzip",
+      "config": "l1_only",
+      "evidence_group": "settlement",
+      "original_bytes": 80343,
+      "original_filename": "ledger_heights.csv",
+      "original_sha256": "3485f277f01faf4e6297e2ccfb0274bb29a39eb09677af75b2282e325902897c",
+      "run_id": "1",
+      "tracked_bytes": 46906,
+      "tracked_filename": "settlement/l1_only/run_1/ledger_heights.csv.gz",
+      "tracked_sha256": "d2e51d0fc95aae5db75a6d0e2e5ae8e4adb9b3f26a244aba8be9af1fe656c5b8"
+    },
+    {
+      "compression": "gzip",
+      "config": "l1_only",
+      "evidence_group": "settlement",
+      "original_bytes": 8892,
+      "original_filename": "manifest.json",
+      "original_sha256": "2d8d5b738c2e532371f77b479c5b9485faf93b5ca716876eef472fc831287b01",
+      "run_id": "1",
+      "tracked_bytes": 2717,
+      "tracked_filename": "settlement/l1_only/run_1/manifest.json.gz",
+      "tracked_sha256": "21e302a16b7ab27b3183ad10f94f3e6b7110192f281b7e21528f51923faa81ae"
+    },
+    {
+      "compression": "gzip",
+      "config": "l1_only",
+      "evidence_group": "settlement",
+      "original_bytes": 13621,
+      "original_filename": "run.log",
+      "original_sha256": "91d7d160c6b1aad840f583d66990a95c135a60a607d50a089338d6e0e5a4ead6",
+      "run_id": "1",
+      "tracked_bytes": 2323,
+      "tracked_filename": "settlement/l1_only/run_1/run.log.gz",
+      "tracked_sha256": "e72cbc9395c3c5bd222ffca8ba0e17c9a70c758fd617303b33b91cd8c43a2d46"
+    },
+    {
+      "compression": "gzip",
+      "config": "l1_only",
+      "evidence_group": "settlement",
+      "original_bytes": 634835,
+      "original_filename": "samples.csv",
+      "original_sha256": "f0d03441df4fa7e2324e9539f81aee0bc1dc540c32656d5f15bae1fa09bcc4b0",
+      "run_id": "1",
+      "tracked_bytes": 222409,
+      "tracked_filename": "settlement/l1_only/run_1/samples.csv.gz",
+      "tracked_sha256": "d4ff32f3dc215a0700eabba3ae7724a62787aa85844bd2b398fb36b959e046c3"
+    },
+    {
+      "compression": "gzip",
+      "config": "l1_only",
+      "evidence_group": "settlement",
+      "original_bytes": 95772,
+      "original_filename": "transactions.csv",
+      "original_sha256": "d9529809b398b48aaef249b08fcaf6b35cd5b504d63e647ae85cd9360c8063de",
+      "run_id": "1",
+      "tracked_bytes": 45801,
+      "tracked_filename": "settlement/l1_only/run_1/transactions.csv.gz",
+      "tracked_sha256": "8ed9e7a8fe7763bc8ee84f0fd77b1a811cd6449bb59e04366eb37fc1603f31a2"
+    },
+    {
+      "compression": "gzip",
+      "config": "layer_aware_l2",
+      "evidence_group": "settlement",
+      "original_bytes": 6276,
+      "original_filename": "manifest.json",
+      "original_sha256": "b361d87464ad4a7489199a7a5659f825f1fec26157f4b60eb357d42a38049806",
+      "run_id": "1",
+      "tracked_bytes": 2349,
+      "tracked_filename": "settlement/layer_aware_l2/run_1/manifest.json.gz",
+      "tracked_sha256": "338c677b7a782cf002cfdede26338f172b7958efadc7d563107b2bfd30747882"
+    },
+    {
+      "compression": "gzip",
+      "config": "layer_aware_l2",
+      "evidence_group": "settlement",
+      "original_bytes": 90,
+      "original_filename": "run.log",
+      "original_sha256": "7e4952d295028c5f29112ac386ffc6b948f7c4241d6fb590d013cf2097d3084e",
+      "run_id": "1",
+      "tracked_bytes": 109,
+      "tracked_filename": "settlement/layer_aware_l2/run_1/run.log.gz",
+      "tracked_sha256": "324c8d33d9c4428043adb23f89d7dd7c4ed7eebe383160b42e6bf4b93716b300"
+    },
+    {
+      "compression": "gzip",
+      "config": "layer_aware_l2",
+      "evidence_group": "settlement",
+      "original_bytes": 752365,
+      "original_filename": "samples.csv",
+      "original_sha256": "ad84f88ec8329f081fc89befe28d448ac21eddb015f1cb20c09058f5f0fe4628",
+      "run_id": "1",
+      "tracked_bytes": 224314,
+      "tracked_filename": "settlement/layer_aware_l2/run_1/samples.csv.gz",
+      "tracked_sha256": "e82816b4530b21f1763e2af9bf3539c2d50bcb4425f92dae5e5941bf032c4e3a"
+    },
+    {
+      "compression": "gzip",
+      "config": "sets_reimpl",
+      "evidence_group": "settlement",
+      "original_bytes": 80343,
+      "original_filename": "ledger_heights.csv",
+      "original_sha256": "3e226df93eb4fbbb05e6ff81d2a14190ab3ba6bbb2238f3b710b1cd837ed234d",
+      "run_id": "1",
+      "tracked_bytes": 46955,
+      "tracked_filename": "settlement/sets_reimpl/run_1/ledger_heights.csv.gz",
+      "tracked_sha256": "ad2413cabdcc7d5b69acc599c1371360f2ba7d086699a65a534581ef848549c0"
+    },
+    {
+      "compression": "gzip",
+      "config": "sets_reimpl",
+      "evidence_group": "settlement",
+      "original_bytes": 9016,
+      "original_filename": "manifest.json",
+      "original_sha256": "d1b3cc1ce5c1c9cf4122efc05d1dcec430738dee60bb121123310d6c32980a18",
+      "run_id": "1",
+      "tracked_bytes": 2778,
+      "tracked_filename": "settlement/sets_reimpl/run_1/manifest.json.gz",
+      "tracked_sha256": "8ba7358f6244e46209d5a679618b0c26519eb27837a4631f0db018eaf93aeec1"
+    },
+    {
+      "compression": "gzip",
+      "config": "sets_reimpl",
+      "evidence_group": "settlement",
+      "original_bytes": 13158,
+      "original_filename": "run.log",
+      "original_sha256": "dacb35a9ea386a5fbd605fadd0c0b0c2a1f26ff6e485f1ddf905feaf70375baa",
+      "run_id": "1",
+      "tracked_bytes": 2231,
+      "tracked_filename": "settlement/sets_reimpl/run_1/run.log.gz",
+      "tracked_sha256": "6196a162d8026a2aea31e9db8a29d591d750a510b694966bf045361d389e27a5"
+    },
+    {
+      "compression": "gzip",
+      "config": "sets_reimpl",
+      "evidence_group": "settlement",
+      "original_bytes": 865835,
+      "original_filename": "samples.csv",
+      "original_sha256": "ad398f3abb1c41aeedce721275f7275fb0ed4740a5287e891c55c4798a726f89",
+      "run_id": "1",
+      "tracked_bytes": 312431,
+      "tracked_filename": "settlement/sets_reimpl/run_1/samples.csv.gz",
+      "tracked_sha256": "72b9ace656b7b477bda6d5b0c119dccaee24824aac113317f7f0e8892502f9f7"
+    },
+    {
+      "compression": "gzip",
+      "config": "sets_reimpl",
+      "evidence_group": "settlement",
+      "original_bytes": 95772,
+      "original_filename": "transactions.csv",
+      "original_sha256": "07363f94088c495e6bc3ea9177dea1c5e61bdff01b4f5351634c7b6cc49cde68",
+      "run_id": "1",
+      "tracked_bytes": 45825,
+      "tracked_filename": "settlement/sets_reimpl/run_1/transactions.csv.gz",
+      "tracked_sha256": "369b9118e75c52f15653f89d235a0a55c17410286a491313dbe8c64c3cd7332f"
+    }
+  ],
+  "experiment": "E7",
+  "final_csv": {
+    "data_rows": 4000,
+    "path": "data/e7_endtoend.csv",
+    "schema": [
+      "config",
+      "run_id",
+      "sample_idx",
+      "latency_ms",
+      "amortized_setup_ms"
+    ],
+    "sha256": "000a89eb0923a4f52ebc64e7e38c79696afe8c90809aa8d55435b83c25d49704"
+  },
+  "funding": {
+    "classical_l2": {
+      "duration_ns": 2023056144,
+      "transaction_id": "a931ab3092622bf0922c5503de8aa9bafeca26362cba6763ef789d9645a5de7f"
+    },
+    "layer_aware_l2": {
+      "duration_ns": 2026076261,
+      "transaction_id": "01802db50c3c1b247e15a346d83ecdc6df95e383ff083c92f8f01c94589602db"
+    }
+  },
+  "funding_condition_count": 2,
+  "funding_configs": [
+    "classical_l2",
+    "layer_aware_l2"
+  ],
+  "funding_measurement_commit": "839f056966a6360466ba655f64a7e07b6a02fafc",
+  "measured_rows_per_settlement_config": 1000,
+  "measured_rows_total": 4000,
+  "run_id": "1",
+  "schema": "pqc-energy-trading.raw-e7-evidence-manifest.v1",
+  "settlement_condition_count": 4,
+  "settlement_measurement_commit": "0a6d20cf06d8e452b0d9bbd85922baff058cdca0",
+  "source_file_count": 28,
+  "trace": {
+    "path": "env/e7/trace/opsd_household_15min_e7.csv",
+    "provenance_path": "env/e7/trace/provenance.json",
+    "provenance_sha256": "3f1e5933b0789d722b01f8593d673488e14b54d35fec335762185ef24f2e4eec",
+    "sha256": "7e472c032317a7e8f0af587782238cab48f22ddc50f74200cff65e9681f8bd1c"
+  },
+  "warmup_rows_per_settlement_config": 100,
+  "warmup_rows_total": 400
+}

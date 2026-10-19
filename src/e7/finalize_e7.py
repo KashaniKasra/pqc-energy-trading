@@ -4,15 +4,17 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import csv
 from decimal import Decimal, InvalidOperation
 from datetime import timedelta
+import gzip
 import hashlib
 import io
 import json
 import math
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import subprocess
 import tempfile
@@ -92,7 +94,10 @@ SETS_ECDSA_ALGORITHM = "ECDSA-P256-SHA256"
 MANIFEST_SCHEMA = "pqc-energy-trading.e7-run-manifest.v1"
 FUNDING_MANIFEST_SCHEMA = "pqc-energy-trading.e7-funding-evidence.v2"
 FUNDING_AUDIT_SCHEMA = "pqc-energy-trading.e7-funding-transaction-audit.v1"
+FROZEN_EVIDENCE_SCHEMA = "pqc-energy-trading.raw-e7-evidence-manifest.v1"
 SETTLEMENT_MEASUREMENT_COMMIT = "0a6d20cf06d8e452b0d9bbd85922baff058cdca0"
+FUNDING_MEASUREMENT_COMMIT = "839f056966a6360466ba655f64a7e07b6a02fafc"
+FINAL_CSV_SHA256 = "000a89eb0923a4f52ebc64e7e38c79696afe8c90809aa8d55435b83c25d49704"
 FUNDING_TIMER_DEFINITION = "Linux CLOCK_MONOTONIC immediately before Fabric Gateway simplekv.Set submission through successful committed VALID commit-status return"
 TIMER_DEFINITION = "Go monotonic time immediately before executor.Settle through successful completion return"
 EXPECTED_AFFINITY = [2, 4, 6, 8, 10, 12, 14]
@@ -133,6 +138,25 @@ FUNDING_CSV_FIELDS = (
     "block_number", "validation_status", "validation_code", "committed",
     "verified", "readback_verified", "payload_sha256",
 )
+SETTLEMENT_ARCHIVE_FILES = {
+    "l1_only": {"manifest.json", "samples.csv", "run.log", "transactions.csv", "ledger_heights.csv"},
+    "sets_reimpl": {"manifest.json", "samples.csv", "run.log", "transactions.csv", "ledger_heights.csv"},
+    "classical_l2": {"manifest.json", "samples.csv", "run.log"},
+    "layer_aware_l2": {"manifest.json", "samples.csv", "run.log"},
+}
+FUNDING_ARCHIVE_FILES = {
+    config: {"manifest.json", *FUNDING_RAW_FILES}
+    for config in ("classical_l2", "layer_aware_l2")
+}
+FROZEN_SOURCE_FILE_COUNT = 28
+FUNDING_DURATIONS_NS = {
+    "classical_l2": 2023056144,
+    "layer_aware_l2": 2026076261,
+}
+FUNDING_TRANSACTION_IDS = {
+    "classical_l2": "a931ab3092622bf0922c5503de8aa9bafeca26362cba6763ef789d9645a5de7f",
+    "layer_aware_l2": "01802db50c3c1b247e15a346d83ecdc6df95e383ff083c92f8f01c94589602db",
+}
 
 
 def _file_evidence(path: Path) -> dict[str, object]:
@@ -941,6 +965,223 @@ def render_final(rows: list[dict[str, object]]) -> bytes:
     return output.getvalue().encode("utf-8")
 
 
+def _expected_frozen_inventory() -> dict[tuple[str, str, str], set[str]]:
+    inventory: dict[tuple[str, str, str], set[str]] = {}
+    for config, filenames in SETTLEMENT_ARCHIVE_FILES.items():
+        inventory[("settlement", config, "1")] = set(filenames)
+    for config, filenames in FUNDING_ARCHIVE_FILES.items():
+        inventory[("funding", config, "1")] = set(filenames)
+    return inventory
+
+
+def _validate_safe_relative_path(value: object, label: str) -> PurePosixPath:
+    if not isinstance(value, str) or not value or "\\" in value:
+        raise ValueError(f"invalid frozen E7 {label}")
+    path = PurePosixPath(value)
+    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
+        raise ValueError(f"unsafe frozen E7 {label}")
+    return path
+
+
+def _validate_archive_tree(root: Path, expected_files: set[str]) -> None:
+    if not root.is_dir() or root.is_symlink():
+        raise ValueError("frozen E7 evidence root is missing or unsafe")
+    actual_files: set[str] = set()
+    for path in root.rglob("*"):
+        relative = path.relative_to(root).as_posix()
+        if path.is_symlink():
+            raise ValueError(f"frozen E7 evidence contains a symlink: {relative}")
+        if path.is_file():
+            actual_files.add(relative)
+        elif not path.is_dir():
+            raise ValueError(f"frozen E7 evidence contains a special file: {relative}")
+    if actual_files != expected_files | {"evidence_manifest.json"}:
+        raise ValueError("frozen E7 evidence has missing or unmanifested files")
+
+
+def _reject_archive_symlinks(root: Path) -> None:
+    if root.is_symlink():
+        raise ValueError("frozen E7 evidence root must not be a symlink")
+    for path in root.rglob("*"):
+        if path.is_symlink():
+            raise ValueError(
+                f"frozen E7 evidence contains a symlink: {path.relative_to(root)}"
+            )
+
+
+def _load_frozen_manifest(root: Path) -> tuple[dict, list[dict]]:
+    manifest_path = root / "evidence_manifest.json"
+    if manifest_path.is_symlink():
+        raise ValueError("frozen E7 evidence manifest must not be a symlink")
+    try:
+        manifest = json.loads(manifest_path.read_bytes())
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("frozen E7 evidence manifest is missing or malformed") from error
+    expected_top = {
+        "schema": FROZEN_EVIDENCE_SCHEMA,
+        "experiment": "E7",
+        "settlement_measurement_commit": SETTLEMENT_MEASUREMENT_COMMIT,
+        "funding_measurement_commit": FUNDING_MEASUREMENT_COMMIT,
+        "settlement_condition_count": 4,
+        "funding_condition_count": 2,
+        "source_file_count": FROZEN_SOURCE_FILE_COUNT,
+        "configs": list(CONFIG_NAMES),
+        "funding_configs": ["classical_l2", "layer_aware_l2"],
+        "run_id": "1",
+        "warmup_rows_per_settlement_config": 100,
+        "measured_rows_per_settlement_config": 1000,
+        "warmup_rows_total": 400,
+        "measured_rows_total": 4000,
+        "final_csv": {
+            "path": "data/e7_endtoend.csv",
+            "sha256": FINAL_CSV_SHA256,
+            "data_rows": 4000,
+            "schema": list(FINAL_FIELDS),
+        },
+        "trace": {
+            "path": "env/e7/trace/opsd_household_15min_e7.csv",
+            "sha256": EXPECTED_TRACE_SHA256,
+            "provenance_path": "env/e7/trace/provenance.json",
+            "provenance_sha256": EXPECTED_TRACE_PROVENANCE_SHA256,
+        },
+        "funding": {
+            config: {
+                "duration_ns": FUNDING_DURATIONS_NS[config],
+                "transaction_id": FUNDING_TRANSACTION_IDS[config],
+            }
+            for config in ("classical_l2", "layer_aware_l2")
+        },
+        "compression": {
+            "format": "gzip",
+            "level": 9,
+            "deterministic_header": True,
+            "command": "LC_ALL=C gzip -9 -n",
+            "original_sha256_semantics": "SHA-256 of decompressed/original scientific evidence bytes",
+            "tracked_sha256_semantics": "SHA-256 of tracked gzip container bytes",
+        },
+    }
+    required_keys = set(expected_top) | {"entries"}
+    if not isinstance(manifest, dict) or set(manifest) != required_keys:
+        raise ValueError("frozen E7 evidence manifest key set mismatch")
+    for key, value in expected_top.items():
+        if manifest.get(key) != value:
+            raise ValueError(f"frozen E7 evidence manifest {key} mismatch")
+    entries = manifest.get("entries")
+    if not isinstance(entries, list) or len(entries) != FROZEN_SOURCE_FILE_COUNT:
+        raise ValueError("frozen E7 evidence manifest must contain exactly 28 entries")
+    return manifest, entries
+
+
+@contextmanager
+def extracted_frozen_evidence(root: Path):
+    """Validate and reconstruct the two original E7 evidence trees temporarily."""
+    _reject_archive_symlinks(root)
+    root = root.absolute()
+    _, entries = _load_frozen_manifest(root)
+    expected_inventory = _expected_frozen_inventory()
+    observed_inventory = {key: set() for key in expected_inventory}
+    logical_paths: set[str] = set()
+    tracked_paths: set[str] = set()
+    expected_tracked: set[str] = set()
+    entry_keys = {
+        "evidence_group", "config", "run_id", "original_filename",
+        "original_bytes", "original_sha256", "tracked_filename",
+        "tracked_bytes", "tracked_sha256", "compression",
+    }
+    ordered_keys: list[tuple[str, str, str, str]] = []
+    with tempfile.TemporaryDirectory(prefix="e7-frozen-") as temporary_name:
+        temporary = Path(temporary_name)
+        settlement_root = temporary / "settlement"
+        funding_root = temporary / "funding"
+        for entry in entries:
+            if not isinstance(entry, dict) or set(entry) != entry_keys:
+                raise ValueError("frozen E7 evidence entry schema mismatch")
+            group, config, run_id = (
+                entry.get("evidence_group"), entry.get("config"), entry.get("run_id")
+            )
+            key = (str(group), str(config), str(run_id))
+            if key not in expected_inventory:
+                raise ValueError("frozen E7 evidence group/config/run identity mismatch")
+            original_path = _validate_safe_relative_path(
+                entry.get("original_filename"), "original filename"
+            )
+            if len(original_path.parts) != 1:
+                raise ValueError("frozen E7 original filename must be a basename")
+            filename = original_path.name
+            if filename not in expected_inventory[key]:
+                raise ValueError("frozen E7 evidence filename is unexpected")
+            logical = f"{group}/{config}/run_{run_id}/{filename}"
+            expected_name = f"{logical}.gz"
+            tracked = _validate_safe_relative_path(entry.get("tracked_filename"), "tracked filename")
+            if tracked.as_posix() != expected_name:
+                raise ValueError("frozen E7 tracked filename/classification mismatch")
+            if logical in logical_paths or expected_name in tracked_paths:
+                raise ValueError("duplicate frozen E7 logical or tracked path")
+            if entry.get("compression") != "gzip":
+                raise ValueError("frozen E7 entry compression mismatch")
+            original_sha = entry.get("original_sha256")
+            tracked_sha = entry.get("tracked_sha256")
+            if (not SHA256_PATTERN.fullmatch(str(original_sha))
+                    or not SHA256_PATTERN.fullmatch(str(tracked_sha))):
+                raise ValueError("frozen E7 evidence digest is invalid")
+            tracked_file = root.joinpath(*tracked.parts)
+            if tracked_file.is_symlink():
+                raise ValueError("frozen E7 tracked evidence must not be a symlink")
+            try:
+                compressed = tracked_file.read_bytes()
+            except OSError as error:
+                raise ValueError(f"missing frozen E7 tracked file {expected_name}") from error
+            if len(compressed) != entry.get("tracked_bytes") or sha256(compressed) != tracked_sha:
+                raise ValueError("frozen E7 compressed size/hash mismatch")
+            try:
+                original = gzip.decompress(compressed)
+            except (OSError, EOFError) as error:
+                raise ValueError("frozen E7 gzip payload is invalid or truncated") from error
+            if len(original) != entry.get("original_bytes") or sha256(original) != original_sha:
+                raise ValueError("frozen E7 original size/hash mismatch")
+            destination = temporary / logical
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(original)
+            logical_paths.add(logical)
+            tracked_paths.add(expected_name)
+            expected_tracked.add(expected_name)
+            observed_inventory[key].add(filename)
+            ordered_keys.append((*key, filename))
+        if ordered_keys != sorted(ordered_keys):
+            raise ValueError("frozen E7 evidence entries are not deterministically ordered")
+        if observed_inventory != expected_inventory:
+            raise ValueError("frozen E7 evidence inventory is incomplete")
+        _validate_archive_tree(root, expected_tracked)
+        yield settlement_root, funding_root
+
+
+def finalize_frozen(
+    frozen_root: Path,
+    trace_path: Path,
+    provenance_path: Path,
+    output_path: Path,
+    project_root: Path,
+) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, candidate_name = tempfile.mkstemp(
+        prefix=f".{output_path.name}.frozen-", suffix=".tmp",
+        dir=output_path.parent,
+    )
+    os.close(descriptor)
+    candidate = Path(candidate_name)
+    try:
+        with extracted_frozen_evidence(frozen_root) as (settlement_root, funding_root):
+            finalize(
+                settlement_root, funding_root, trace_path, provenance_path,
+                candidate, project_root,
+            )
+        if sha256(candidate.read_bytes()) != FINAL_CSV_SHA256:
+            raise ValueError("frozen E7 final CSV SHA-256 mismatch")
+        os.replace(candidate, output_path)
+    finally:
+        candidate.unlink(missing_ok=True)
+
+
 def finalize(
     evidence_root: Path,
     funding_root: Path,
@@ -984,21 +1225,33 @@ def finalize(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--evidence-root", type=Path, required=True)
-    parser.add_argument("--funding-evidence-root", type=Path, required=True)
+    sources = parser.add_mutually_exclusive_group(required=True)
+    sources.add_argument("--evidence-root", type=Path)
+    sources.add_argument("--frozen-evidence-root", type=Path)
+    parser.add_argument("--funding-evidence-root", type=Path)
     parser.add_argument("--trace", type=Path, required=True)
     parser.add_argument("--trace-provenance", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--project-root", type=Path, required=True)
     arguments = parser.parse_args()
-    finalize(
-        arguments.evidence_root,
-        arguments.funding_evidence_root,
-        arguments.trace,
-        arguments.trace_provenance,
-        arguments.output,
-        arguments.project_root,
-    )
+    if arguments.frozen_evidence_root is not None:
+        if arguments.funding_evidence_root is not None:
+            parser.error("--funding-evidence-root is not used with --frozen-evidence-root")
+        finalize_frozen(
+            arguments.frozen_evidence_root, arguments.trace,
+            arguments.trace_provenance, arguments.output, arguments.project_root,
+        )
+    else:
+        if arguments.funding_evidence_root is None:
+            parser.error("plain evidence requires --funding-evidence-root")
+        finalize(
+            arguments.evidence_root,
+            arguments.funding_evidence_root,
+            arguments.trace,
+            arguments.trace_provenance,
+            arguments.output,
+            arguments.project_root,
+        )
 
 
 if __name__ == "__main__":
