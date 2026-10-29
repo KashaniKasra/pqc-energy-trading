@@ -1,0 +1,1 @@
+ANDROID_CONDITION_DONE scheme=ECDSA-P-256 operation=sign n_iter=1000 median_ms=0.107615000 p95_ms=0.139400350 p99_ms=0.145621370 stddev_ms=0.011796387

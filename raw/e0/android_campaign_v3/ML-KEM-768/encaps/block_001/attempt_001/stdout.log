@@ -1,0 +1,1 @@
+ANDROID_CONDITION_DONE scheme=ML-KEM-768 operation=encaps n_iter=1000 median_ms=0.098154000 p95_ms=0.125846050 p99_ms=0.136849070 stddev_ms=0.015109187

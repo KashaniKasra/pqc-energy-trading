@@ -1,0 +1,146 @@
+{
+  "campaign_manager": "src/e0/run_e0_android.py",
+  "device": {
+    "android": "12",
+    "architecture": "aarch64",
+    "go": "1.27.3",
+    "governor": "schedutil",
+    "liboqs": "0.15.0",
+    "liboqs_go": "v0.15.0",
+    "manufacturer": "Xiaomi",
+    "model": "M2003J15SC",
+    "model_name": "Redmi Note 9",
+    "rooted": false,
+    "selected_core": "Cortex-A75",
+    "selected_cpu": 7,
+    "selected_cpu_max_mhz": 2000,
+    "soc": "MediaTek Helio G85"
+  },
+  "experiment": "E0-Android-v3",
+  "provenance": {
+    "adb_serial": "05a96d6d0405",
+    "benchmark_sha256": "01598974d7304c62f25d9c8f9bb35c42499f27cd75cfde650527c8407ff1145c",
+    "benchmark_transport": "Termux SSH",
+    "cpu_max_khz": 2000000,
+    "frequency_sampler_sha256": "74d753aa0cd5cfb7373ff23b130323f270c5fbbba165a0e873caeda23956ea41",
+    "git_commit": "2b341f2ac687bd666e65cd2a76eac874e629f205",
+    "git_tracked_clean": true,
+    "go_version_output": "go version go1.27.3 android/arm64",
+    "governor": "schedutil",
+    "scientific_limitations": [
+      "Android is a separate supervised device study and is not the Orange Pi/meter result.",
+      "The non-rooted phone remains under schedutil; the sustained-frequency gate detects variation but does not prove thermal causation.",
+      "temp_c_max is the maximum of CPU HAL observations immediately before and after a run, not a continuously sampled peak."
+    ],
+    "telemetry_transport": "ADB; frequency sampled on-device and retrieved after the measured run"
+  },
+  "registered_conditions": [
+    [
+      "ML-KEM-768",
+      "keygen"
+    ],
+    [
+      "ML-KEM-768",
+      "encaps"
+    ],
+    [
+      "ML-KEM-768",
+      "decaps"
+    ],
+    [
+      "ML-DSA-44",
+      "keygen"
+    ],
+    [
+      "ML-DSA-44",
+      "sign"
+    ],
+    [
+      "ML-DSA-44",
+      "verify"
+    ],
+    [
+      "ML-DSA-65",
+      "keygen"
+    ],
+    [
+      "ML-DSA-65",
+      "sign"
+    ],
+    [
+      "ML-DSA-65",
+      "verify"
+    ],
+    [
+      "ML-DSA-87",
+      "keygen"
+    ],
+    [
+      "ML-DSA-87",
+      "sign"
+    ],
+    [
+      "ML-DSA-87",
+      "verify"
+    ],
+    [
+      "Falcon-512",
+      "keygen"
+    ],
+    [
+      "Falcon-512",
+      "sign"
+    ],
+    [
+      "Falcon-512",
+      "verify"
+    ],
+    [
+      "SPHINCS+-SHA2-128s",
+      "keygen"
+    ],
+    [
+      "SPHINCS+-SHA2-128s",
+      "sign"
+    ],
+    [
+      "SPHINCS+-SHA2-128s",
+      "verify"
+    ],
+    [
+      "ECDSA-P-256",
+      "keygen"
+    ],
+    [
+      "ECDSA-P-256",
+      "sign"
+    ],
+    [
+      "ECDSA-P-256",
+      "verify"
+    ]
+  ],
+  "schema": "pqc-energy-trading.e0-android-campaign.v1",
+  "scientific": true,
+  "source_sha256": {
+    "src/e0/android_condition.go": "bc9212f2ddab22911060a9b1506a8756351710b2c729fbab5b6f70feed375542",
+    "src/e0/android_e0.py": "ee5dab161f49bccfc733dd25c3b5b988de180be7ad3993628151ce6fa54ff9fe",
+    "src/e0/android_e0_blocks.py": "f7297ec1036a4e4f1a2fbb2a0f78a19f362de1c2405ae5da1706e573d1323664",
+    "src/e0/android_e0_campaign.py": "a1dfa2d393338575a0727aa3da742a218e57818a254541e96d8c5a05ec2aca6b",
+    "src/e0/android_e0_reporting.py": "52895f2a695a2eeb04c6cedb3b704974585eaab33eb9fa5ef4376bf6910cab3a",
+    "src/e0/android_stabilization.go": "cc2c54f5b22a4e90776c6adf36547d6af0727554c6ec9a6dea669bf2dba2cccf",
+    "src/e0/cmd/e0freq/main.go": "3fb9dd4a4a5a3fea18027403bb4530476f209cf2795ea4e6935e380791549df3",
+    "src/e0/ecdsa_benchmark.go": "3d3c4002663a66e48779d70b5d450b4198bc11587a75ed7b2294994441ab8778",
+    "src/e0/finalize_e0_android.py": "1b94b8011968ce386ed2dd5add0ae462ec6fa3a4cacedaed15b37288043c2047",
+    "src/e0/go.mod": "e519e32530f7b59549fdd54c92bad9dac4243a8d5dfcaa610b2a3dbeabe2a65a",
+    "src/e0/go.sum": "5951440881a173770058b3e21ef853ed6fa401530a5c12b589ee00afd932647c",
+    "src/e0/main.go": "2da42d4a8831e89ba94b80037ed279938a94b1eb3b9a90dd95d791be985bc146",
+    "src/e0/monotonic.go": "9533ef0faadd2f62c83e9b7bfdacde18c7428acf0a8d3ab581601e275e36ffde",
+    "src/e0/oqs_benchmark.go": "11507b902f7ab086bc43b6f172b9e52028a6e7cf85a364937dc043c3a2386b4e",
+    "src/e0/output.go": "c8a68e1a54ca9110f6f91cfc24f41010933f96c82d3213fae2ff6a917bacfefb",
+    "src/e0/run_e0_android.py": "3d5ee7a199b116dfb8ba3030e628d4cb20a4ffe19199b929ac545827090e0092",
+    "src/e0/stats.go": "bdfb5aa57b83e5d14d9f34b00e4b2385b112cf0a1ed611094b38e97309e0ea24",
+    "src/e0/timing.go": "689d5e3fe23457ed9de0642633177c626a828e6b7898ed48a657b23fcce5b470"
+  },
+  "target_accepted_timings_per_condition": 1000
+}

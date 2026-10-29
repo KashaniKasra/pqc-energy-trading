@@ -1,0 +1,187 @@
+{
+  "accepted_sample_end_exclusive": 1000,
+  "accepted_sample_start": 0,
+  "accepted_timing_iterations": 1000,
+  "attempt_index": 1,
+  "block_index": 1,
+  "campaign_context": {
+    "attempt_sequence": 6,
+    "completion_clock": {
+      "android_boot_id": "c374f416-c1b5-4789-9b02-dfa8a52f0da4",
+      "host_boot_id": "2591a8dd-7d52-4099-940f-629a09670ad9",
+      "host_monotonic_ns": 24085831289545,
+      "wall_time_utc": "2026-10-29T15:15:43.883530Z"
+    },
+    "schema": "pqc-energy-trading.e0-android-campaign-attempt.v1"
+  },
+  "completed_timing_iterations": 1000,
+  "cooldown_escalation_seconds": [
+    180,
+    360,
+    720
+  ],
+  "cooldown_preceding_seconds": 180,
+  "device": {
+    "android": "12",
+    "architecture": "aarch64",
+    "go": "1.27.3",
+    "governor": "schedutil",
+    "liboqs": "0.15.0",
+    "liboqs_go": "v0.15.0",
+    "manufacturer": "Xiaomi",
+    "model": "M2003J15SC",
+    "model_name": "Redmi Note 9",
+    "rooted": false,
+    "selected_core": "Cortex-A75",
+    "selected_cpu": 7,
+    "selected_cpu_max_mhz": 2000,
+    "soc": "MediaTek Helio G85"
+  },
+  "files": {
+    "frequency_samples": {
+      "bytes": 7282,
+      "path": "frequency_samples.csv",
+      "sha256": "2d1f7c256e8ca9377a92e19b56eda01f0219a5ab5bd02fada4432b2c6d199812"
+    },
+    "phase_events": {
+      "bytes": 2165,
+      "path": "phase_events.jsonl",
+      "sha256": "9a9428fb376677e3205ea3cc40f4dca4f475e0f87599c7d8a86b098b6476764d"
+    },
+    "sampler_stderr": {
+      "bytes": 0,
+      "path": "sampler_stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "sampler_stdout": {
+      "bytes": 0,
+      "path": "sampler_stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stderr": {
+      "bytes": 0,
+      "path": "stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stdout": {
+      "bytes": 152,
+      "path": "stdout.log",
+      "sha256": "426d565bda37734954a4ec23d1af67ebfbe061247d3d88e7602b7ddeaf961106"
+    },
+    "temperature_after": {
+      "bytes": 6345,
+      "path": "temperature_after.txt",
+      "sha256": "e6340ff8103225b3d679100117bb08b75963c45e3fc04cceb8852066f59cb76c"
+    },
+    "temperature_before": {
+      "bytes": 6345,
+      "path": "temperature_before.txt",
+      "sha256": "f18c1dc861ccc46d8b9bbeb39c00f018caaf5fdfe1c1227f3acb23bea847e5fe"
+    },
+    "timed_schedule": {
+      "bytes": 36557,
+      "path": "timed_schedule.csv",
+      "sha256": "daee4817ca28c17363805f253ae0ef713cbe1c0bc49e37e54bffa3e43594445e"
+    },
+    "timing_samples": {
+      "bytes": 15914,
+      "path": "timing_samples.csv",
+      "sha256": "0cf577a76c3e5f470f76d93901c49b59c8c040a6a9709eb0b2196a58f0a4bbd0"
+    }
+  },
+  "methodology": {
+    "ab_window_rule": "exactly 600 observations uses first/last 60; otherwise ceil(10%); minimum 5 per disjoint window",
+    "block_hard_maximum_seconds": 60,
+    "block_start_budget_seconds": 59,
+    "drop_rejection": "reject iff B < 0.9 * A; exactly 10% drop is accepted",
+    "fourth_attempt_authorized": false,
+    "frequency_interval_ms": 100,
+    "maximum_consecutive_rejections": 3,
+    "minimum_block_frequency_samples": 50,
+    "monitoring_target_seconds": 6,
+    "monitoring_target_status": "engineering parameter; not a supervisor-specified scientific constant",
+    "normal_interblock_cooldown_seconds": 180,
+    "operation_admission_fixed_margin_ms": 100,
+    "operation_admission_initial_estimate_ms": 1000,
+    "operation_admission_policy": "admit only when elapsed + max(initial estimate, maximum observed occupancy) + max(100ms, ceil(25% estimate)) is strictly below 60s",
+    "operation_admission_prediction_limitation": "reduces overrun risk but cannot guarantee an unexpectedly slower native operation finishes before 60s",
+    "operation_admission_relative_margin": "ceil(25% of estimate)",
+    "rejection_cooldown_escalation_seconds": [
+      180,
+      360,
+      720
+    ],
+    "scheduling_algorithm": "precomputed linear target offsets; identical untimed primitive operations fill target gaps without sleeps",
+    "scheduling_schema": "pqc-energy-trading.e0-android-sustained-schedule.v1",
+    "singleton_remainder_policy": "one final remainder is timed at the six-second target without fabrication or discard",
+    "stabilization_consecutive_samples": 5,
+    "stabilization_minimum_seconds": 3,
+    "stabilization_rule": "max_frequency * 100 <= min_frequency * 102",
+    "stabilization_timeout_seconds": 30,
+    "target_accepted_timings": 1000,
+    "warmup_iterations_per_attempt": 100
+  },
+  "normal_interblock_cooldown_seconds": 180,
+  "operation": "decaps",
+  "provenance": {
+    "adb_serial": "05a96d6d0405",
+    "benchmark_sha256": "01598974d7304c62f25d9c8f9bb35c42499f27cd75cfde650527c8407ff1145c",
+    "benchmark_transport": "Termux SSH",
+    "cpu_max_khz": 2000000,
+    "frequency_sampler_sha256": "74d753aa0cd5cfb7373ff23b130323f270c5fbbba165a0e873caeda23956ea41",
+    "git_commit": "2b341f2ac687bd666e65cd2a76eac874e629f205",
+    "git_tracked_clean": true,
+    "go_version_output": "go version go1.27.3 android/arm64",
+    "governor": "schedutil",
+    "scientific_limitations": [
+      "Android is a separate supervised device study and is not the Orange Pi/meter result.",
+      "The non-rooted phone remains under schedutil; the sustained-frequency gate detects variation but does not prove thermal causation.",
+      "temp_c_max is the maximum of CPU HAL observations immediately before and after a run, not a continuously sampled peak."
+    ],
+    "telemetry_transport": "ADB; frequency sampled on-device and retrieved after the measured run"
+  },
+  "requested_timing_iterations": 1000,
+  "schema": "pqc-energy-trading.e0-android-block-attempt.v3",
+  "scheme": "ML-KEM-768",
+  "scientific": true,
+  "status": "accepted",
+  "telemetry": {
+    "frequency": {
+      "a_khz": "2000000",
+      "ab_window_rounding": "ceil(10% of valid scheduled observations); exactly 600 uses 60",
+      "accepted": true,
+      "b_khz": "2000000",
+      "first_window_indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "frequency_sample_count": 60,
+      "last_window_indices": [
+        54,
+        55,
+        56,
+        57,
+        58,
+        59
+      ],
+      "minimum_ab_window_samples": 5,
+      "rejection_rule": "reject iff B < 0.9 * A; exactly 10% drop is accepted",
+      "window_count": 6
+    },
+    "stabilization_maximum_khz": 2000000,
+    "stabilization_minimum_khz": 2000000,
+    "temp_c_max": "40.500000000",
+    "temperature_after_cpu_c": [
+      "40.500000000"
+    ],
+    "temperature_before_cpu_c": [
+      "37.100000000"
+    ],
+    "temperature_definition": "maximum observed CPU mType=0 HAL value before/after this block attempt; not continuous peak"
+  },
+  "warmup_iterations": 100
+}

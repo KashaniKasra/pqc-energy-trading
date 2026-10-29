@@ -1,0 +1,1 @@
+ANDROID_CONDITION_DONE scheme=Falcon-512 operation=keygen n_iter=1000 median_ms=28.271769000 p95_ms=56.558954400 p99_ms=76.480335620 stddev_ms=11.786003457

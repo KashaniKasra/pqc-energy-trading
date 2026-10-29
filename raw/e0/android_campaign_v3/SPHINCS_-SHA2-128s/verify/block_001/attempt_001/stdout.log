@@ -1,0 +1,1 @@
+ANDROID_CONDITION_DONE scheme=SPHINCS+-SHA2-128s operation=verify n_iter=1000 median_ms=1.386077000 p95_ms=1.405011550 p99_ms=1.419692780 stddev_ms=0.008064072

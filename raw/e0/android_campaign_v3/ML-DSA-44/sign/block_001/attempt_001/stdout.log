@@ -1,0 +1,1 @@
+ANDROID_CONDITION_DONE scheme=ML-DSA-44 operation=sign n_iter=1000 median_ms=0.712885000 p95_ms=2.101938300 p99_ms=2.970775230 stddev_ms=0.591841781

@@ -1,0 +1,1 @@
+ANDROID_CONDITION_DONE scheme=ML-DSA-65 operation=verify n_iter=1000 median_ms=0.371308000 p95_ms=0.382772850 p99_ms=0.396026920 stddev_ms=0.007303383

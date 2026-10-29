@@ -1,0 +1,1 @@
+ANDROID_CONDITION_DONE scheme=ECDSA-P-256 operation=keygen n_iter=1000 median_ms=0.040692000 p95_ms=0.062077000 p99_ms=0.066233300 stddev_ms=0.009786166

@@ -1,0 +1,1 @@
+ANDROID_CONDITION_DONE scheme=SPHINCS+-SHA2-128s operation=keygen n_iter=318 median_ms=184.911231000 p95_ms=185.506462000 p99_ms=187.614206000 stddev_ms=2.001373423
