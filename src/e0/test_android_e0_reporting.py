@@ -31,6 +31,15 @@ from android_e0_blocks import (
     read_block_frequency,
     validate_condition_aggregation,
 )
+from android_e0_campaign import (
+    CAMPAIGN_ATTEMPT_SCHEMA,
+    CAMPAIGN_FILE,
+    CAMPAIGN_SCHEMA,
+    CAMPAIGN_SOURCE_PATHS,
+    atomic_json,
+    reconstruct_campaign,
+    state_snapshot,
+)
 from android_e0_reporting import (
     ANDROID_V3_RESULT_SCHEMA,
     FREQUENCY_COMPARISON_SCHEMA,
@@ -325,6 +334,35 @@ class CompleteFinalizationTests(unittest.TestCase):
                 frequency_base_khz=1_900_000 + index * 100,
             )
 
+    def campaignize(self, root: Path) -> None:
+        manifests = sorted(root.glob("*/*/block_*/attempt_*/manifest.json"))
+        for sequence, path in enumerate(manifests, 1):
+            manifest = json.loads(path.read_text(encoding="utf-8"))
+            manifest["cooldown_preceding_seconds"] = 0 if sequence == 1 else 180
+            manifest["campaign_context"] = {
+                "schema": CAMPAIGN_ATTEMPT_SCHEMA,
+                "attempt_sequence": sequence,
+                "completion_clock": {
+                    "host_boot_id": "fixture-host-boot",
+                    "host_monotonic_ns": sequence * 1_000_000_000,
+                    "android_boot_id": "fixture-android-boot",
+                    "wall_time_utc": f"2026-01-01T00:00:{sequence:02d}Z",
+                },
+            }
+            path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        atomic_json(root / CAMPAIGN_FILE, {
+            "schema": CAMPAIGN_SCHEMA,
+            "experiment": "E0-Android-v3",
+            "scientific": True,
+            "registered_conditions": [list(item) for item in SCHEME_OPERATIONS],
+            "target_accepted_timings_per_condition": 1000,
+            "device": EXPECTED_DEVICE,
+            "provenance": PROVENANCE,
+            "campaign_manager": "src/e0/run_e0_android.py",
+            "source_sha256": {path: "d" * 64 for path in CAMPAIGN_SOURCE_PATHS},
+        }, exclusive=True)
+        atomic_json(root / "campaign_state.json", state_snapshot(reconstruct_campaign(root)), exclusive=True)
+
     def test_complete_21_condition_finalization_is_deterministic(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "evidence"
@@ -338,6 +376,27 @@ class CompleteFinalizationTests(unittest.TestCase):
             self.assertEqual(len(comparison_bytes.decode().splitlines()), 22)
             self.assertEqual(output.read_bytes(), result_bytes)
             self.assertEqual(comparison.read_bytes(), comparison_bytes)
+
+    def test_complete_campaign_finalization_remains_deterministic(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "evidence"
+            self.populate(root)
+            self.campaignize(root)
+            result, comparison = finalize_android_v3(
+                root, Path(temporary) / "android.csv", Path(temporary) / "frequency.csv"
+            )
+            self.assertEqual(len(result.decode().splitlines()), 22)
+            self.assertEqual(len(comparison.decode().splitlines()), 22)
+
+    def test_incomplete_campaign_refuses_official_finalization(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "evidence"
+            self.populate(root, SCHEME_OPERATIONS[:1])
+            self.campaignize(root)
+            with self.assertRaisesRegex(EvidenceError, "incomplete Android v3 condition set"):
+                finalize_android_v3(
+                    root, Path(temporary) / "android.csv", Path(temporary) / "frequency.csv"
+                )
 
     def test_incomplete_21_condition_set_is_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:

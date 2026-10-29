@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Collect isolated Android E0 attempts through Termux SSH and ADB.
+"""Collect or resume isolated Android E0 v3 campaigns through SSH and ADB.
 
 This program never writes the repository's canonical E0 CSV or raw/e0 tree.
-Run it only with a new external evidence root. It deliberately has no mode that
-can reuse or overwrite an earlier root.
+New roots are exclusive; an existing root is usable only through validated
+campaign resume or read-only status modes.
 """
 
 from __future__ import annotations
@@ -20,12 +20,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from android_e0 import (
-    COOLDOWN_SECONDS,
     EXPECTED_DEVICE,
     FREQUENCY_INTERVAL_MS,
     SCIENTIFIC_STABILIZATION_FREQUENCY_INTERVAL_MS,
     SCHEME_OPERATIONS,
     SCIENTIFIC_LIMITATIONS,
+    EvidenceError,
     file_receipt,
     parse_current_hal_cpu_temperatures,
     sha256_file,
@@ -33,7 +33,6 @@ from android_e0 import (
 from android_e0_blocks import (
     BLOCK_ATTEMPT_SCHEMA,
     COOLDOWN_ESCALATION_SECONDS,
-    ConditionProgress,
     block_methodology_document,
     complete_block_telemetry,
     parse_block_phases,
@@ -42,6 +41,21 @@ from android_e0_blocks import (
     assess_block_frequency,
     validate_accepted_block,
     validate_rejected_block,
+)
+from android_e0_campaign import (
+    CAMPAIGN_FILE,
+    CAMPAIGN_SOURCE_PATHS,
+    CampaignLock,
+    atomic_json,
+    build_campaign_manifest,
+    completion_clock,
+    cooldown_remaining_seconds,
+    load_campaign,
+    recover_stale_lock,
+    reconstruct_campaign,
+    required_resume_cooldowns,
+    state_snapshot,
+    validate_campaign_identity,
 )
 
 
@@ -58,19 +72,7 @@ class BlockAttemptOutcome:
 
 
 ADB_SAMPLER_CPU_MASK = "1"
-ANDROID_SOURCE_PATHS = (
-    "src/e0/android_condition.go",
-    "src/e0/android_e0.py",
-    "src/e0/android_e0_blocks.py",
-    "src/e0/android_e0_reporting.py",
-    "src/e0/android_stabilization.go",
-    "src/e0/cmd/e0freq/main.go",
-    "src/e0/finalize_e0_android.py",
-    "src/e0/main.go",
-    "src/e0/monotonic.go",
-    "src/e0/run_e0_android.py",
-    "src/e0/timing.go",
-)
+ANDROID_SOURCE_PATHS = CAMPAIGN_SOURCE_PATHS
 
 
 class Commands:
@@ -103,6 +105,19 @@ def create_new_evidence_root(path: Path, project_root: Path) -> Path:
         resolved.mkdir(parents=True, exist_ok=False)
     except FileExistsError as exc:
         raise CollectionError(f"refusing existing evidence root {resolved}") from exc
+    return resolved
+
+
+def validate_existing_evidence_root(path: Path, project_root: Path) -> Path:
+    expanded = path.expanduser()
+    if expanded.is_symlink():
+        raise CollectionError("Android campaign evidence root must not be a symlink")
+    resolved = expanded.resolve()
+    project = project_root.resolve()
+    if resolved == project or project in resolved.parents:
+        raise CollectionError("Android scientific evidence root must be outside the repository")
+    if not resolved.is_dir():
+        raise CollectionError(f"Android campaign evidence root does not exist: {resolved}")
     return resolved
 
 
@@ -403,6 +418,8 @@ def collect_attempt(
     requested_iterations: int,
     accepted_sample_start: int,
     cooldown_preceding_seconds: int,
+    campaign_sequence: int | None = None,
+    completion_clock_provider=None,
 ) -> BlockAttemptOutcome:
     attempt_dir = create_block_attempt_directory(root, scheme, operation, block_index, attempt_index)
     token = uuid.uuid4().hex
@@ -615,6 +632,14 @@ def collect_attempt(
     }
     if status == "rejected":
         manifest["rejection_reason"] = reason
+    if campaign_sequence is not None:
+        if completion_clock_provider is None:
+            raise CollectionError("campaign attempt requires a completion clock provider")
+        manifest["campaign_context"] = {
+            "schema": "pqc-energy-trading.e0-android-campaign-attempt.v1",
+            "attempt_sequence": campaign_sequence,
+            "completion_clock": completion_clock_provider(),
+        }
     _atomic_exclusive_json(attempt_dir / "manifest.json", manifest)
     if status == "accepted":
         validate_accepted_block(attempt_dir, manifest)
@@ -627,22 +652,30 @@ def collect_attempt(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--new-campaign", action="store_true")
+    mode.add_argument("--resume-campaign", action="store_true")
+    mode.add_argument("--status", action="store_true")
     parser.add_argument("--evidence-root", required=True, type=Path)
+    parser.add_argument("--scheme")
+    parser.add_argument("--operation")
+    parser.add_argument("--all-conditions", action="store_true")
+    parser.add_argument("--recover-stale-lock", action="store_true")
     parser.add_argument("--project-root", default=Path(__file__).resolve().parents[2], type=Path)
     parser.add_argument("--adb", default="adb")
-    parser.add_argument("--adb-serial", required=True)
+    parser.add_argument("--adb-serial")
     parser.add_argument("--ssh", default="ssh")
     parser.add_argument("--scp", default="scp")
-    parser.add_argument("--ssh-target", required=True)
+    parser.add_argument("--ssh-target")
     parser.add_argument("--ssh-port", type=int, default=8022)
     parser.add_argument("--device-ssh-port", type=int, default=8022)
-    parser.add_argument("--device-benchmark", required=True)
+    parser.add_argument("--device-benchmark")
     parser.add_argument("--device-sampler", default="/data/local/tmp/e0freq-optimized")
-    parser.add_argument("--expected-benchmark-sha256", required=True)
-    parser.add_argument("--expected-sampler-sha256", required=True)
-    parser.add_argument("--device-e0-module-dir", required=True)
+    parser.add_argument("--expected-benchmark-sha256")
+    parser.add_argument("--expected-sampler-sha256")
+    parser.add_argument("--device-e0-module-dir")
     parser.add_argument("--device-liboqs-prefix", default="~/pqc-e0-android/ops-install")
-    parser.add_argument("--device-temp-root", required=True)
+    parser.add_argument("--device-temp-root")
     parser.add_argument("--termux-prefix", default="/data/data/com.termux/files/usr")
     parser.add_argument("--adb-temp-dir", default="/data/local/tmp")
     parser.add_argument("--sampler-cpu", type=int, default=0)
@@ -651,53 +684,156 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
-    args = parse_args()
+def _selected_conditions(args: argparse.Namespace) -> list[tuple[str, str]]:
+    if args.all_conditions:
+        if args.scheme is not None or args.operation is not None:
+            raise CollectionError("--all-conditions cannot be combined with --scheme/--operation")
+        return list(SCHEME_OPERATIONS)
+    if args.scheme is None or args.operation is None:
+        raise CollectionError("collection requires an explicit registered --scheme and --operation")
+    condition = (args.scheme, args.operation)
+    if condition not in SCHEME_OPERATIONS:
+        raise CollectionError(f"unregistered Android E0 condition: {args.scheme}/{args.operation}")
+    return [condition]
+
+
+def _require_collection_arguments(args: argparse.Namespace) -> None:
+    required = (
+        "adb_serial", "ssh_target", "device_benchmark", "expected_benchmark_sha256",
+        "expected_sampler_sha256", "device_e0_module_dir", "device_temp_root",
+    )
+    missing = [name for name in required if not getattr(args, name)]
+    if missing:
+        raise CollectionError(f"collection is missing required arguments: {', '.join(missing)}")
     if args.sampler_cpu != 0:
         raise CollectionError("the registered Android E0 frequency sampler CPU is exactly 0")
     if not 1024 <= args.stabilization_port <= 65535 or args.stabilization_timeout_seconds < 3:
         raise CollectionError("invalid stabilization port or timeout")
+
+
+def _ensure_no_surviving_processes(args: argparse.Namespace, commands: Commands) -> None:
+    ssh_result = commands.run(
+        _ssh_command(args.ssh, args.ssh_port, args.ssh_target, ["sh", "-c", "pgrep -af '[e]0bench|[e]0freq' || true"]),
+        check=False,
+    )
+    adb_result = _adb(
+        commands, args.adb, args.adb_serial, "shell", "sh", "-c",
+        "pgrep -af '[e]0bench|[e]0freq' || true", check=False,
+    )
+    if ssh_result.returncode != 0 or adb_result.returncode != 0:
+        raise CollectionError("could not inspect surviving Android E0 processes")
+    if _text(ssh_result) or _text(adb_result):
+        raise CollectionError("surviving Android E0 benchmark or sampler process detected")
+
+
+def _android_boot_id(args: argparse.Namespace, commands: Commands) -> str:
+    value = _text(_adb(commands, args.adb, args.adb_serial, "shell", "cat", "/proc/sys/kernel/random/boot_id"))
+    if not value:
+        raise CollectionError("Android boot identity is unavailable")
+    return value
+
+
+def _write_campaign_snapshot(root: Path) -> None:
+    atomic_json(root / "campaign_state.json", state_snapshot(reconstruct_campaign(root)))
+
+
+def _status(root: Path) -> None:
+    try:
+        state = reconstruct_campaign(root)
+    except EvidenceError as exc:
+        print(json.dumps({
+            "schema": "pqc-energy-trading.e0-android-campaign-status.v1",
+            "integrity": "FAIL",
+            "state": "blocked",
+            "error": str(exc),
+        }, indent=2, sort_keys=True))
+        raise
+    document = state_snapshot(state)
+    document["integrity"] = "PASS"
+    document["writer_lock_present"] = (root / ".collection.lock").exists()
+    document["provenance"] = state.campaign["provenance"]
+    print(json.dumps(document, indent=2, sort_keys=True))
+
+
+def _collect_condition(
+    args: argparse.Namespace,
+    commands: Commands,
+    root: Path,
+    provenance: dict[str, object],
+    condition: tuple[str, str],
+) -> None:
+    while True:
+        state = reconstruct_campaign(root)
+        progress = state.conditions[condition]
+        if progress.complete:
+            return
+        if progress.terminal_failure:
+            raise CollectionError(f"{condition[0]}/{condition[1]} is terminal after three rejected attempts")
+
+        constraints = required_resume_cooldowns(state, condition)
+        host_boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+        android_boot = _android_boot_id(args, commands)
+        now_ns = time.monotonic_ns()
+        remaining = max(
+            cooldown_remaining_seconds(required, clock, host_boot, android_boot, now_ns)
+            for required, clock in constraints
+        )
+        required = max(required for required, _ in constraints)
+        if remaining:
+            time.sleep(remaining)
+        _ensure_no_surviving_processes(args, commands)
+
+        outcome = collect_attempt(
+            args, commands, root, provenance, condition[0], condition[1],
+            progress.next_block_index, progress.next_attempt_index,
+            progress.remaining, progress.accepted_count, required,
+            campaign_sequence=state.next_campaign_sequence,
+            completion_clock_provider=lambda: completion_clock(_android_boot_id(args, commands)),
+        )
+        _write_campaign_snapshot(root)
+        if not outcome.accepted and progress.consecutive_rejections + 1 >= 3:
+            raise CollectionError(
+                f"{condition[0]}/{condition[1]} stopped after three consecutive rejected attempts; "
+                f"last evidence: {outcome.attempt_dir}"
+            )
+
+
+def main() -> None:
+    args = parse_args()
+    root = args.evidence_root.expanduser()
+    if args.status:
+        if args.scheme is not None or args.operation is not None or args.all_conditions or args.recover_stale_lock:
+            raise CollectionError("--status is read-only and does not accept collection/recovery selection")
+        _status(validate_existing_evidence_root(root, args.project_root))
+        return
+
+    _require_collection_arguments(args)
+    conditions = _selected_conditions(args)
     commands = Commands()
     provenance = collect_static_provenance(args, commands, args.project_root)
-    root = create_new_evidence_root(args.evidence_root, args.project_root)
-    previous_condition_completed = False
-    for scheme, operation in SCHEME_OPERATIONS:
-        initial_cooldown = 0
-        if previous_condition_completed:
-            time.sleep(COOLDOWN_SECONDS)
-            initial_cooldown = COOLDOWN_SECONDS
-        progress = ConditionProgress()
-        cooldown_before = initial_cooldown
-        attempt_index = 1
-        while progress.accepted_count < 1000:
-            outcome = collect_attempt(
-                args,
-                commands,
-                root,
-                provenance,
-                scheme,
-                operation,
-                progress.block_index,
-                attempt_index,
-                progress.requested_iterations(),
-                progress.accepted_count,
-                cooldown_before,
-            )
-            if outcome.accepted:
-                cooldown = progress.accept(outcome.completed_timings)
-                attempt_index = 1
-            else:
-                cooldown = progress.reject()
-                attempt_index += 1
-            if progress.terminal_failure:
-                raise CollectionError(
-                    f"{scheme}/{operation} stopped after three consecutive rejected attempts; "
-                    f"last evidence: {outcome.attempt_dir}"
-                )
-            if cooldown is not None:
-                time.sleep(cooldown)
-                cooldown_before = cooldown
-        previous_condition_completed = True
+    if args.new_campaign:
+        if args.recover_stale_lock:
+            raise CollectionError("a new campaign cannot recover a stale lock")
+        campaign_manifest = build_campaign_manifest(
+            provenance, args.project_root, ANDROID_SOURCE_PATHS
+        )
+        root = create_new_evidence_root(root, args.project_root)
+        atomic_json(root / CAMPAIGN_FILE, campaign_manifest, exclusive=True)
+        _write_campaign_snapshot(root)
+    elif args.resume_campaign:
+        root = validate_existing_evidence_root(root, args.project_root)
+        campaign = load_campaign(root)
+        validate_campaign_identity(campaign, provenance, args.project_root)
+        if args.recover_stale_lock:
+            _ensure_no_surviving_processes(args, commands)
+            recover_stale_lock(root)
+    else:
+        raise CollectionError("collection mode is required")
+
+    with CampaignLock(root):
+        for condition in conditions:
+            _collect_condition(args, commands, root, provenance, condition)
+        _write_campaign_snapshot(root)
 
 
 if __name__ == "__main__":

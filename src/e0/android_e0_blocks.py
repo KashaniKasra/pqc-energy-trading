@@ -489,7 +489,7 @@ def validate_accepted_block(attempt_dir: Path, manifest: dict[str, object]) -> t
         "cooldown_escalation_seconds", "normal_interblock_cooldown_seconds",
         "warmup_iterations", "methodology", "files", "telemetry", "provenance", "device",
     }
-    if set(manifest) != required or manifest.get("schema") != BLOCK_ATTEMPT_SCHEMA:
+    if frozenset(manifest) not in {frozenset(required), frozenset(required | {"campaign_context"})} or manifest.get("schema") != BLOCK_ATTEMPT_SCHEMA:
         raise EvidenceError("invalid accepted block manifest schema")
     if manifest.get("scientific") is not True or manifest.get("status") != "accepted":
         raise EvidenceError("block is not accepted scientific evidence")
@@ -598,7 +598,7 @@ def validate_rejected_block(attempt_dir: Path, manifest: dict[str, object]) -> N
         "cooldown_escalation_seconds", "normal_interblock_cooldown_seconds",
         "warmup_iterations", "methodology", "files", "telemetry", "provenance", "device", "rejection_reason",
     }
-    if set(manifest) != required or manifest.get("schema") != BLOCK_ATTEMPT_SCHEMA:
+    if frozenset(manifest) not in {frozenset(required), frozenset(required | {"campaign_context"})} or manifest.get("schema") != BLOCK_ATTEMPT_SCHEMA:
         raise EvidenceError("invalid rejected block manifest schema")
     if manifest.get("scientific") is not True or manifest.get("status") != "rejected":
         raise EvidenceError("invalid rejected block status")

@@ -29,6 +29,13 @@ from android_e0_blocks import (
     validate_condition_aggregation,
     validate_rejected_block,
 )
+from android_e0_campaign import (
+    CAMPAIGN_FILE,
+    LOCK_FILE,
+    reconstruct_campaign,
+    state_snapshot,
+    validate_lock_document,
+)
 
 ANDROID_V3_RESULT_SCHEMA = (
     "device",
@@ -140,12 +147,39 @@ def load_v3_results(evidence_root: Path) -> list[AndroidConditionResult]:
     root = evidence_root.resolve()
     if not root.is_dir() or root.is_symlink():
         raise EvidenceError("Android v3 evidence root must be a regular directory")
+    campaign_files: set[Path] = set()
+    if (root / CAMPAIGN_FILE).exists():
+        if (root / LOCK_FILE).exists():
+            raise EvidenceError("cannot finalize a campaign with an active or stale writer lock")
+        campaign_state = reconstruct_campaign(root)
+        snapshot_path = root / "campaign_state.json"
+        if snapshot_path.is_symlink() or not snapshot_path.is_file():
+            raise EvidenceError("missing or unsafe campaign state snapshot")
+        try:
+            snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise EvidenceError("missing or invalid campaign state snapshot") from exc
+        if snapshot != state_snapshot(campaign_state):
+            raise EvidenceError("campaign state snapshot disagrees with validated evidence")
+        campaign_files.update({root / CAMPAIGN_FILE, snapshot_path})
+        recovery = root / "lock_recoveries"
+        if recovery.exists():
+            if not recovery.is_dir() or recovery.is_symlink():
+                raise EvidenceError("unsafe campaign lock recovery directory")
+            for path in recovery.iterdir():
+                if not path.is_file() or path.is_symlink() or re.fullmatch(r"lock-\d+\.json", path.name) is None:
+                    raise EvidenceError("invalid campaign lock recovery evidence")
+                try:
+                    validate_lock_document(json.loads(path.read_text(encoding="utf-8")))
+                except (OSError, json.JSONDecodeError) as exc:
+                    raise EvidenceError("invalid campaign lock recovery JSON") from exc
+                campaign_files.add(path)
     manifest_paths = sorted(root.glob("*/*/block_*/attempt_*/manifest.json"))
     if not manifest_paths:
         raise EvidenceError("no Android v3 block manifests found")
 
     manifests_by_condition: dict[tuple[str, str], list[tuple[Path, dict[str, object]]]] = {}
-    expected_files: set[Path] = set()
+    expected_files: set[Path] = set(campaign_files)
     common_provenance: dict[str, object] | None = None
     for path in manifest_paths:
         manifest = _load_manifest(path)
