@@ -141,8 +141,16 @@ func findProjectRoot() (string, error) {
 }
 
 func main() {
+	if len(os.Args) >= 2 && os.Args[1] == "android-condition" {
+		if err := runAndroidCondition(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "Android condition failed: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	if len(os.Args) != 4 {
-		fmt.Fprintf(os.Stderr, "usage: %s <platform> <scheme> <operation>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "usage: %s <platform> <scheme> <operation>\n       %s android-condition [options]\n", os.Args[0], os.Args[0])
 		os.Exit(2)
 	}
 
