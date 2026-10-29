@@ -36,6 +36,15 @@ MINIMUM_BLOCK_FREQUENCY_SAMPLES = 50
 BLOCK_START_BUDGET_NS = 59_000_000_000
 BLOCK_HARD_MAXIMUM_NS = 60_000_000_000
 MONITORING_TARGET_NS = 6_000_000_000
+INITIAL_OPERATION_ESTIMATE_NS = 1_000_000_000
+ADMISSION_FIXED_MARGIN_NS = 100_000_000
+ADMISSION_POLICY = (
+    "admit only when elapsed + max(initial estimate, maximum observed occupancy) + "
+    "max(100ms, ceil(25% estimate)) is strictly below 60s"
+)
+ADMISSION_PREDICTION_LIMITATION = (
+    "reduces overrun risk but cannot guarantee an unexpectedly slower native operation finishes before 60s"
+)
 TARGET_ACCEPTED_TIMINGS = 1000
 WARMUP_ITERATIONS = 100
 COOLDOWN_ESCALATION_SECONDS = (180, 360, 720)
@@ -56,6 +65,11 @@ def block_methodology_document(stabilization_timeout_seconds: int = 30) -> dict[
         "block_hard_maximum_seconds": 60,
         "monitoring_target_seconds": 6,
         "monitoring_target_status": "engineering parameter; not a supervisor-specified scientific constant",
+        "operation_admission_policy": ADMISSION_POLICY,
+        "operation_admission_initial_estimate_ms": 1000,
+        "operation_admission_fixed_margin_ms": 100,
+        "operation_admission_relative_margin": "ceil(25% of estimate)",
+        "operation_admission_prediction_limitation": ADMISSION_PREDICTION_LIMITATION,
         "scheduling_schema": SCHEDULE_SCHEMA,
         "scheduling_algorithm": "precomputed linear target offsets; identical untimed primitive operations fill target gaps without sleeps",
         "singleton_remainder_policy": "one final remainder is timed at the six-second target without fabrication or discard",
@@ -406,6 +420,23 @@ def parse_block_phases(path: Path, *, allow_overrun: bool = False) -> BlockPhase
         or evidence.total_operations < evidence.timed_operations
     ):
         raise EvidenceError("block summary methodology mismatch")
+    try:
+        maximum_observed = int(summary["maximum_observed_operation_ns"])
+        final_estimate = int(summary["final_admission_estimate_ns"])
+        final_margin = int(summary["final_admission_safety_margin_ns"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise EvidenceError("malformed block admission evidence") from exc
+    expected_estimate = max(INITIAL_OPERATION_ESTIMATE_NS, maximum_observed)
+    expected_margin = max(ADMISSION_FIXED_MARGIN_NS, (expected_estimate + 3) // 4)
+    if (
+        maximum_observed < 0
+        or summary.get("admission_policy") != ADMISSION_POLICY
+        or int(summary.get("initial_operation_estimate_ns", -1)) != INITIAL_OPERATION_ESTIMATE_NS
+        or final_estimate != expected_estimate
+        or final_margin != expected_margin
+        or summary.get("admission_prediction_limitation") != ADMISSION_PREDICTION_LIMITATION
+    ):
+        raise EvidenceError("block admission evidence mismatch")
     if duration > BLOCK_HARD_MAXIMUM_NS and not allow_overrun:
         raise EvidenceError("measurement block exceeded 60 seconds")
     return evidence

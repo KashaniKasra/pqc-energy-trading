@@ -17,6 +17,10 @@ from android_e0_blocks import (
     BLOCK_ATTEMPT_SCHEMA,
     BLOCK_HARD_MAXIMUM_NS,
     BLOCK_START_BUDGET_NS,
+    ADMISSION_FIXED_MARGIN_NS,
+    ADMISSION_POLICY,
+    ADMISSION_PREDICTION_LIMITATION,
+    INITIAL_OPERATION_ESTIMATE_NS,
     MONITORING_TARGET_NS,
     accepted_block_reporting_evidence,
     assess_block_frequency,
@@ -148,6 +152,14 @@ class V3Fixture:
                     "total_primitive_operations": len(timings),
                     "timed_primitive_operations": len(timings),
                     "untimed_primitive_operations": 0,
+                    "admission_policy": ADMISSION_POLICY,
+                    "initial_operation_estimate_ns": INITIAL_OPERATION_ESTIMATE_NS,
+                    "maximum_observed_operation_ns": 1_000_000,
+                    "final_admission_estimate_ns": INITIAL_OPERATION_ESTIMATE_NS,
+                    "final_admission_safety_margin_ns": max(
+                        ADMISSION_FIXED_MARGIN_NS, (INITIAL_OPERATION_ESTIMATE_NS + 3) // 4
+                    ),
+                    "admission_prediction_limitation": ADMISSION_PREDICTION_LIMITATION,
                 },
             },
         ]

@@ -16,10 +16,12 @@ import (
 const androidScientificCPU = "7"
 
 const (
-	androidBlockStartBudget = 59 * time.Second
-	androidBlockHardMaximum = 60 * time.Second
-	androidMonitoringTarget = 6 * time.Second
-	androidScheduleSchema   = "pqc-energy-trading.e0-android-sustained-schedule.v1"
+	androidBlockStartBudget         = 59 * time.Second
+	androidBlockHardMaximum         = 60 * time.Second
+	androidMonitoringTarget         = 6 * time.Second
+	androidInitialOperationEstimate = time.Second
+	androidAdmissionFixedMargin     = 100 * time.Millisecond
+	androidScheduleSchema           = "pqc-energy-trading.e0-android-sustained-schedule.v1"
 )
 
 type timedOperationSelection struct {
@@ -30,11 +32,32 @@ type timedOperationSelection struct {
 }
 
 type sustainedWorkloadSelector struct {
-	measuredStartNS int64
-	startBudgetNS   int64
-	targets         []int64
-	selections      []timedOperationSelection
-	operationCount  int
+	measuredStartNS            int64
+	startBudgetNS              int64
+	hardMaximumNS              int64
+	initialEstimateNS          int64
+	fixedMarginNS              int64
+	targets                    []int64
+	selections                 []timedOperationSelection
+	operationCount             int
+	lastAdmissionNS            int64
+	maximumObservedOperationNS int64
+}
+
+func (selector *sustainedWorkloadSelector) admissionEstimate() (int64, int64, error) {
+	if selector.initialEstimateNS <= 0 || selector.fixedMarginNS <= 0 {
+		return 0, 0, fmt.Errorf("invalid sustained-workload admission parameters")
+	}
+	estimate := selector.initialEstimateNS
+	if selector.maximumObservedOperationNS > estimate {
+		estimate = selector.maximumObservedOperationNS
+	}
+	// Ceiling division preserves a conservative 25% relative margin.
+	margin := (estimate + 3) / 4
+	if margin < selector.fixedMarginNS {
+		margin = selector.fixedMarginNS
+	}
+	return estimate, margin, nil
 }
 
 func distributedTargetOffsets(count int, monitoringTargetNS int64) ([]int64, error) {
@@ -57,17 +80,37 @@ func distributedTargetOffsets(count int, monitoringTargetNS int64) ([]int64, err
 }
 
 func (selector *sustainedWorkloadSelector) decide(nowNS int64, completedTimed, operationOrdinal int) (bool, bool, error) {
-	if selector.measuredStartNS <= 0 || nowNS < selector.measuredStartNS || operationOrdinal <= 0 {
+	if selector.measuredStartNS <= 0 || selector.startBudgetNS <= 0 || selector.hardMaximumNS <= selector.startBudgetNS ||
+		nowNS < selector.measuredStartNS || operationOrdinal <= 0 {
 		return false, false, fmt.Errorf("invalid sustained-workload selector state")
 	}
 	if completedTimed < 0 || completedTimed >= len(selector.targets) || completedTimed != len(selector.selections) {
 		return false, false, fmt.Errorf("invalid sustained-workload timing index")
 	}
+	if selector.lastAdmissionNS > 0 {
+		observed := nowNS - selector.lastAdmissionNS
+		if observed <= 0 {
+			return false, false, fmt.Errorf("non-positive sustained-workload operation occupancy")
+		}
+		if observed > selector.maximumObservedOperationNS {
+			selector.maximumObservedOperationNS = observed
+		}
+	}
 	elapsed := nowNS - selector.measuredStartNS
 	if elapsed >= selector.startBudgetNS {
 		return false, false, nil
 	}
+	estimate, margin, err := selector.admissionEstimate()
+	if err != nil {
+		return false, false, err
+	}
+	// This is an admission estimate, not a guarantee: an unexpectedly slower
+	// native operation may still cross the hard limit and is then rejected.
+	if elapsed+estimate+margin >= selector.hardMaximumNS {
+		return false, false, nil
+	}
 	selector.operationCount = operationOrdinal
+	selector.lastAdmissionNS = nowNS
 	if elapsed < selector.targets[completedTimed] {
 		return false, true, nil
 	}
@@ -79,20 +122,26 @@ func (selector *sustainedWorkloadSelector) decide(nowNS int64, completedTimed, o
 }
 
 type blockSummary struct {
-	WarmupIterations    int    `json:"warmup_iterations"`
-	RequestedIterations int    `json:"requested_iterations"`
-	CompletedIterations int    `json:"completed_iterations"`
-	StartBudgetNS       int64  `json:"start_budget_ns"`
-	HardMaximumNS       int64  `json:"hard_maximum_ns"`
-	BlockDurationNS     int64  `json:"block_duration_ns"`
-	CrossedStartBudget  bool   `json:"crossed_start_budget"`
-	ExceededHardMaximum bool   `json:"exceeded_hard_maximum"`
-	ScheduleSchema      string `json:"schedule_schema"`
-	SchedulingAlgorithm string `json:"scheduling_algorithm"`
-	MonitoringTargetNS  int64  `json:"monitoring_target_ns"`
-	TotalOperations     int    `json:"total_primitive_operations"`
-	TimedOperations     int    `json:"timed_primitive_operations"`
-	UntimedOperations   int    `json:"untimed_primitive_operations"`
+	WarmupIterations              int    `json:"warmup_iterations"`
+	RequestedIterations           int    `json:"requested_iterations"`
+	CompletedIterations           int    `json:"completed_iterations"`
+	StartBudgetNS                 int64  `json:"start_budget_ns"`
+	HardMaximumNS                 int64  `json:"hard_maximum_ns"`
+	BlockDurationNS               int64  `json:"block_duration_ns"`
+	CrossedStartBudget            bool   `json:"crossed_start_budget"`
+	ExceededHardMaximum           bool   `json:"exceeded_hard_maximum"`
+	ScheduleSchema                string `json:"schedule_schema"`
+	SchedulingAlgorithm           string `json:"scheduling_algorithm"`
+	MonitoringTargetNS            int64  `json:"monitoring_target_ns"`
+	TotalOperations               int    `json:"total_primitive_operations"`
+	TimedOperations               int    `json:"timed_primitive_operations"`
+	UntimedOperations             int    `json:"untimed_primitive_operations"`
+	AdmissionPolicy               string `json:"admission_policy"`
+	InitialOperationEstimateNS    int64  `json:"initial_operation_estimate_ns"`
+	MaximumObservedOperationNS    int64  `json:"maximum_observed_operation_ns"`
+	FinalAdmissionEstimateNS      int64  `json:"final_admission_estimate_ns"`
+	FinalAdmissionSafetyMarginNS  int64  `json:"final_admission_safety_margin_ns"`
+	AdmissionPredictionLimitation string `json:"admission_prediction_limitation"`
 }
 
 type phaseEvent struct {
@@ -298,7 +347,11 @@ func runAndroidCondition(args []string) error {
 				operation, post, recordEvent,
 			)
 		}
-		selector = &sustainedWorkloadSelector{startBudgetNS: int64(*blockStartBudget), targets: targets}
+		selector = &sustainedWorkloadSelector{
+			startBudgetNS: int64(*blockStartBudget), hardMaximumNS: int64(androidBlockHardMaximum),
+			initialEstimateNS: int64(androidInitialOperationEstimate),
+			fixedMarginNS:     int64(androidAdmissionFixedMargin), targets: targets,
+		}
 		measurementSelectionHook = func(completedTimed, operationOrdinal int) (bool, bool, error) {
 			if measuredStartNS <= 0 {
 				return false, false, fmt.Errorf("measured start is unavailable")
@@ -333,6 +386,10 @@ func runAndroidCondition(args []string) error {
 		if selector == nil || len(selector.selections) != len(samples) || selector.operationCount < len(samples) {
 			return fmt.Errorf("sustained-workload schedule is incomplete")
 		}
+		finalEstimate, finalMargin, err := selector.admissionEstimate()
+		if err != nil {
+			return err
+		}
 		summary := &blockSummary{
 			WarmupIterations: warmupIterations, RequestedIterations: *requestedIterations,
 			CompletedIterations: len(samples), StartBudgetNS: int64(*blockStartBudget),
@@ -343,6 +400,12 @@ func runAndroidCondition(args []string) error {
 			SchedulingAlgorithm: "precomputed linear target offsets; identical untimed primitive operations fill target gaps without sleeps",
 			MonitoringTargetNS:  int64(androidMonitoringTarget), TotalOperations: selector.operationCount,
 			TimedOperations: len(samples), UntimedOperations: selector.operationCount - len(samples),
+			AdmissionPolicy:               "admit only when elapsed + max(initial estimate, maximum observed occupancy) + max(100ms, ceil(25% estimate)) is strictly below 60s",
+			InitialOperationEstimateNS:    int64(androidInitialOperationEstimate),
+			MaximumObservedOperationNS:    selector.maximumObservedOperationNS,
+			FinalAdmissionEstimateNS:      finalEstimate,
+			FinalAdmissionSafetyMarginNS:  finalMargin,
+			AdmissionPredictionLimitation: "reduces overrun risk but cannot guarantee an unexpectedly slower native operation finishes before 60s",
 		}
 		if err := recordEvent(phaseEvent{Event: "block_summary", MonotonicNS: measuredEndNS, Block: summary}); err != nil {
 			return err

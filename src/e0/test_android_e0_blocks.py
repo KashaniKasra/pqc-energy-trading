@@ -9,7 +9,11 @@ from android_e0_blocks import (
     BLOCK_ATTEMPT_SCHEMA,
     BLOCK_HARD_MAXIMUM_NS,
     BLOCK_START_BUDGET_NS,
+    ADMISSION_FIXED_MARGIN_NS,
+    ADMISSION_POLICY,
+    ADMISSION_PREDICTION_LIMITATION,
     COOLDOWN_ESCALATION_SECONDS,
+    INITIAL_OPERATION_ESTIMATE_NS,
     MONITORING_TARGET_NS,
     ConditionProgress,
     FrequencyObservation,
@@ -90,6 +94,14 @@ def phase_document(duration_ns, requested, completed):
         "total_primitive_operations": completed,
         "timed_primitive_operations": completed,
         "untimed_primitive_operations": 0,
+        "admission_policy": ADMISSION_POLICY,
+        "initial_operation_estimate_ns": INITIAL_OPERATION_ESTIMATE_NS,
+        "maximum_observed_operation_ns": 1_000_000,
+        "final_admission_estimate_ns": INITIAL_OPERATION_ESTIMATE_NS,
+        "final_admission_safety_margin_ns": max(
+            ADMISSION_FIXED_MARGIN_NS, (INITIAL_OPERATION_ESTIMATE_NS + 3) // 4
+        ),
+        "admission_prediction_limitation": ADMISSION_PREDICTION_LIMITATION,
     }
     return [
         {"event": "stabilization_start", "monotonic_ns": stabilization_start},
@@ -220,7 +232,8 @@ class ProgressTests(unittest.TestCase):
 
 
 class AggregationEvidenceTests(unittest.TestCase):
-    def make_accepted(self, root, block, start, count, cooldown, attempt=1):
+    def make_accepted(self, root, block, start, count, cooldown, attempt=1, requested=None):
+        requested = count if requested is None else requested
         directory = root / "ECDSA-P-256" / "keygen" / f"block_{block:03d}" / f"attempt_{attempt:03d}"
         directory.mkdir(parents=True)
         paths = {
@@ -241,9 +254,9 @@ class AggregationEvidenceTests(unittest.TestCase):
             for index in range(1, count + 1):
                 writer.writerow([index, "1.000000000"])
         paths["phase_events"].write_text(
-            "".join(json.dumps(value) + "\n" for value in phase_document(MONITORING_TARGET_NS, count, count))
+            "".join(json.dumps(value) + "\n" for value in phase_document(MONITORING_TARGET_NS, requested, count))
         )
-        targets = distributed_target_offsets(count)
+        targets = distributed_target_offsets(requested)[:count]
         with paths["timed_schedule"].open("w", newline="") as stream:
             writer = csv.writer(stream, lineterminator="\n")
             writer.writerow(["timed_index", "operation_ordinal", "target_offset_ns", "selection_monotonic_ns"])
@@ -272,7 +285,7 @@ class AggregationEvidenceTests(unittest.TestCase):
             "operation": "keygen",
             "block_index": block,
             "attempt_index": attempt,
-            "requested_timing_iterations": count,
+            "requested_timing_iterations": requested,
             "completed_timing_iterations": count,
             "accepted_timing_iterations": count,
             "accepted_sample_start": start,
@@ -332,6 +345,18 @@ class AggregationEvidenceTests(unittest.TestCase):
             root = Path(temporary)
             self.make_accepted(root, 1, 0, 600, 0)
             self.make_accepted(root, 2, 600, 400, 180)
+            values = validate_condition_aggregation(root / "ECDSA-P-256" / "keygen")
+            self.assertEqual(len(values), 1000)
+
+    def test_slow_partial_block_is_accepted_with_adequate_frequency_evidence(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            first = self.make_accepted(root, 1, 0, 43, 0, requested=1000)
+            self.make_accepted(root, 2, 43, 957, 180, requested=957)
+            first_manifest = json.loads((first / "manifest.json").read_text())
+            self.assertEqual(first_manifest["requested_timing_iterations"], 1000)
+            self.assertEqual(first_manifest["accepted_timing_iterations"], 43)
+            self.assertEqual(first_manifest["telemetry"]["frequency"]["frequency_sample_count"], 60)
             values = validate_condition_aggregation(root / "ECDSA-P-256" / "keygen")
             self.assertEqual(len(values), 1000)
 

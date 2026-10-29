@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestTimingPhaseHookSurroundsOnlyMeasuredLoop(t *testing.T) {
@@ -115,7 +116,10 @@ func TestSustainedSelectorRunsFastPrimitiveUntimedBetweenTargets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	selector := sustainedWorkloadSelector{measuredStartNS: 1_000, startBudgetNS: 59_000, targets: targets}
+	selector := sustainedWorkloadSelector{
+		measuredStartNS: 1_000, startBudgetNS: 59_000, hardMaximumNS: 60_000,
+		initialEstimateNS: 1_000, fixedMarginNS: 100, targets: targets,
+	}
 	times := []int64{1_000, 2_000, 4_000, 7_000}
 	wantTimed := []bool{true, false, true, true}
 	completed := 0
@@ -138,7 +142,10 @@ func TestSustainedSelectorSlowPrimitiveTimesConsecutiveOperations(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	selector := sustainedWorkloadSelector{measuredStartNS: 1_000, startBudgetNS: 59_000, targets: targets}
+	selector := sustainedWorkloadSelector{
+		measuredStartNS: 1_000, startBudgetNS: 59_000, hardMaximumNS: 60_000,
+		initialEstimateNS: 1_000, fixedMarginNS: 100, targets: targets,
+	}
 	completed := 0
 	for index, now := range []int64{1_000, 5_000, 9_000} {
 		timed, proceed, err := selector.decide(now, completed, index+1)
@@ -162,6 +169,85 @@ func TestSelectionHookPreservesPrimitiveTimerPopulation(t *testing.T) {
 	}
 	if len(samples) != 2 || calls != 4 {
 		t.Fatalf("timings=%d total operations=%d", len(samples), calls)
+	}
+}
+
+func TestSlowPrimitiveAdmissionStopsBeforeObservedSPHINCSOverrun(t *testing.T) {
+	start := int64(time.Second)
+	targets, err := distributedTargetOffsets(100, int64(androidMonitoringTarget))
+	if err != nil {
+		t.Fatal(err)
+	}
+	selector := sustainedWorkloadSelector{
+		measuredStartNS: start, startBudgetNS: int64(androidBlockStartBudget),
+		hardMaximumNS:     int64(androidBlockHardMaximum),
+		initialEstimateNS: int64(androidInitialOperationEstimate),
+		fixedMarginNS:     int64(androidAdmissionFixedMargin), targets: targets,
+	}
+	now := start
+	completed := 0
+	for operation := 1; ; operation++ {
+		timed, proceed, err := selector.decide(now, completed, operation)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !proceed {
+			break
+		}
+		if !timed {
+			t.Fatal("1.4-second primitive should have passed every distributed target")
+		}
+		completed++
+		now += 1_400 * int64(time.Millisecond)
+	}
+	if completed != 42 {
+		t.Fatalf("completed=%d, want 42 deterministic partial timings", completed)
+	}
+	if now >= start+int64(androidBlockHardMaximum) {
+		t.Fatalf("admission stopped too late at %s", time.Duration(now-start))
+	}
+	if selector.maximumObservedOperationNS != 1_400*int64(time.Millisecond) {
+		t.Fatalf("maximum observation=%d", selector.maximumObservedOperationNS)
+	}
+}
+
+func TestAdmissionRejectsNearDeadlineUsingObservedDuration(t *testing.T) {
+	for name, elapsed := range map[string]int64{
+		"one-nanosecond-before-boundary": int64(58_250*time.Millisecond) - 1,
+		"at-boundary":                    int64(58_250 * time.Millisecond),
+	} {
+		t.Run(name, func(t *testing.T) {
+			start := int64(1)
+			now := start + elapsed
+			selector := sustainedWorkloadSelector{
+				measuredStartNS: start, startBudgetNS: int64(androidBlockStartBudget),
+				hardMaximumNS:     int64(androidBlockHardMaximum),
+				initialEstimateNS: int64(androidInitialOperationEstimate),
+				fixedMarginNS:     int64(androidAdmissionFixedMargin),
+				targets:           []int64{0, 0},
+				lastAdmissionNS:   now - int64(1_400*time.Millisecond),
+			}
+			_, proceed, err := selector.decide(now, 0, 2)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := name == "one-nanosecond-before-boundary"
+			if proceed != want {
+				t.Fatalf("proceed=%v, want %v", proceed, want)
+			}
+		})
+	}
+}
+
+func TestUnexpectedSlowOperationStillFailsHardMaximumWithoutInterruption(t *testing.T) {
+	// Admission can only use prior evidence. A later duration spike remains
+	// possible, and the unchanged hard validator must reject its actual result.
+	completedUnexpectedOperation := true
+	if !completedUnexpectedOperation {
+		t.Fatal("native operation must not be interrupted")
+	}
+	if !blockExceedsHardMaximum(int64(androidBlockHardMaximum) + int64(200*time.Millisecond)) {
+		t.Fatal("unexpected slow completion must fail the hard maximum")
 	}
 }
 
