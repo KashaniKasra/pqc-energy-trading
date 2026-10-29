@@ -5,7 +5,8 @@ This repository is an empirical testbed for measuring cryptographic, blockchain,
 ## Status and outputs
 
 - E0 primitives, server: complete.
-- E0 primitives, meter/SBC: pending hardware measurement.
+- E0 primitives, Android device study: complete.
+- E0 primitives, meter/SBC (separate from Android): pending hardware measurement.
 - E1 Fabric: complete.
 - E2 channel state machine: complete.
 - E5 watchtower scalability: complete.
@@ -17,6 +18,8 @@ This repository is an empirical testbed for measuring cryptographic, blockchain,
 Final completed-experiment CSVs:
 
 - `data/e0_primitives.csv`
+- `data/e0_android.csv`
+- `data/e0_android_comparison.csv` (frequency comparison, not latency comparison)
 - `data/e1_fabric.csv`
 - `data/e2_statemachine.csv`
 - `data/e5_watchtower.csv`
@@ -73,7 +76,15 @@ The canonical server run used:
 
 Results report median, p95, and p99. The canonical server output is `data/e0_primitives.csv`; retained raw samples and the run log are under `raw/e0/`.
 
-The controlled server measurement entry point is `src/e0/run_e0_server.sh`. The meter/SBC measurement remains pending and must not be extrapolated from the server result.
+The controlled server measurement entry point is `src/e0/run_e0_server.sh`. The meter/SBC measurement remains pending and must not be extrapolated from either the server or Android result.
+
+### Android device campaign
+
+The separate Android E0 campaign is complete on a non-rooted Xiaomi Redmi Note 9 (`M2003J15SC`, MediaTek Helio G85, Android 12/AArch64). It was collected from source commit `2b341f2ac687bd666e65cd2a76eac874e629f205`; the implementation and finalizer are under `src/e0/`. The benchmark used `GOMAXPROCS=1` and CPU 7 (Cortex-A75, 2,000 MHz selected-core maximum); the on-device frequency sampler ran on CPU 0. The governor remained `schedutil`: the core was not hardware-locked, and the frequency gate detects sustained variation without proving thermal throttling. The pinned Android environment was Go 1.27.3, liboqs 0.15.0, and liboqs-go v0.15.0.
+
+Each block attempt used exactly 100 ordinary warm-ups, then at least three seconds of uninterrupted same-primitive stabilization work. Measurement began only after five consecutive 100 ms frequency observations satisfied `max*100 <= min*102`. Fast operations used the registered six-second engineering monitoring target with deterministic timed-operation placement among identical untimed operations; this target is an implementation choice, not a supervisor-defined constant. Blocks were limited to 60 seconds. For each block, `A` and `B` are the medians of the registered initial and final 10% frequency windows; a block is rejected iff `B < 0.9*A`. Normal interblock cooldown was 180 seconds, with the registered rejection escalation retained. Rejected attempts are retained but contribute no accepted timings. Accepted blocks were aggregated until exactly 1,000 primitive-only timings existed for each of the 21 registered scheme/operation conditions. The completed campaign contains 47 accepted blocks and no rejected attempts.
+
+`data/e0_android.csv` is the standalone Android aggregate. `data/e0_android_comparison.csv` compares measured CPU-frequency distributions only between like signature operations, using ECDSA P-256 as the reference; KEM operations are explicitly left without an ECDSA comparison. The original per-condition timings are the 21 files matching `raw/e0/e0_android_<scheme>_<operation>.csv.gz`, each with schema `iteration,elapsed_ms` and 1,000 data rows. Full block evidence and provenance are retained separately under `raw/e0/android_campaign_v3/` (519 files). `temp_c_max` is the maximum CPU HAL temperature observed immediately before or after accepted blocks, not a continuously sampled thermal peak. No Android energy consumption was measured. These results remain separate from the historical `data/e0_primitives.csv` and from the pending meter/SBC study.
 
 ## E1 Fabric benchmark
 
@@ -204,6 +215,42 @@ The HTLC executor moves deterministic inert, already-prepared buffers whose auth
 One completion sample starts immediately before sender A writes `HTLC_ADD`, relays that complete message across the whole path to the receiver, relays `HTLC_SETTLE` back, and stops immediately after A receives the complete returned frame. TCP setup is outside timing and samples are not pipelined. Every final condition used 100 discarded warm-ups and 1,000 retained measurements with zero completion failures. Median, p95, and audit-only p99 use linear interpolation at rank `p*(n-1)`; the professor CSV intentionally includes only median and p95. The final 60-condition output is `data/e9_network.csv`, and canonical frozen evidence is under `raw/e9/`.
 
 ## Reproduction and validation
+
+Regenerate the standalone Android summaries from retained evidence without Android hardware. The finalizer refuses existing output paths:
+
+```bash
+python3 src/e0/finalize_e0_android.py \
+  --evidence-root raw/e0/android_campaign_v3 \
+  --output /tmp/e0_android.regenerated.csv \
+  --comparison-output /tmp/e0_android_comparison.regenerated.csv
+cmp -- data/e0_android.csv /tmp/e0_android.regenerated.csv
+cmp -- data/e0_android_comparison.csv /tmp/e0_android_comparison.regenerated.csv
+sha256sum data/e0_android.csv data/e0_android_comparison.csv
+```
+
+A new physical campaign requires the verified Android/Termux environment, pinned Go/liboqs dependencies, ADB plus USB-forwarded Termux SSH, freshly built benchmark and sampler binaries, and a new external evidence root. Collection is explicitly condition-by-condition; the same verified device, source commit, and binary hashes must be supplied when resuming. The following is a CLI-validated argument template, not a complete provisioning/build workflow; define every shell variable from the local device setup before use:
+
+```bash
+python3 src/e0/run_e0_android.py \
+  --new-campaign --evidence-root /new/external/e0-android-v3 \
+  --scheme ML-KEM-768 --operation keygen \
+  --adb-serial "$ADB_SERIAL" --ssh-target "$TERMUX_SSH_TARGET" \
+  --device-benchmark "$DEVICE_BENCHMARK" --device-sampler "$DEVICE_SAMPLER" \
+  --expected-benchmark-sha256 "$BENCHMARK_SHA256" \
+  --expected-sampler-sha256 "$SAMPLER_SHA256" \
+  --device-e0-module-dir "$DEVICE_E0_MODULE_DIR" \
+  --device-liboqs-prefix "$DEVICE_LIBOQS_PREFIX" \
+  --device-temp-root "$DEVICE_TEMP_ROOT"
+```
+
+Use `--resume-campaign` instead of `--new-campaign` with the same root and provenance arguments for the next invocation. Inspect an external campaign without launching measurements using:
+
+```bash
+python3 src/e0/run_e0_android.py \
+  --status --evidence-root /external/e0-android-v3
+```
+
+The tracked `raw/e0/android_campaign_v3/` directory is the completed archival copy for validation/finalization; the collection runner intentionally requires active campaign roots to be outside the repository.
 
 Install Caliper and the retained timing patch:
 

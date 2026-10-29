@@ -48,7 +48,7 @@
     "ECDSA-P-256": "prime256v1"
   },
   "e0_benchmark": {
-    "status": "server_measurement_complete_sanity_checker_unavailable_meter_pending",
+    "status": "server_and_android_measurements_complete_sanity_checker_unavailable_meter_pending",
     "server_environment": {
       "os": "Ubuntu 24.04.3 LTS",
       "kernel": "6.14.0-37-generic",
@@ -85,6 +85,101 @@
       "raw_samples": "raw/e0/",
       "run_log": "raw/e0/e0_server_run.log",
       "run_log_sha256": "5a67af85eac9fdb4c0d7c53528790051a8bf875b8cd7ffca0cccfcf8014c09dd"
+    },
+    "android_campaign": {
+      "status": "complete",
+      "separate_from_server_and_meter_sbc": true,
+      "methodology_identity": "E0-Android-v3",
+      "measurement_source_commit": "2b341f2ac687bd666e65cd2a76eac874e629f205",
+      "results_commit": "83538d578ff1d0670c9478fe2ba6bdf7f3560d8f",
+      "evidence_archive_commit": "b4a4a6d541eccdd43ae5199a7340c3b36f0c1d22",
+      "device": {
+        "manufacturer": "Xiaomi",
+        "model_name": "Redmi Note 9",
+        "model": "M2003J15SC",
+        "soc": "MediaTek Helio G85",
+        "android": "12",
+        "architecture": "aarch64",
+        "rooted": false,
+        "selected_cpu": 7,
+        "selected_core": "Cortex-A75",
+        "selected_cpu_max_mhz": 2000,
+        "cpu_governor": "schedutil",
+        "frequency_locked": false
+      },
+      "software": {
+        "go": "1.27.3",
+        "liboqs": "0.15.0",
+        "liboqs_go": "v0.15.0"
+      },
+      "execution": {
+        "registered_condition_count": 21,
+        "accepted_timings_per_condition": 1000,
+        "accepted_timings_total": 21000,
+        "accepted_block_count": 47,
+        "rejected_attempt_count": 0,
+        "warmup_operations_per_attempt": 100,
+        "benchmark_cpu_affinity": 7,
+        "frequency_sampler_cpu_affinity": 0,
+        "gomaxprocs": 1,
+        "timing_boundary": "cryptographic primitive API call only",
+        "stabilization_workload": "same primitive, uninterrupted, unmeasured",
+        "stabilization_minimum_seconds": 3,
+        "stabilization_consecutive_frequency_observations": 5,
+        "stabilization_rule": "max_frequency * 100 <= min_frequency * 102",
+        "frequency_sampling_interval_ms": 100,
+        "short_condition_monitoring_target_seconds": 6,
+        "short_condition_monitoring_target_status": "engineering parameter; not supervisor-specified",
+        "maximum_measurement_block_seconds": 60,
+        "frequency_ab_windows": "median of initial and final registered 10% observation windows",
+        "frequency_rejection_rule": "reject iff B < 0.9 * A; exactly 10% drop is accepted",
+        "normal_interblock_cooldown_seconds": 180,
+        "rejection_cooldown_escalation_seconds": [
+          180,
+          360,
+          720
+        ],
+        "aggregation": "accepted blocks until exactly 1000 genuine primitive timings per condition; rejected attempts are retained and contribute zero timings",
+        "percentile_method": "linear interpolation using rank p*(n-1)"
+      },
+      "telemetry": {
+        "frequency_source": "/sys/devices/system/cpu/cpu7/cpufreq/scaling_cur_freq",
+        "frequency_transport": "on-device sampler retrieved through ADB after each block",
+        "temperature_source": "CPU mType=0 values in Current temperatures from HAL",
+        "temperature_sampling": "immediately before and after each measurement block",
+        "temp_c_max_definition": "maximum available CPU HAL observation before or after accepted blocks; not a continuously sampled peak",
+        "frequency_gate_interpretation": "detects sustained frequency variation; does not by itself prove thermal throttling",
+        "direct_energy_measurement": false
+      },
+      "provenance": {
+        "campaign_path": "raw/e0/android_campaign_v3/",
+        "campaign_schema": "pqc-energy-trading.e0-android-campaign.v1",
+        "block_schema": "pqc-energy-trading.e0-android-block-attempt.v3",
+        "campaign_manifest": "raw/e0/android_campaign_v3/campaign.json",
+        "campaign_manifest_sha256": "c75bd63cc676c0333c6c7319f4858dd8ed738b2a703c78f41b130e49e7d0e27b",
+        "campaign_state": "raw/e0/android_campaign_v3/campaign_state.json",
+        "campaign_state_sha256": "6d390c6a7f84cd7cf7acfcafc3daa0604f8bb683445235a498053536eeda1517",
+        "campaign_integrity": "PASS",
+        "campaign_file_count": 519,
+        "block_manifest_count": 47,
+        "benchmark_sha256": "01598974d7304c62f25d9c8f9bb35c42499f27cd75cfde650527c8407ff1145c",
+        "frequency_sampler_sha256": "74d753aa0cd5cfb7373ff23b130323f270c5fbbba165a0e873caeda23956ea41",
+        "source_file_hashes": "recorded in the campaign manifest"
+      },
+      "outputs": {
+        "aggregate": "data/e0_android.csv",
+        "aggregate_sha256": "6aa1b3631c2cc8d84b6fb5e914660a0986b2cf3bc02c3448aa7a6f2718693500",
+        "aggregate_schema": "device,scheme,operation,n_iter,median_ms,p95_ms,p99_ms,stddev_ms,freq_mhz_median,freq_mhz_p05,freq_mhz_p95,temp_c_max",
+        "data_rows": 21,
+        "frequency_comparison": "data/e0_android_comparison.csv",
+        "frequency_comparison_sha256": "5a9a12d64fed7b495979a193b67157f329422a320021d3399863ad49fff2213e",
+        "frequency_comparison_schema": "device,platform,scheme,operation,freq_mhz_median,freq_mhz_p05,freq_mhz_p95,reference_scheme,reference_operation,freq_median_difference_percent,comparison_basis",
+        "frequency_comparison_scope": "like signature operations relative to ECDSA-P-256; KEM operations have no fabricated ECDSA comparison",
+        "raw_timing_pattern": "raw/e0/e0_android_<scheme>_<operation>.csv.gz",
+        "raw_timing_file_count": 21,
+        "raw_timing_schema": "iteration,elapsed_ms",
+        "raw_timings_per_file": 1000
+      }
     }
   },
   "meter": {
